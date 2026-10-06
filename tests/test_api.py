@@ -283,3 +283,51 @@ def test_start_with_fast_moves_waiting_jobs_to_fast(settings, corpus, web_dist, 
         done = wait(client, job["id"], {"done", "failed"})
     assert done["state"] == "done"
     assert done["options"]["preset"] == "fast"
+
+
+def test_malformed_upload_leaves_no_job_and_no_file(client, settings):
+    boundary = "b0undary"
+    body = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="a.wav"'
+        f"\r\n\r\n" + "x" * 5000 + f"\r\n--{boundary}\r\nBroken header line without colon"
+        f"\r\n\r\nmore\r\n--{boundary}--\r\n"
+    ).encode()
+    r = client.post(
+        "/api/jobs",
+        content=body,
+        headers={"content-type": f"multipart/form-data; boundary={boundary}"},
+    )
+    assert r.status_code == 400
+    assert client.get("/api/jobs").json() == []
+    assert list((settings.home / "uploads").iterdir()) == []
+
+
+def test_cancel_a_queued_job_and_cancel_twice(settings, corpus, web_dist):
+    with TestClient(
+        fake_app(settings, web_dist=web_dist, model_ready=lambda p: False), base_url=BASE
+    ) as client:
+        job = upload(client, corpus / "short-2s.wav").json()
+        wait(client, job["id"])
+        first = client.post(f"/api/jobs/{job['id']}/cancel")
+        second = client.post(f"/api/jobs/{job['id']}/cancel")
+    assert first.json()["state"] == "canceled"
+    assert second.status_code == 200
+    assert second.json()["state"] == "canceled"
+
+
+def test_cancel_a_finished_job_changes_nothing(client, corpus):
+    job = wait(client, upload(client, corpus / "short-2s.wav").json()["id"])
+    assert client.post(f"/api/jobs/{job['id']}/cancel").json()["state"] == "done"
+
+
+def test_event_stream_sends_keep_alives(live, monkeypatch):
+    monkeypatch.setattr("sukoon.api.KEEPALIVE_S", 0.2)
+    server = live()
+    lines = []
+    with httpx.stream("GET", f"{server.url}/api/events", timeout=10) as r:
+        for line in r.iter_lines():
+            lines.append(line)
+            if line == ": keep-alive":
+                break
+    assert lines[0] == "event: snapshot"
+    assert lines[-1] == ": keep-alive"
