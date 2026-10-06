@@ -69,7 +69,11 @@ class AudioSeparatorEngine:
         self.models_dir = models_dir
         self.files = files
         self.model: Path | None = None
-        self.scratch = Path(tempfile.mkdtemp(prefix="sukoon-engine-"))
+        # In the data folder's work area, which every start clears, so a killed worker's
+        # folder doesn't outlive the next start.
+        work = models_dir.parent / "work"
+        work.mkdir(parents=True, exist_ok=True)
+        self.scratch = Path(tempfile.mkdtemp(prefix="engine-", dir=work))
         self.gpu: Any = None
         self.cpu: Any = None
 
