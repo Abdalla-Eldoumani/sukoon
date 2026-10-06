@@ -125,8 +125,8 @@ Every failure below fails the link job with the sentence shown, inline on its ro
 ### Too long or too big
 **Scenario:** more than 6 hours, or an estimated size over 8 GB (from the file sizes the site gives, or the bitrate times the duration).
 **Frequency:** rare. **Impact:** disk and patience.
-**Handling:** refused from the metadata: "This video is longer than 6 hours, which is sukoon's limit." or "This video is bigger than 8 GB, which is sukoon's limit." The limits are the same ones uploads have.
-**Verification:** unit tests on `refusal()`.
+**Handling:** refused from the metadata: "This video is longer than 6 hours, which is sukoon's limit." or "This video is bigger than 8 GB, which is sukoon's limit." The limits are the same ones uploads have. A site that gives no size up front is held to the same limit while the bytes arrive: the download stops with the same sentence once it passes 8 GB.
+**Verification:** unit tests on `refusal()`; a test with a stand-in downloader that reports more than the limit and is stopped.
 
 ### DRM, or a stream sukoon doesn't fetch
 **Scenario:** the formats are copy-protected, or offered only over a protocol yt-dlp would hand to another program (RTMP, for example).
@@ -141,16 +141,22 @@ Every failure below fails the link job with the sentence shown, inline on its ro
 **Verification:** unit test on `explain()` with yt-dlp's DNS failure text.
 
 ### Out-of-date reader
-**Scenario:** the site changed its pages and the pinned yt-dlp can no longer read them, or the site turned away a request that did not come from a browser (TikTok does this today).
+**Scenario:** the site changed its pages and the pinned yt-dlp can no longer read them.
 **Frequency:** common over months. **Impact:** links from that site stop working.
-**Handling:** "yt-dlp couldn't read this TikTok page. Its reader may be out of date, or TikTok turned the request away. To update it, run: uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync". `sukoon doctor` warns once yt-dlp is 60 days old. Nothing updates itself.
+**Handling:** "yt-dlp couldn't read this Vimeo page. Its reader may be out of date, or Vimeo turned the request away. To update it, run: uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync". The site's name changes with the link. `sukoon doctor` warns once yt-dlp is 60 days old. Nothing updates itself.
 **Verification:** unit test on `explain()` with yt-dlp's "please report this issue" wording; doctor tests on the age line.
+
+### Turned away
+**Scenario:** the site answers with something other than its page, as TikTok does today for requests that don't come from a browser.
+**Frequency:** common on that site. **Impact:** nothing to fetch, and a newer yt-dlp reads it no better.
+**Handling:** "TikTok turned the request away, as it does with many requests that don't come from a browser. Save the video another way and drop the file here."
+**Verification:** unit test on `explain()` with yt-dlp's "Unexpected response from webpage request"; the live TikTok test is an expected failure with this reason.
 
 ### A post that links somewhere else
 **Scenario:** a Reddit or X post whose video lives on another site.
 **Frequency:** rare but real. **Impact:** traffic to a site the user did not paste.
-**Handling:** only the pasted site's extractors may run, so the hop is refused: "This post points to a video on another site. Open it there and paste that link."
-**Verification:** unit test on `explain()`.
+**Handling:** every address yt-dlp is asked to read, the pasted one and any a post hands on (an X card's t.co link, for one), is checked against the list of sites first, and only the pasted site's extractors may run, so the hop is refused before any request: "This post points to a video on another site. Open it there and paste that link."
+**Verification:** unit test on `explain()`; offline tests that the downloader refuses t.co, an unlisted site, and `http` before making a request.
 
 ### A fetch that hangs or crashes
 **Scenario:** yt-dlp stops making progress, or its process dies.
