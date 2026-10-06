@@ -11,7 +11,7 @@ import uuid
 import webbrowser
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sukoon import doctor
 from sukoon.compat import VIDEO_CONTAINERS
@@ -93,49 +93,85 @@ def free_name(folder: Path, name: str) -> Path:
 
 
 def clean(
-    files: Sequence[Path],
+    files: Sequence[Path | str],
     out_dir: Path | None,
     options: "Options",
     engine: "Engine",
     settings: Settings,
     out: Callable[[str], None] = print,
+    fetch_options: dict[str, Any] | None = None,
 ) -> int:
-    """The browser's pipeline, run from the terminal one file at a time. 1 if any file failed."""
-    from sukoon import pipeline
+    """The browser's pipeline, run from the terminal one file or link at a time.
+
+    Returns 1 if anything failed. A link is fetched first and its result lands in `out_dir`,
+    or the current folder.
+    """
+    from dataclasses import replace
+
+    from sukoon import links, pipeline
     from sukoon.chunk import separate_chunked
     from sukoon.models import ModelChecksumError, ModelMissingError
-    from sukoon.naming import download_name
+    from sukoon.naming import SUFFIX, download_name
     from sukoon.probe import probe
 
     settings.ensure_dirs()
-    try:
-        engine.prepare(options.preset, options.device)
-    except (ModelChecksumError, ModelMissingError, ImportError) as exc:
-        out(str(exc))
-        return 1
+    if not options.keep_music:
+        try:
+            engine.prepare(options.preset, options.device)
+        except (ModelChecksumError, ModelMissingError, ImportError) as exc:
+            out(str(exc))
+            return 1
     failed = 0
-    for path in files:
+    for item in files:
         job = str(uuid.uuid4())
         work, staging = settings.job_path("work", job), settings.job_path("outputs", job)
+        fetched = settings.job_path("uploads", job)
+        label = item if isinstance(item, str) else item.name
 
-        def progress(stage: str, fraction: float, eta: float | None, name: str = path.name) -> None:
+        def progress(stage: str, fraction: float, eta: float | None, name: str = label) -> None:
             left = f"  {int(eta) // 60}:{int(eta) % 60:02d} left" if eta is not None else ""
             sys.stderr.write(f"\r{name}  {stage.capitalize():<10} {fraction * 100:5.1f}%{left}   ")
             sys.stderr.flush()
 
+        def fetching(done: int, total: int | None, name: str = label) -> None:
+            of = f" of {total / 1e6:.0f}" if total else ""
+            sys.stderr.write(f"\r{name}  Fetching   {done / 1e6:.1f}{of} MB   ")
+            sys.stderr.flush()
+
         try:
+            chosen = options
+            if isinstance(item, str):
+                links.site(item)
+                got = links.fetch(
+                    item,
+                    fetched,
+                    fetching,
+                    lambda: False,
+                    settings.max_duration_s,
+                    settings.max_upload_bytes,
+                    **(fetch_options or {}),
+                )
+                path = links.assemble(fetched, got.parts, lambda: False)
+                name, home = f"{got.title}{path.suffix}", Path.cwd()
+            else:
+                path, name, home = item, item.name, item.parent
+            checked = probe(path, settings.max_duration_s)
+            if isinstance(item, str) and options.format is None:
+                # A link becomes a file that plays everywhere unless something else was chosen.
+                chosen = replace(options, format="mp4" if checked.kind == "video" else "m4a")
             result = pipeline.run(
                 path,
-                probe(path, settings.max_duration_s),
-                options,
+                checked,
+                chosen,
                 functools.partial(separate_chunked, engine),
                 lambda: False,
                 progress,
                 work,
                 staging,
             )
+            suffix = "" if options.keep_music else SUFFIX
             target = free_name(
-                out_dir or path.parent, download_name(path.name, pipeline.extension(result.format))
+                out_dir or home, download_name(name, pipeline.extension(result.format), suffix)
             )
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(staging / result.output, target)
@@ -146,10 +182,11 @@ def clean(
         # Anything else that goes wrong (an ffmpeg or engine error) fails this file, not the run.
         except Exception as exc:
             sys.stderr.write("\n")
-            out(f"{path.name}: {getattr(exc, 'message', None) or exc}")
+            out(f"{label}: {getattr(exc, 'message', None) or exc}")
             failed += 1
         finally:
             shutil.rmtree(staging, ignore_errors=True)
+            shutil.rmtree(fetched, ignore_errors=True)
     return 1 if failed else 0
 
 
@@ -186,7 +223,7 @@ def run_clean(args: argparse.Namespace, settings: Settings) -> int:
     from sukoon.pipeline import Options
 
     models_dir = settings.area("models")
-    if not ready_to_separate(models_dir, args.preset):
+    if not args.keep_music and not ready_to_separate(models_dir, args.preset):
         return 1
     options = Options(
         preset=args.preset,
@@ -194,9 +231,10 @@ def run_clean(args: argparse.Namespace, settings: Settings) -> int:
         format=args.format,
         track=None if args.track is None else args.track - 1,
         reencode_ok=args.allow_reencode,
+        keep_music=args.keep_music,
     )
     return clean(
-        [Path(f) for f in args.files],
+        [f if "://" in f else Path(f) for f in args.files],
         args.out and Path(args.out),
         options,
         AudioSeparatorEngine(models_dir),
@@ -238,11 +276,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("serve", help="start the app (the default)", parents=[browser])
     sub.add_parser("doctor", help="check ffmpeg, torch, disk space, and models")
-    clean_p = sub.add_parser("clean", help="remove the music from files in the terminal")
+    clean_p = sub.add_parser("clean", help="remove the music from files or links in the terminal")
     bench_p = sub.add_parser("bench", help="time separation on a 30 second clip")
     bench_p.add_argument("--preset", choices=["best", "fast"], default="best")
     bench_p.add_argument("--device", choices=["auto", "cpu"], default="auto")
-    clean_p.add_argument("files", nargs="+")
+    clean_p.add_argument("files", nargs="+", help="files, or links from the sites the app takes")
     clean_p.add_argument("--preset", choices=["best", "fast"], default="best")
     clean_p.add_argument("--device", choices=["auto", "cpu"], default="auto")
     clean_p.add_argument(
@@ -258,7 +296,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="re-encode the picture when the chosen container needs it",
     )
-    clean_p.add_argument("--out", help="folder for the results (default: next to each input)")
+    clean_p.add_argument(
+        "--keep-music", action="store_true", help="download only: convert, keep the music"
+    )
+    clean_p.add_argument(
+        "--out", help="folder for the results (default: next to each file, or here for links)"
+    )
     args = parser.parse_args(argv)
 
     settings = Settings()
