@@ -93,6 +93,7 @@ class Services:
     model_listeners: list[Callable[[dict[str, object]], None]] = field(default_factory=list)
     # Tests put a stand-in downloader here.
     fetch_options: dict[str, Any] = field(default_factory=dict)
+    fetches: dict[str, threading.Thread] = field(default_factory=dict)
 
     def available_encoders(self) -> set[str]:
         # Listed once; again only if ffmpeg was missing at startup and has appeared since.
@@ -403,7 +404,15 @@ def build_router(services: Services) -> APIRouter:
     def retry(job_id: str) -> dict[str, Any]:
         job = job_or_404(job_id)
         if job["link"] and job["probe"] is None:
-            # The fetch never finished, so it starts again.
+            # The fetch never finished, so it starts again, once the last one has let go of the
+            # folder: it only notices a Cancel when it next looks, and its child takes a moment.
+            last = services.fetches.get(job_id)
+            if last is not None:
+                last.join(timeout=10)
+                if last.is_alive():
+                    raise HTTPException(
+                        409, "The last download is still stopping. Retry in a moment."
+                    )
             try:
                 runner.retry(job_id, "fetching")
             except RunnerError as exc:
@@ -646,9 +655,11 @@ def check_upload(services: Services, job_id: str, source: Path, size: int) -> Jo
 
 
 def start_fetch(services: Services, job_id: str) -> None:
-    threading.Thread(
+    thread = threading.Thread(
         target=run_fetch, args=(services, job_id), daemon=True, name="sukoon-fetch"
-    ).start()
+    )
+    services.fetches[job_id] = thread
+    thread.start()
 
 
 def run_fetch(services: Services, job_id: str) -> None:
