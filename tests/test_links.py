@@ -27,10 +27,13 @@ from sukoon.links import (
     STALLED,
     UPDATE,
     LinkRefused,
+    assemble,
     explain,
     fetch,
+    guarded,
     refusal,
     site,
+    ytdl_options,
 )
 from sukoon.probe import PLAYLIST as PLAYLIST_FILE
 from tests.conftest import BASE, fake_app
@@ -183,7 +186,14 @@ def test_an_ordinary_video_passes_the_metadata_checks():
             "ERROR: [TikTok] 1: Unexpected response from webpage request; please report this "
             "issue on https://github.com/yt-dlp/yt-dlp/issues",
             "tiktok",
-            "yt-dlp couldn't read this TikTok page. Its reader may be out of date, or TikTok "
+            "TikTok turned the request away, as it does with many requests that don't come "
+            "from a browser. Save the video another way and drop the file here.",
+        ),
+        (
+            "ERROR: [vimeo] 1: Unable to extract video data; please report this issue on "
+            "https://github.com/yt-dlp/yt-dlp/issues",
+            "vimeo",
+            "yt-dlp couldn't read this Vimeo page. Its reader may be out of date, or Vimeo "
             "turned the request away. To update it, run: uv lock --upgrade-package yt-dlp "
             "--upgrade-package yt-dlp-ejs && uv sync",
         ),
@@ -202,6 +212,16 @@ def test_a_geo_block_is_a_region_sentence_whatever_its_wording():
     assert explain("ERROR: [youtube] abc: blocked", "youtube", geo=True) == REGION
 
 
+@pytest.mark.parametrize(
+    "elsewhere", ["https://t.co/abc123", "https://news.example/story", "http://x.com/a/status/1"]
+)
+def test_the_downloader_reads_no_address_off_the_list(tmp_path, elsewhere):
+    # An X card hands yt-dlp its t.co link, and t.co redirects to the linked site.
+    with guarded(ytdl_options("twitter", tmp_path)) as ydl, pytest.raises(LinkRefused) as refused:
+        ydl.extract_info(elsewhere, download=False)
+    assert refused.value.message == ELSEWHERE
+
+
 def fake_fetch(url, folder, outbox, max_seconds, max_bytes):
     """The downloader seam: acts out what the link's last word asks for, with fixture files."""
     folder = Path(folder)
@@ -210,6 +230,9 @@ def fake_fetch(url, folder, outbox, max_seconds, max_bytes):
         time.sleep(120)
     if what == "crash":
         os._exit(3)
+    if what == "huge":
+        outbox.put(("progress", (max_bytes + 1, None)))
+        time.sleep(120)
     if what == "private":
         outbox.put(("error", PRIVATE))
         return
@@ -228,6 +251,10 @@ def fake_fetch(url, folder, outbox, max_seconds, max_bytes):
         )
         shutil.copy(GENERATED / name, folder / f"part0{Path(name).suffix}")
     outbox.put(("progress", (500, 1000)))
+    if what == "slow":
+        time.sleep(3)
+        with open(folder.parent / "finished.txt", "a") as log:
+            log.write("one\n")
     outbox.put(("progress", (1000, 1000)))
     outbox.put(("done", sorted(str(p) for p in folder.glob("part*"))))
 
@@ -344,6 +371,17 @@ def test_cancel_stops_the_download_at_once(links_client, settings):
     assert not settings.job_path("uploads", job["id"]).exists()
 
 
+def test_retry_right_after_cancel_runs_one_download(links_client, settings):
+    # The old download only notices Cancel when it next looks, up to 0.2 s later.
+    job = link(links_client, "slow")
+    time.sleep(1)
+    links_client.post(f"/api/jobs/{job['id']}/cancel")
+    assert links_client.post(f"/api/jobs/{job['id']}/retry").status_code == 200
+    assert wait(links_client, job["id"])["state"] == "done"
+    finished = settings.job_path("uploads", job["id"]).parent / "finished.txt"
+    assert finished.read_text().splitlines() == ["one"]
+
+
 def test_a_refused_link_never_becomes_a_job(links_client):
     r = links_client.post("/api/links", json={"url": "https://youtube.com.evil.example/watch?v=x"})
     assert r.status_code == 400
@@ -363,6 +401,29 @@ def test_a_silent_download_fails_the_job(tmp_path):
             target=fake_fetch,
             stall_s=2,
         )
+
+
+def test_a_download_that_outgrows_the_limit_is_stopped(tmp_path):
+    # A site may give no size or bitrate up front, so the limit is also held while it arrives.
+    started = time.monotonic()
+    with pytest.raises(JobError) as stopped:
+        fetch(
+            "https://www.youtube.com/watch?v=huge",
+            tmp_path,
+            lambda done, total: None,
+            lambda: False,
+            SIX_HOURS,
+            512 * 1024**2,
+            target=fake_fetch,
+        )
+    assert str(stopped.value) == "This video is bigger than 0.5 GB, which is sukoon's limit."
+    assert time.monotonic() - started < 60
+
+
+def test_a_part_keeps_its_extension_only_if_an_upload_could(tmp_path):
+    part = tmp_path / "part0.weird"
+    shutil.copy(GENERATED / "offset-0.5s.mp4", part)
+    assert assemble(tmp_path, [part], lambda: False).name == "source"
 
 
 def test_a_crashed_download_fails_the_job(tmp_path):
