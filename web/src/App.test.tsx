@@ -114,4 +114,29 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Best' })).toHaveAttribute('aria-checked', 'true'))
     expect(screen.getByRole('radio', { name: 'CPU' })).toHaveAttribute('aria-checked', 'true')
   })
+
+  it('says so when the server refuses to start a model download', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const json = (body: unknown, status = 200) =>
+          new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+        if (url.includes('/download')) return json({ error: 'A download is already running.' }, 409)
+        if (url.endsWith('/api/health')) return json({ status: 'ok', version: '0.1.0', device: 'CPU', ffmpeg: { ok: true, install: '' } })
+        if (url.endsWith('/api/settings') && init?.method !== 'PUT') {
+          return json({ preset: 'best', device: 'auto', audio_format: null, video_format: null, missing: {}, folder: '/data' })
+        }
+        return json({ jobs: 0, models: 0 })
+      }),
+    )
+    render(<App />)
+    act(() =>
+      FakeEventSource.last!.emit('snapshot', {
+        jobs: [job({ state: 'waiting_model' })],
+        models: [model({ preset: 'best' }), model({ preset: 'fast' })],
+      }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: /Download Best/ }))
+    expect(await screen.findByText('A download is already running.')).toBeInTheDocument()
+  })
 })
