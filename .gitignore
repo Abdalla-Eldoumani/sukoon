@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+dist/
+build/
+web/dist/
+src/sukoon/web_dist/
+tests/fixtures/generated/
+.env
+.env.*
+.DS_Store
+*.log
