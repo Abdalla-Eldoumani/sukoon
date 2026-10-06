@@ -2,6 +2,17 @@ export interface Health {
   status: string
   version: string
   device: string
+  ffmpeg: { ok: boolean; install: string }
+}
+
+export interface Settings {
+  preset: 'best' | 'fast'
+  device: 'auto' | 'cpu'
+  audio_format: string | null
+  video_format: string | null
+  /** Formats this ffmpeg cannot write, with the encoder each one needs. */
+  missing: Record<string, string>
+  folder: string
 }
 
 /** A fetch that turns the server's error body into an Error with its sentence. */
@@ -28,6 +39,14 @@ export async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
 export function postJson<T>(path: string, body: unknown = {}): Promise<T> {
   return getJson<T>(path, {
     method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+export function putJson<T>(path: string, body: unknown): Promise<T> {
+  return getJson<T>(path, {
+    method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
