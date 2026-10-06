@@ -1,0 +1,3 @@
+# 2. The output keeps every voice, singing included
+
+"Remove the music" could mean remove instruments, or remove anything musical, including singing. The models available split a recording into voice and everything else; none of them reliably separate speech from singing, humming, or vocal percussion. sukoon therefore keeps every human voice and removes instruments, along with most non-voice sounds such as ambience and effects. This is stated in the interface and the README so nobody expects otherwise. Revisit if a speech-versus-singing separator with published quality numbers becomes available.
