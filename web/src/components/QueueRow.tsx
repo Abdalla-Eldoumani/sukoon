@@ -117,7 +117,12 @@ export function QueueRow({ job, actions, problem = null, arriving = false, selec
                 className="btn-quiet btn-icon"
                 aria-label={`Delete ${job.name}`}
                 title="Delete"
-                onClick={() => (job.state === 'done' ? setConfirming(true) : actions.remove(job))}
+                onClick={(e) => {
+                  // A queued job stops at once, so this lands under the second click of a double click on Cancel.
+                  if (e.detail > 1) return
+                  if (job.state === 'done') setConfirming(true)
+                  else actions.remove(job)
+                }}
               >
                 <DeleteIcon />
               </button>
