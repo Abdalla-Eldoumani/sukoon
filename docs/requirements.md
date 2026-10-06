@@ -83,7 +83,7 @@ Acceptance: for each container pair in the test matrix, ffprobe shows the expect
 
 - **Privacy.** Server binds to `127.0.0.1` only. No analytics, no crash reporting, no fonts or scripts from a CDN. The only outbound requests are model downloads from the pinned addresses.
 - **Security.** Requests with a `Host` header other than `127.0.0.1:<port>` or `localhost:<port>` are refused, which stops DNS-rebinding. State-changing requests whose `Origin` is not the app's own are refused, which stops other websites posting to the local server. ffmpeg runs with argument lists, never a shell, with its protocols limited to local files and pipes. Stored files use generated IDs, never user-supplied names.
-- **Performance.** On an RTX 3060 Laptop GPU (6 GB) the target is at least 10 times faster than real time with Best. This has not been measured yet and is checked on that hardware before release. Measured on a two-core CPU sandbox on 2026-10-05: Fast ran at 0.45 times real time and Best at 0.2 times.
+- **Performance.** On an RTX 3060 Laptop GPU (6 GB) the target is at least 10 times faster than real time with Best. Measured on 2026-10-06: Best ran at 6.7 times real time on that GPU, short of the target but enough for one user (an hour of audio in about 9 minutes). Fast runs on the CPU, at 1.1 times real time on the same laptop and 0.45 times on a two-core sandbox.
 - **Accessibility.** WCAG 2.2 AA contrast, full keyboard path through drop, queue, player, and download, visible focus, `prefers-reduced-motion` respected, screen-reader names on every control, progress announced politely.
 - **Browsers.** Current Chrome, Edge, Firefox, Safari.
 - **Platforms.** Windows 10 and 11 (primary), macOS on Apple Silicon, Linux. Python 3.12.
