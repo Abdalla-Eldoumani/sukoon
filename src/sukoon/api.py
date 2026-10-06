@@ -121,7 +121,12 @@ def public(job: Job) -> dict[str, Any]:
         if job["state"] == "awaiting_confirm" and options.format in compat.VIDEO_CONTAINERS:
             confirm = compat.plan(probe_, track, options.format).confirm_message
     tracks = [
-        {"language": s.get("language"), "title": s.get("title"), "channels": s.get("channels")}
+        {
+            "language": s.get("language"),
+            "title": s.get("title"),
+            "channels": s.get("channels"),
+            "default": s.get("default", False),
+        }
         for s in p.get("streams", [])
         if s.get("codec_type") == "audio"
     ]
@@ -271,10 +276,9 @@ def build_router(services: Services) -> APIRouter:
                 reencode_ok=body.confirm or (old.reencode_ok and fmt == old.format),
             )
             target = next_state(p, options)
+            # A format change alone does not answer the track question.
             if job["state"] == "awaiting_track" and body.track is None:
-                target = (
-                    "awaiting_track"  # A format change alone does not answer the track question.
-                )
+                target = "awaiting_track"
             if target == job["state"]:
                 job = store.update(job_id, options=options.to_json())
             else:
@@ -284,9 +288,15 @@ def build_router(services: Services) -> APIRouter:
 
     @router.post("/jobs/{job_id}/retry")
     def retry(job_id: str) -> dict[str, Any]:
-        job_or_404(job_id)
+        job = job_or_404(job_id)
+        target = "queued"
+        if job["probe"]:
+            p, options = Probe.from_json(job["probe"]), Options(**job["options"])
+            target = next_state(p, options)
+            if len(p.audio) > 1 and options.track is None:
+                target = "awaiting_track"
         try:
-            runner.retry(job_id)
+            runner.retry(job_id, target)
         except RunnerError as exc:
             raise HTTPException(409, str(exc)) from None
         return public(store.get(job_id))
@@ -463,10 +473,14 @@ def check_upload(services: Services, job_id: str, source: Path, size: int) -> Jo
         shutil.rmtree(source.parent, ignore_errors=True)
         return store.transition(job_id, "failed", error=str(exc), retryable=False)
     options = replace(options, format=fmt)
-    store.update(job_id, probe=result.to_json(), kind=result.kind, options=options.to_json())
-    if len(result.audio) > 1:
-        return store.transition(job_id, "awaiting_track")
-    job = store.transition(job_id, next_state(result, options))
+    with services.runner.lock:
+        if store.get(job_id)["state"] != "checking":
+            # Cancelled while it was being probed.
+            shutil.rmtree(source.parent, ignore_errors=True)
+            return store.get(job_id)
+        store.update(job_id, probe=result.to_json(), kind=result.kind, options=options.to_json())
+        target = "awaiting_track" if len(result.audio) > 1 else next_state(result, options)
+        job = store.transition(job_id, target)
     services.runner.notify()
     return job
 
