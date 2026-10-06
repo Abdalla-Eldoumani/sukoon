@@ -16,7 +16,7 @@ uv run sukoon --no-browser      # same, without opening the browser
 uv run sukoon doctor            # checks ffmpeg, encoders, torch, disk space, and models
 ```
 
-`uv sync` has not been run on the machine this version was built on, because PyTorch's download host was unreachable there. The other commands were run, from a virtual environment holding every dependency except torch and audio-separator.
+The `uv sync` step is the one command above not yet confirmed on a clean machine.
 
 To work on the interface with live reload, run `uv run sukoon --no-browser` in one terminal and `npm --prefix web run dev` in another, then open the address Vite prints.
 
