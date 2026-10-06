@@ -51,8 +51,18 @@ environments = [
 ]
 
 [tool.uv.sources]
-torch = [{ index = "pytorch-cpu", extra = "cpu" }, { index = "pytorch-cu126", extra = "cuda" }]
-torchvision = [{ index = "pytorch-cpu", extra = "cpu" }, { index = "pytorch-cu126", extra = "cuda" }]
+# The CUDA index has no macOS wheels; there the cuda extra takes the CPU build, which includes MPS.
+# torch and torchvision always come from the same index.
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu126", extra = "cuda", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cpu", extra = "cuda", marker = "sys_platform == 'darwin'" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu126", extra = "cuda", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cpu", extra = "cuda", marker = "sys_platform == 'darwin'" },
+]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
