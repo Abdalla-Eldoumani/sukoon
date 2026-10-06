@@ -72,7 +72,8 @@ class AudioSeparatorEngine:
     def _separator(self, force_cpu: bool) -> Any:
         from audio_separator.separator import Separator
 
-        assert self.model is not None, "prepare() must run first"
+        if self.model is None:
+            raise RuntimeError("prepare() must run before separate()")
         sep = Separator(
             output_dir=str(self.scratch),
             model_file_dir=str(self.models_dir),
