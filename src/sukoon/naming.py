@@ -7,7 +7,7 @@ SUFFIX = " (no music)"
 
 
 def download_name(original: str, ext: str) -> str:
-    """The name a finished file is offered under; never used on disk."""
+    """The name a finished file is offered under. The app never stores files by it; `clean` does."""
     stem = original.rsplit(".", 1)[0] if "." in original else original
     stem = _RESERVED.sub("-", stem).rstrip(". ")[:MAX_STEM].rstrip(". ")
     return f"{stem or 'sukoon'}{SUFFIX}.{ext}"
