@@ -1,0 +1,38 @@
+.bar {
+  height: 56px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.inner {
+  max-width: calc(960px + 2 * var(--gutter));
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+
+.wordmark {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+  font-stretch: 112%;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  color: var(--text-2);
+  min-width: 0;
+}
+
+.status > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

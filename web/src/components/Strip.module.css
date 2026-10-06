@@ -1,0 +1,48 @@
+.strip {
+  position: relative;
+  height: 133px; /* 20px ruler, two 56px lanes, 1px centre line */
+  cursor: pointer;
+  touch-action: none;
+  border-radius: var(--r-sm);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.voiceLabel,
+.removedLabel {
+  position: absolute;
+  left: var(--s2);
+  color: var(--text-2);
+  pointer-events: none;
+}
+
+.voiceLabel {
+  top: calc(20px + var(--s1));
+}
+
+.removedLabel {
+  bottom: var(--s1);
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--text);
+  pointer-events: none;
+}
+
+.playhead::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: -3px;
+  width: 6px;
+  height: 6px;
+  background: var(--text);
+}

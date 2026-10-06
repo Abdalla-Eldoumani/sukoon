@@ -1,0 +1,49 @@
+.transport {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+
+.total {
+  color: var(--text-2);
+}
+
+.compare {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-left: auto;
+}
+
+.switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  background: var(--raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-2);
+  border-radius: var(--r-sm);
+  transition: transform var(--d-detent) var(--ease-out);
+}
+
+.switch[aria-checked='true'] .knob {
+  transform: translateX(20px);
+  background: var(--text);
+}
+
+.switch:hover .knob {
+  background: var(--text);
+}

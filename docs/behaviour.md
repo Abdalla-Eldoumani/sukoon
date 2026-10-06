@@ -235,7 +235,7 @@ Each case says what happens, how often it is likely, and how the app handles it.
 ### Compare playback drift
 **Scenario:** the cleaned and original audio elements play side by side for minutes.
 **Frequency:** common. **Impact:** the compare switch jumps.
-**Handling:** both audio previews come from the same decoded timeline. The muted one follows the audible one: every 250 ms, if they differ by more than 40 ms, the follower's `currentTime` is set. Video, when present, is the clock and both audio elements follow it.
+**Handling:** both audio previews come from the same decoded timeline. The muted one follows the audible one: every 250 ms, if they differ by more than 40 ms, the follower's `currentTime` is set. A seek takes time to land, so each follower learns from where its last correction landed how far ahead to aim, up to 250 ms; a jump bigger than that is the user seeking and teaches nothing. Video, when present, is the clock and both audio elements follow it.
 **Verification:** component test with fake media elements advancing at different rates.
 
 ### Keyboard and screen reader
