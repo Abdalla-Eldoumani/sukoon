@@ -24,7 +24,7 @@ export function App() {
           on this computer.
         </p>
       </main>
-      {dragging && <div className={styles.frame} aria-hidden="true" />}
+      {dragging && <div className={styles.frame} aria-hidden="true" data-testid="drag-frame" />}
     </>
   )
 }
