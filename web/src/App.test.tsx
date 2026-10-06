@@ -66,4 +66,14 @@ describe('App', () => {
     )
     expect(screen.getByRole('button', { name: 'Download Best (913 MB)' })).toBeInTheDocument()
   })
+
+  it('slides in only the rows that arrive after the page loaded', () => {
+    serveHealth('CPU')
+    render(<App />)
+    act(() => FakeEventSource.last!.emit('snapshot', { jobs: [job({ id: 'old' })], models: [] }))
+    act(() => FakeEventSource.last!.emit('job', job({ id: 'new', name: 'new.mp3', created: 2 })))
+    const [old, added] = screen.getAllByRole('listitem')
+    expect(old.className).not.toMatch(/arriving/)
+    expect(added.className).toMatch(/arriving/)
+  })
 })
