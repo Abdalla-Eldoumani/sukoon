@@ -20,7 +20,6 @@ log = logging.getLogger("sukoon")
 
 WAITING = {"checking", "queued", "waiting_model", "awaiting_track", "awaiting_confirm"}
 STALE_PART_S = 3600
-ETA_SMOOTHING = 0.5
 
 
 class RunnerError(Exception):
@@ -181,25 +180,14 @@ class Runner:
         options = Options(**job["options"])
         out_dir = self.settings.job_path("outputs", job_id)
         current_stage, shown = "decoding", 0.0
-        chunk_started, per_chunk = time.monotonic(), 0.0
 
-        def progress(stage: str, fraction: float, done: int, total: int) -> None:
-            nonlocal current_stage, shown, chunk_started, per_chunk
-            now = time.monotonic()
+        def progress(stage: str, fraction: float, eta: float | None) -> None:
+            nonlocal current_stage, shown
             if stage != current_stage:
-                # The estimate covers separation; encoding is short and has none.
                 self.store.transition(job_id, stage, stage=stage, progress=fraction, eta=None)
-                current_stage, shown, chunk_started = stage, fraction, now
-            elif stage == "separating" and done:
-                # Smoothed seconds per chunk; the estimate shows from the first finished chunk.
-                took = now - chunk_started
-                per_chunk = (
-                    took
-                    if not per_chunk
-                    else (ETA_SMOOTHING * took + (1 - ETA_SMOOTHING) * per_chunk)
-                )
-                chunk_started = now
-                self.store.update(job_id, progress=fraction, eta=(total - done) * per_chunk)
+                current_stage, shown = stage, fraction
+            elif eta is not None:
+                self.store.update(job_id, progress=fraction, eta=eta)
                 shown = fraction
             elif fraction - shown >= 0.005 or fraction == 1.0:
                 self.store.update(job_id, progress=fraction)
