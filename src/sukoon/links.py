@@ -71,6 +71,10 @@ OUTDATED = (
 STALLED = "The download made no progress for 10 minutes, so it was stopped."
 CRASHED = "The download stopped unexpectedly."
 STREAM = "This video is only offered as a kind of stream sukoon doesn't fetch."
+SILENT = (
+    "{name} sent this video without its sound, so there is nothing to clean. Some sites hold "
+    "the sound back from people who aren't signed in."
+)
 
 # What a link becomes: H.264 and AAC up to 1080p where offered, so MP4 copies it as it is.
 # Video and audio come as separate parts, never merged by yt-dlp; sukoon checks and joins them.
