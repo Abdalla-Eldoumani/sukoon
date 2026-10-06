@@ -24,7 +24,7 @@ It does not edit, trim, transcribe, or separate one voice from another. You're r
 
 ### Windows
 
-In Git Bash:
+In Git Bash. These steps were checked from `git clone` on, on a machine that already had the four winget packages.
 
 ```bash
 winget install astral-sh.uv
@@ -51,6 +51,8 @@ uv run python scripts/build_web.py
 ```
 
 ### Linux
+
+Not tried on a Linux desktop yet; the automated checks run on Ubuntu 24.04.
 
 ```bash
 sudo apt install ffmpeg
@@ -178,7 +180,7 @@ npm --prefix web run build
 The tests generate their own media into `tests/fixtures/generated/` the first time they run (they need ffmpeg and `espeak-ng`). They use a stand-in engine instead of the real models. Two more sets are left out by default:
 
 ```bash
-uv run pytest -q -m slow                         # a 70-minute file through the separation worker
+uv run pytest -q -m slow                         # a 70-minute file through the separation worker; Linux only (reads /proc)
 SUKOON_TEST_MODELS=1 uv run pytest -q -m model   # the real models; downloads about 1 GB
 ```
 
