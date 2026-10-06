@@ -82,10 +82,11 @@ def decode(
         frames = sf.info(str(out_wav)).frames
     except RuntimeError:
         frames = 0
-    result = Decoded(frames, frames / RATE, expected)
-    if result.seconds < expected * 0.5:
-        if frames == 0:
-            raise JobError("The audio in this file couldn't be decoded.")
+    # A length guessed from the bitrate shrinks with a cut file too, so it can't show damage.
+    result = Decoded(frames, frames / RATE, frames / RATE if probe.estimated else expected)
+    if frames == 0:
+        raise JobError("The audio in this file couldn't be decoded.")
+    if result.seconds < result.expected * 0.5:
         raise JobError(
             f"The source file is damaged after {mmss(result.seconds)}, too early to be useful."
         )
