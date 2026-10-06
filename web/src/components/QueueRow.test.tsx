@@ -1,14 +1,17 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { job } from '../test/fixtures'
 import { QueueRow } from './QueueRow'
 
-function row(fields: Parameters<typeof job>[0]) {
-  return render(
+function row(fields: Parameters<typeof job>[0], problem: string | null = null) {
+  const actions = { cancel: vi.fn(), retry: vi.fn(), remove: vi.fn() }
+  render(
     <ul>
-      <QueueRow job={job(fields)} />
+      <QueueRow job={job(fields)} actions={actions} problem={problem} />
     </ul>,
   )
+  return actions
 }
 
 describe('QueueRow', () => {
@@ -48,5 +51,47 @@ describe('QueueRow', () => {
     const name = `${'very long episode title '.repeat(4)}12.mkv`
     row({ name, kind: 'video' })
     expect(screen.getByTitle(name).textContent).toContain('…')
+  })
+
+  it('shows the time left once the server has an estimate', () => {
+    row({ state: 'separating', progress: 0.3, eta: 134 })
+    expect(screen.getByTitle('Time left')).toHaveTextContent('2:14')
+  })
+
+  it('cancels a running job', async () => {
+    const actions = row({ state: 'separating', progress: 0.3 })
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel lecture.mp3' }))
+    expect(actions.cancel).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: /Delete/ })).toBeNull()
+  })
+
+  it('offers retry and delete after a failure', async () => {
+    const actions = row({ state: 'interrupted' })
+    await userEvent.click(screen.getByRole('button', { name: 'Retry lecture.mp3' }))
+    expect(actions.retry).toHaveBeenCalledOnce()
+    await userEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }))
+    expect(actions.remove).toHaveBeenCalledOnce()
+  })
+
+  it('does not offer retry for a file that was rejected', () => {
+    row({ state: 'failed', retryable: false, error: 'This is a playlist, not a media file.' })
+    expect(screen.queryByRole('button', { name: /Retry/ })).toBeNull()
+  })
+
+  it('asks before deleting a finished job', async () => {
+    const actions = row({ state: 'done', output_name: 'lecture (no music).mp3' })
+    await userEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }))
+    expect(actions.remove).not.toHaveBeenCalled()
+    expect(screen.getByText('Delete this job and its cleaned file?')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Keep' }))
+    expect(screen.queryByText('Delete this job and its cleaned file?')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(actions.remove).toHaveBeenCalledOnce()
+  })
+
+  it('shows why an action failed', () => {
+    row({ state: 'separating' }, 'Cancel this job before deleting it.')
+    expect(screen.getByText('Cancel this job before deleting it.')).toBeInTheDocument()
   })
 })
