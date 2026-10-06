@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getJson, type Health } from './api'
+import { getJson, postJson, request, type Health } from './api'
 import styles from './App.module.css'
 import { DropWell } from './components/DropWell'
+import { LiveRegion } from './components/LiveRegion'
 import { ModelCard } from './components/ModelCard'
-import { QueueRow } from './components/QueueRow'
+import { QueueRow, type RowActions } from './components/QueueRow'
 import { TopBar } from './components/TopBar'
 import { useServerState } from './serverState'
 import type { Job, Preset } from './types'
@@ -37,6 +38,9 @@ export function App() {
   const [uploads, setUploads] = useState<Job[]>([])
   const queue = useRef(Promise.resolve())
   const counter = useRef(0)
+  const [problems, setProblems] = useState<Record<string, string>>({})
+  const [library, setLibrary] = useState<number | null>(null)
+  const [clearing, setClearing] = useState(false)
 
   // One upload at a time keeps jobs in the order the files were dropped.
   const addFiles = useCallback((files: File[]) => {
@@ -58,6 +62,38 @@ export function App() {
     getJson<Health>('/api/health').then(setHealth, () => setHealth(null))
   }, [])
 
+  // The library only changes size when a job finishes or goes away.
+  const settled = server.jobs
+    .filter((j) => ['done', 'failed', 'canceled', 'interrupted'].includes(j.state))
+    .map((j) => j.id)
+    .join()
+  useEffect(() => {
+    if (!server.connected) return
+    getJson<{ jobs: number }>('/api/library').then((l) => setLibrary(l.jobs), () => setLibrary(null))
+  }, [server.connected, settled, server.jobs.length])
+
+  const attempt = (job: Job, request: Promise<unknown>) => {
+    setProblems((p) => {
+      const next = { ...p }
+      delete next[job.id]
+      return next
+    })
+    request.catch((e: Error) => setProblems((p) => ({ ...p, [job.id]: e.message })))
+  }
+  const actions: RowActions = {
+    cancel: (job) => attempt(job, postJson(`/api/jobs/${job.id}/cancel`)),
+    retry: (job) => attempt(job, postJson(`/api/jobs/${job.id}/retry`)),
+    remove: (job) => {
+      if (job.id.startsWith('local-')) setUploads((u) => u.filter((j) => j.id !== job.id))
+      else attempt(job, request(`/api/jobs/${job.id}`, { method: 'DELETE' }))
+    },
+  }
+  const finished = server.jobs.filter((j) => ['done', 'failed', 'canceled', 'interrupted'].includes(j.state))
+  const clearFinished = () => {
+    setClearing(false)
+    void postJson('/api/library/clear')
+  }
+
   const download = (preset: Preset, switchJobs: boolean) => {
     void fetch(`/api/models/${preset}/download${switchJobs ? '?switch=1' : ''}`, { method: 'POST' })
   }
@@ -71,7 +107,7 @@ export function App() {
 
   return (
     <>
-      <TopBar device={health?.device ?? null} />
+      <TopBar device={health?.device ?? null} library={library} />
       <main className={styles.main}>
         <DropWell compact={rows.length > 0} dragging={dragging} onFiles={addFiles} />
         {rows.length === 0 && (
@@ -81,14 +117,42 @@ export function App() {
           </p>
         )}
         {needsModel && best && fast && <ModelCard best={best} fast={fast} onDownload={download} />}
+        {finished.length > 0 && (
+          <div className={styles.queueBar}>
+            {clearing ? (
+              <>
+                <span className="small">
+                  Clear {finished.length} finished {finished.length === 1 ? 'job' : 'jobs'} and their files?
+                </span>
+                <button type="button" className="btn-quiet" onClick={clearFinished}>
+                  Clear
+                </button>
+                <button type="button" className="btn-quiet" onClick={() => setClearing(false)}>
+                  Keep
+                </button>
+              </>
+            ) : (
+              <button type="button" className="btn-quiet" onClick={() => setClearing(true)}>
+                Clear finished
+              </button>
+            )}
+          </div>
+        )}
         {rows.length > 0 && (
           <ol className={styles.queue} aria-label="Queue">
             {rows.map((job) => (
-              <QueueRow key={job.id} job={job} arriving={server.initial !== null && !server.initial.has(job.id)} />
+              <QueueRow
+                key={job.id}
+                job={job}
+                actions={actions}
+                problem={problems[job.id] ?? null}
+                arriving={server.initial !== null && !server.initial.has(job.id)}
+              />
             ))}
           </ol>
         )}
       </main>
+      <LiveRegion jobs={rows} />
       {dragging && <div className={styles.frame} aria-hidden="true" data-testid="drag-frame" />}
     </>
   )
