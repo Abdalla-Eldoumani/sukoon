@@ -238,14 +238,9 @@ def test_clean_refuses_a_reencode_unless_allowed(corpus, settings, tmp_path):
 
 
 def test_clean_accepts_every_output_format(capsys):
-    from sukoon.compat import VIDEO_CONTAINERS
-    from sukoon.encode import AUDIO_FORMATS
-
     with pytest.raises(SystemExit):
         main(["clean", "--help"])
-    shown = capsys.readouterr().out
-    for fmt in [*AUDIO_FORMATS, *VIDEO_CONTAINERS]:
-        assert fmt in shown
+    assert "{mp3,m4a,wav,flac,opus,ogg,mp4,mkv,webm,mov}" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("command", [["bench"], ["clean", "talk.mp3"]])
