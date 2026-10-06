@@ -264,3 +264,17 @@ def test_job_waits_for_its_model_and_runs_once_downloaded(settings, corpus, web_
         assert client.post("/api/models/fast/download").status_code == 200
         assert wait(client, job["id"], {"done", "failed"})["state"] == "done"
         assert client.get("/api/models").json()[1]["ready"] is True
+
+
+def test_start_with_fast_moves_waiting_jobs_to_fast(settings, corpus, web_dist, model_source):
+    missing_best = ModelFile("best", "vocals_mel_band_roformer.ckpt", "http://127.0.0.1:1/x", 10,
+                             "0" * 64)
+    app = fake_app(settings, web_dist=web_dist, model_ready=None,
+                   worker={"model_files": (*model_source, missing_best)})
+    with TestClient(app, base_url=BASE) as client:
+        job = upload(client, corpus / "short-2s.wav").json()
+        assert wait(client, job["id"])["state"] == "waiting_model"
+        client.post("/api/models/fast/download", params={"switch": "1"})
+        done = wait(client, job["id"], {"done", "failed"})
+    assert done["state"] == "done"
+    assert done["options"]["preset"] == "fast"
