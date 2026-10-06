@@ -2,6 +2,7 @@ import type { JobState } from './types'
 
 export const STATE_LABEL: Record<JobState, string> = {
   uploading: 'Checking',
+  fetching: 'Fetching',
   checking: 'Checking',
   awaiting_track: 'Choose track',
   awaiting_confirm: 'Confirm',
@@ -16,4 +17,4 @@ export const STATE_LABEL: Record<JobState, string> = {
   interrupted: 'Interrupted',
 }
 
-export const ACTIVE: ReadonlySet<JobState> = new Set(['uploading', 'checking', 'decoding', 'separating', 'encoding'])
+export const ACTIVE: ReadonlySet<JobState> = new Set(['uploading', 'fetching', 'checking', 'decoding', 'separating', 'encoding'])
