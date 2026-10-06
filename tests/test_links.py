@@ -3,11 +3,13 @@ import os
 import shutil
 import subprocess
 import time
+import tomllib
 from datetime import date
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from packaging.requirements import Requirement
 
 from sukoon import doctor
 from sukoon.doctor import age_in_days, node_major
@@ -23,6 +25,7 @@ from sukoon.links import (
     PRIVATE,
     REGION,
     STALLED,
+    UPDATE,
     LinkRefused,
     explain,
     fetch,
@@ -409,6 +412,15 @@ def test_doctor_notes_an_old_yt_dlp_with_the_update_command(settings):
     text = "\n".join(lines)
     assert "--   yt-dlp     2026.8.19, 135 days old" in text
     assert "uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync" in text
+
+
+def test_the_update_command_can_move_the_packages_it_names():
+    pyproject = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text())
+    wanted = {Requirement(r).name: r for r in pyproject["project"]["dependencies"]}
+    named = UPDATE.split("--upgrade-package ")[1:]
+    assert len(named) == 2
+    for package in (part.split()[0] for part in named):
+        assert Requirement(wanted[package]).specifier.contains("2099.1.1"), wanted[package]
 
 
 # Short public videos, each under 20 seconds, taken from yt-dlp's own extractor tests.
