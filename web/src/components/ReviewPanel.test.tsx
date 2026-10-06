@@ -38,6 +38,25 @@ describe('ReviewPanel', () => {
     expect(clean.muted).toBe(false)
   })
 
+  it('ignores copy shortcuts and lets go when the window loses focus', async () => {
+    render(<ReviewPanel job={job({ state: 'done' })} />)
+    await screen.findByRole('slider')
+    const sw = screen.getByRole('switch')
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', metaKey: true }))
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }))
+    })
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }))
+    })
+    expect(sw).toHaveAttribute('aria-checked', 'true')
+    act(() => {
+      window.dispatchEvent(new Event('blur'))
+    })
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+  })
+
   it('shows the video above the strip, muted, for a video job', async () => {
     const { container } = render(<ReviewPanel job={job({ state: 'done', kind: 'video', offset: 0.5 })} />)
     await screen.findByRole('slider')
