@@ -368,7 +368,8 @@ def fetch(
             heard = time.monotonic()
             kind = message[0]
             if kind == "title":
-                title = message[1]
+                # The title becomes a file name, where a trailing dot or space would double up.
+                title = message[1].rstrip(". ") or "video"
             elif kind == "progress":
                 on_progress(*message[1])
             elif kind == "done":
