@@ -4,23 +4,25 @@ import errno
 import json
 import shutil
 from collections.abc import AsyncIterator, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 import anyio
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from pydantic import BaseModel
 from python_multipart.exceptions import MultipartParseError
 from python_multipart.multipart import MultipartParser, parse_options_header
 from starlette.requests import ClientDisconnect
 
-from sukoon import models
+from sukoon import compat, models
 from sukoon.download import Downloads
 from sukoon.encode import AUDIO_FORMATS
+from sukoon.errors import JobError
 from sukoon.naming import content_disposition, download_name
-from sukoon.pipeline import Options
-from sukoon.probe import Rejected, probe
+from sukoon.pipeline import Options, extension, output_format
+from sukoon.probe import Probe, Rejected, probe
 from sukoon.runner import Runner
 from sukoon.settings import GB, Settings
 from sukoon.store import Job, Store, TransitionError
@@ -59,6 +61,15 @@ QUEUE_FULL = "The queue is full ({limit} files). Add more once some have finishe
 NO_SPACE = "There isn't enough free disk space for this file."
 
 
+CHOOSABLE = {"awaiting_track", "awaiting_confirm", "queued", "waiting_model"}
+
+
+class Choice(BaseModel):
+    track: int | None = None
+    format: str | None = None
+    confirm: bool = False
+
+
 @dataclass
 class Services:
     settings: Settings
@@ -72,10 +83,40 @@ class Services:
             listener(state)
 
 
+def format_choices(probe: Probe, track: int) -> list[dict[str, Any]]:
+    """Every output format this job can have, marking the ones that re-encode the picture."""
+    audio = [{"value": f, "video": False, "reencode": False} for f in AUDIO_FORMATS]
+    if probe.kind != "video":
+        return audio
+    video = [
+        {"value": c, "video": True, "reencode": compat.plan(probe, track, c).reencode is not None}
+        for c in compat.VIDEO_CONTAINERS
+    ]
+    return video + audio
+
+
+def next_state(probe: Probe, options: Options) -> str:
+    """Queued, or held for a confirm when the chosen container makes the picture re-encode."""
+    if options.format in compat.VIDEO_CONTAINERS:
+        track = options.track if options.track is not None else probe.default_audio()
+        if compat.plan(probe, track, options.format).reencode and not options.reencode_ok:
+            return "awaiting_confirm"
+    return "queued"
+
+
 def public(job: Job) -> dict[str, Any]:
     """What the interface sees of a job."""
     p = job.get("probe") or {}
     result = job.get("result") or {}
+    choices: list[dict[str, Any]] = []
+    confirm = None
+    if p:
+        probe_ = Probe.from_json(p)
+        options = Options(**job["options"])
+        track = options.track if options.track is not None else probe_.default_audio()
+        choices = format_choices(probe_, track)
+        if job["state"] == "awaiting_confirm" and options.format in compat.VIDEO_CONTAINERS:
+            confirm = compat.plan(probe_, track, options.format).confirm_message
     tracks = [
         {"language": s.get("language"), "title": s.get("title"), "channels": s.get("channels")}
         for s in p.get("streams", [])
@@ -96,7 +137,9 @@ def public(job: Job) -> dict[str, Any]:
         "duration": p.get("duration"),
         "tracks": tracks,
         "notes": result.get("notes", []),
-        "output_name": download_name(job["name"], AUDIO_FORMATS[fmt].ext) if fmt else None,
+        "formats": choices,
+        "confirm": confirm,
+        "output_name": download_name(job["name"], extension(fmt)) if fmt else None,
     }
 
 
@@ -147,7 +190,8 @@ def build_router(services: Services) -> APIRouter:
             return refuse(400, "Send the file as multipart form data.")
         preset = request.query_params.get("preset", "best")
         fmt = request.query_params.get("format") or None
-        if preset not in models.PRESETS or (fmt is not None and fmt not in AUDIO_FORMATS):
+        known = fmt is None or fmt in AUDIO_FORMATS or fmt in compat.VIDEO_CONTAINERS
+        if preset not in models.PRESETS or not known:
             return refuse(400, "Unknown preset or format.")
         options = Options(preset=preset, format=fmt)
         try:
@@ -176,6 +220,37 @@ def build_router(services: Services) -> APIRouter:
         with contextlib.suppress(TransitionError):
             runner.cancel(job_id)
         return public(store.get(job_id))
+
+    @router.post("/jobs/{job_id}/choose")
+    def choose(job_id: str, body: Choice) -> dict[str, Any]:
+        """Picks the audio track and output format, and confirms a re-encode, before a job runs."""
+        with runner.lock:
+            job = job_or_404(job_id)
+            if job["state"] not in CHOOSABLE:
+                raise HTTPException(409, "This job has already started.")
+            p = Probe.from_json(job["probe"])
+            old = Options(**job["options"])
+            track = old.track if body.track is None else body.track
+            if track is not None and not 0 <= track < len(p.audio):
+                raise HTTPException(400, "That audio track doesn't exist in this file.")
+            fmt = body.format or old.format
+            try:
+                fmt = output_format(p, replace(old, format=fmt), job["name"])
+            except JobError as exc:
+                raise HTTPException(400, str(exc)) from None
+            options = replace(
+                old,
+                track=track,
+                format=fmt,
+                reencode_ok=body.confirm or (old.reencode_ok and fmt == old.format),
+            )
+            target = next_state(p, options)
+            if target == job["state"]:
+                job = store.update(job_id, options=options.to_json())
+            else:
+                job = store.transition(job_id, target, options=options.to_json())
+        runner.notify()
+        return public(job)
 
     @router.get("/models")
     def list_models() -> list[dict[str, object]]:
@@ -319,10 +394,17 @@ def check_upload(services: Services, job_id: str, source: Path, size: int) -> Jo
     if free_bytes(settings) < disk_need(result.duration, size):
         shutil.rmtree(source.parent, ignore_errors=True)
         return store.transition(job_id, "failed", error=NO_SPACE, retryable=False)
-    store.update(job_id, probe=result.to_json(), kind=result.kind)
+    options = Options(**store.get(job_id)["options"])
+    try:
+        fmt = output_format(result, options, store.get(job_id)["name"])
+    except JobError as exc:
+        shutil.rmtree(source.parent, ignore_errors=True)
+        return store.transition(job_id, "failed", error=str(exc), retryable=False)
+    options = replace(options, format=fmt)
+    store.update(job_id, probe=result.to_json(), kind=result.kind, options=options.to_json())
     if len(result.audio) > 1:
         return store.transition(job_id, "awaiting_track")
-    job = store.transition(job_id, "queued")
+    job = store.transition(job_id, next_state(result, options))
     services.runner.notify()
     return job
 
