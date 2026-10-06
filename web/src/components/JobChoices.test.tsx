@@ -94,4 +94,23 @@ describe('JobChoices', () => {
     const { container } = render(<JobChoices job={job({ state: 'separating', formats: VIDEO_FORMATS })} />)
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('turns music removal off for a link while it is still being fetched', async () => {
+    render(<JobChoices job={job({ state: 'fetching', name: 'youtu.be/jNQXAC9IVRw', link: { url: 'https://youtu.be/jNQXAC9IVRw', site: 'youtu.be', done: 12_000_000, total: 40_000_000 } })} />)
+    const toggle = screen.getByRole('switch', { name: 'Remove music from youtu.be/jNQXAC9IVRw' })
+    expect(toggle).toBeChecked()
+    await userEvent.click(toggle)
+    expect(posted).toEqual([{ url: '/api/jobs/a1/choose', body: { keep_music: true } }])
+  })
+
+  it('names download only once music removal is off', () => {
+    render(<JobChoices job={job({ state: 'queued', options: { preset: 'best', format: 'mp4', track: null, keep_music: true }, link: { url: 'https://youtu.be/jNQXAC9IVRw', site: 'youtu.be', done: 12_000_000, total: 40_000_000 } })} />)
+    expect(screen.getByRole('switch', { name: /Remove music/ })).not.toBeChecked()
+    expect(screen.getByText('Download only')).toBeInTheDocument()
+  })
+
+  it('offers no music switch for a dropped file', () => {
+    render(<JobChoices job={job({ state: 'queued' })} />)
+    expect(screen.queryByRole('switch')).toBeNull()
+  })
 })
