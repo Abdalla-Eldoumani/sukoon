@@ -10,6 +10,28 @@
   border-radius: var(--r-md);
 }
 
+.selected {
+  background: var(--raised);
+}
+
+.nameButton {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: start;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameButton:hover bdi {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .arriving {
   animation: arrive var(--d-hover) var(--ease-out);
 }
