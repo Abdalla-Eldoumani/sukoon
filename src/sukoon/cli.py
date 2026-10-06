@@ -98,11 +98,16 @@ def clean(
     from sukoon.chunk import separate_chunked
     from sukoon.encode import AUDIO_FORMATS
     from sukoon.errors import JobError
+    from sukoon.models import ModelChecksumError, ModelMissingError
     from sukoon.naming import download_name
     from sukoon.probe import Rejected, probe
 
     settings.ensure_dirs()
-    engine.prepare(options.preset, options.device)
+    try:
+        engine.prepare(options.preset, options.device)
+    except (ModelChecksumError, ModelMissingError, ImportError) as exc:
+        out(str(exc))
+        return 1
     failed = 0
     for path in files:
         job = str(uuid.uuid4())
