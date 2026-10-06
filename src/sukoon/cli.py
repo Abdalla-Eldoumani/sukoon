@@ -177,6 +177,29 @@ def run_clean(args: argparse.Namespace, settings: Settings) -> int:
     )
 
 
+def run_bench(args: argparse.Namespace, settings: Settings) -> int:
+    from sukoon import models
+    from sukoon.bench import bench
+    from sukoon.download import download_preset
+    from sukoon.engine import AudioSeparatorEngine
+
+    models_dir = settings.area("models")
+    models_dir.mkdir(parents=True, exist_ok=True)
+    if not models.is_ready(models_dir, args.preset):
+        print(f"Downloading the {args.preset} model once...", file=sys.stderr)
+        download_preset(models_dir, args.preset, lambda d, t, r: None)
+    try:
+        bench(AudioSeparatorEngine(models_dir), args.preset, args.device)
+    except ImportError as exc:
+        print(
+            f"The separation libraries are not installed ({exc.name}). "
+            "Run: uv sync --extra cpu (or --extra cuda)",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     browser = argparse.ArgumentParser(add_help=False)
     # SUPPRESS keeps the subcommand's copy from resetting a flag given before it.
@@ -193,6 +216,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub.add_parser("serve", help="start the app (the default)", parents=[browser])
     sub.add_parser("doctor", help="check ffmpeg, torch, disk space, and models")
     clean_p = sub.add_parser("clean", help="remove the music from files in the terminal")
+    bench_p = sub.add_parser("bench", help="time separation on a 30 second clip")
+    bench_p.add_argument("--preset", choices=["best", "fast"], default="best")
+    bench_p.add_argument("--device", choices=["auto", "cpu"], default="auto")
     clean_p.add_argument("files", nargs="+")
     clean_p.add_argument("--preset", choices=["best", "fast"], default="best")
     clean_p.add_argument("--device", choices=["auto", "cpu"], default="auto")
@@ -217,4 +243,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return doctor.run(settings)
     if args.command == "clean":
         return run_clean(args, settings)
+    if args.command == "bench":
+        return run_bench(args, settings)
     return serve(settings, open_browser=not getattr(args, "no_browser", False))
