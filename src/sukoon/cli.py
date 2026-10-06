@@ -43,7 +43,7 @@ def bind_first_free(first: int, last: int) -> tuple[socket.socket | None, int]:
         # Lets a restart reclaim its port from TIME_WAIT; Windows needs the exclusive flag
         # instead, since its SO_REUSEADDR would let two servers share the port.
         if sys.platform == "win32":
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)  # type: ignore[attr-defined]
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         else:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
