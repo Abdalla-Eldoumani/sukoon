@@ -8,12 +8,14 @@ from typing import Any, Literal, Protocol
 import numpy as np
 import soundfile as sf
 
+from sukoon import compat
 from sukoon.chunk import ChunkReport
 from sukoon.decode import decode, mmss
 from sukoon.device import DevicePreference
 from sukoon.encode import AUDIO_FORMATS, default_audio_format, encode_audio
 from sukoon.errors import JobError
 from sukoon.models import Preset
+from sukoon.mux import mux_video
 from sukoon.probe import Probe
 
 Stage = Literal["decoding", "separating", "encoding"]
@@ -48,6 +50,7 @@ class Options:
     device: DevicePreference = "auto"
     format: str | None = None
     track: int | None = None
+    reencode_ok: bool = False
 
     def to_json(self) -> dict[str, Any]:
         return asdict(self)
@@ -93,11 +96,23 @@ def measure(mixture: Path, voice: Path, block: int = 1 << 20) -> Energy:
     return Energy(total, removed, float(np.sqrt(voice_sq / max(count, 1))))
 
 
-def output_format(probe: Probe, options: Options) -> str:
-    fmt = options.format or default_audio_format(probe)
-    if fmt not in AUDIO_FORMATS:
+def output_format(probe: Probe, options: Options, source_name: str) -> str:
+    """The chosen format, or the one matching the input; checked against what can be written."""
+    if options.format:
+        fmt = options.format
+    elif probe.kind == "video":
+        fmt = compat.default_container(probe, source_name)
+    else:
+        fmt = default_audio_format(probe)
+    if fmt in compat.VIDEO_CONTAINERS and probe.kind != "video":
+        raise JobError(f"This file has no picture, so it can't become {fmt.upper()} video.")
+    if fmt not in AUDIO_FORMATS and fmt not in compat.VIDEO_CONTAINERS:
         raise JobError(f"{fmt.upper()} isn't an output format sukoon can write.")
     return fmt
+
+
+def extension(fmt: str) -> str:
+    return AUDIO_FORMATS[fmt].ext if fmt in AUDIO_FORMATS else fmt
 
 
 def run(
@@ -114,7 +129,10 @@ def run(
     track = options.track if options.track is not None else probe.default_audio()
     if not 0 <= track < len(probe.audio):
         raise JobError("That audio track doesn't exist in this file.")
-    fmt = output_format(probe, options)
+    fmt = output_format(probe, options, source.name)
+    video_plan = compat.plan(probe, track, fmt) if fmt in compat.VIDEO_CONTAINERS else None
+    if video_plan and video_plan.reencode and not options.reencode_ok:
+        raise JobError(video_plan.confirm_message or "The picture needs re-encoding.")
 
     def report(stage: Stage, fraction: float, done: int = 0, total: int = 0) -> None:
         lo, hi = WEIGHTS[stage]
@@ -149,10 +167,23 @@ def run(
         if chunks.cpu_fallbacks:
             notes.append(NOTE_CPU)
         report("encoding", 0.0)
-        out = out_dir / f"output.{AUDIO_FORMATS[fmt].ext}"
-        encode_audio(
-            voice, source, probe, track, fmt, out, lambda f: report("encoding", f), cancelled
-        )
+        out = out_dir / f"output.{extension(fmt)}"
+        if video_plan is not None:
+            notes.extend(video_plan.notes)
+            mux_video(
+                voice,
+                source,
+                probe,
+                track,
+                video_plan,
+                out,
+                lambda f: report("encoding", f),
+                cancelled,
+            )
+        else:
+            encode_audio(
+                voice, source, probe, track, fmt, out, lambda f: report("encoding", f), cancelled
+            )
         return Result(output=out.name, format=fmt, notes=notes, seconds=decoded.seconds)
     except OSError as exc:
         if exc.errno == errno.ENOSPC:
