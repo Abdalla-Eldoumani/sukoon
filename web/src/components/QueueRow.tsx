@@ -6,16 +6,18 @@ import styles from './QueueRow.module.css'
 
 interface Props {
   job: Job
+  /** Rows added after the page loaded slide in; the ones already there do not. */
+  arriving?: boolean
 }
 
-export function QueueRow({ job }: Props) {
+export function QueueRow({ job, arriving = false }: Props) {
   const active = ACTIVE.has(job.state)
   const failed = job.state === 'failed'
   const percent = Math.round(job.progress * 100)
   const label = STATE_LABEL[job.state]
   const description = active ? `${label}, ${percent}%` : label
   return (
-    <li className={styles.row} aria-label={job.name} aria-description={description}>
+    <li className={arriving ? `${styles.row} ${styles.arriving}` : styles.row} aria-label={job.name} aria-description={description}>
       <span className={styles.glyph}>{job.kind === 'video' ? <VideoFileIcon /> : <AudioFileIcon />}</span>
       <div className={styles.name}>
         <bdi className="body-strong" title={job.name} dir="auto">
