@@ -111,6 +111,7 @@ class Store:
         return lambda: self.listeners.remove(listener)
 
     def _emit(self, event: str, job: Job) -> None:
+        """Called with the lock held, so every listener sees changes in the order they happened."""
         for listener in list(self.listeners):
             listener(event, job)
 
@@ -130,7 +131,7 @@ class Store:
                 (job_id, time.time(), name, state, json.dumps(options)),
             )
             job = self.get(job_id)
-        self._emit("job", job)
+            self._emit("job", job)
         return job
 
     def get(self, job_id: str) -> Job:
@@ -162,7 +163,7 @@ class Store:
         with self.lock:
             self._write(job_id, fields)
             job = self.get(job_id)
-        self._emit("job", job)
+            self._emit("job", job)
         return job
 
     def transition(self, job_id: str, to: str, **fields: Any) -> Job:
@@ -172,14 +173,14 @@ class Store:
                 raise TransitionError(f"{current} -> {to}")
             self._write(job_id, {**fields, "state": to})
             job = self.get(job_id)
-        self._emit("job", job)
+            self._emit("job", job)
         return job
 
     def delete(self, job_id: str) -> None:
         with self.lock:
             job = self.get(job_id)
             self.db.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
-        self._emit("deleted", job)
+            self._emit("deleted", job)
 
     def next_queued(self) -> Job | None:
         with self.lock:
