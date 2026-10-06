@@ -26,6 +26,10 @@
   list-style: none;
 }
 
+.error {
+  color: var(--fault);
+}
+
 .panelItem {
   list-style: none;
 }
