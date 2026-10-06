@@ -2,10 +2,14 @@ import asyncio
 import contextlib
 import errno
 import json
+import logging
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
+import threading
+import time
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -19,16 +23,18 @@ from python_multipart.exceptions import MultipartParseError
 from python_multipart.multipart import MultipartParser, parse_options_header
 from starlette.requests import ClientDisconnect
 
-from sukoon import compat, models, tools
+from sukoon import compat, links, models, tools
 from sukoon.download import Downloads
 from sukoon.encode import AUDIO_FORMATS
-from sukoon.errors import JobError
-from sukoon.naming import content_disposition, download_name
+from sukoon.errors import Canceled, JobError
+from sukoon.naming import SUFFIX, content_disposition, download_name
 from sukoon.pipeline import Options, extension, output_format
 from sukoon.probe import Probe, Rejected, probe
 from sukoon.runner import Runner, RunnerError, source_path
 from sukoon.settings import GB, Settings
 from sukoon.store import Job, Store, TransitionError
+
+log = logging.getLogger("sukoon")
 
 KEEPALIVE_S = 15.0
 # Kept on disk only for these, so ffmpeg never sees a playlist extension it might act on.
@@ -72,6 +78,7 @@ NO_SPACE = "There isn't enough free disk space for this file."
 
 
 CHOOSABLE = {"awaiting_track", "awaiting_confirm", "queued", "waiting_model"}
+WAITING = ("fetching", "checking", "queued", "waiting_model", "awaiting_track", "awaiting_confirm")
 
 
 class SettingsBody(BaseModel):
@@ -92,6 +99,13 @@ class Choice(BaseModel):
     track: int | None = None
     format: str | None = None
     confirm: bool = False
+    keep_music: bool | None = None
+
+
+class LinkBody(BaseModel):
+    url: str
+    keep_music: bool = False
+    format: str | None = None
 
 
 @dataclass
@@ -102,6 +116,8 @@ class Services:
     downloads: Downloads
     encoders: set[str] | None = None
     model_listeners: list[Callable[[dict[str, object]], None]] = field(default_factory=list)
+    # Tests put a stand-in downloader here.
+    fetch_options: dict[str, Any] = field(default_factory=dict)
 
     def available_encoders(self) -> set[str]:
         # Listed once; again only if ffmpeg was missing at startup and has appeared since.
@@ -183,6 +199,7 @@ def public(job: Job, missing: Callable[[str], str | None] = lambda f: None) -> d
         if s.get("codec_type") == "audio"
     ]
     fmt = result.get("format")
+    suffix = "" if job["options"].get("keep_music") else SUFFIX
     return {
         "id": job["id"],
         "created": job["created"],
@@ -200,7 +217,8 @@ def public(job: Job, missing: Callable[[str], str | None] = lambda f: None) -> d
         "formats": choices,
         "offset": round(offset, 6),
         "confirm": confirm,
-        "output_name": download_name(job["name"], extension(fmt)) if fmt else None,
+        "output_name": download_name(job["name"], extension(fmt), suffix) if fmt else None,
+        "link": job.get("link"),
     }
 
 
@@ -265,10 +283,7 @@ def build_router(services: Services) -> APIRouter:
         length = int(request.headers.get("content-length") or 0)
         if length > settings.max_upload_bytes + 64 * 1024:
             return refuse(413, TOO_BIG.format(limit=settings.max_upload_bytes // GB))
-        waiting = store.count(
-            "checking", "queued", "waiting_model", "awaiting_track", "awaiting_confirm"
-        )
-        if waiting >= settings.max_queued:
+        if store.count(*WAITING) >= settings.max_queued:
             return refuse(429, QUEUE_FULL.format(limit=settings.max_queued))
         if free_bytes(settings) < length + HEADROOM:
             return refuse(507, NO_SPACE)
@@ -290,6 +305,34 @@ def build_router(services: Services) -> APIRouter:
             return refuse(400, "The upload was interrupted.")
         if job is None:
             return refuse(400, "No file was sent.")
+        return view(job)
+
+    @router.post("/links", status_code=201, response_model=None)
+    def add_link(body: LinkBody) -> dict[str, Any] | JSONResponse:
+        """One link, one job: fetched first, then checked and run like a dropped file."""
+        url = body.url.strip()
+        try:
+            name = links.site(url)
+        except links.LinkRefused as exc:
+            return refuse(400, exc.message)
+        if store.count(*WAITING) >= settings.max_queued:
+            return refuse(429, QUEUE_FULL.format(limit=settings.max_queued))
+        fmt = body.format or None
+        if fmt and fmt not in AUDIO_FORMATS and fmt not in compat.VIDEO_CONTAINERS:
+            return refuse(400, "Unknown preset or format.")
+        if fmt and (encoder := services.missing_encoder(fmt)):
+            return refuse(400, needs_encoder(fmt, encoder))
+        saved = store.settings()
+        options = Options(
+            preset=saved["preset"], device=saved["device"], format=fmt, keep_music=body.keep_music
+        )
+        job = store.create(
+            url.split("://", 1)[1],
+            options.to_json(),
+            state="fetching",
+            link={"url": url, "site": name, "done": 0, "total": None},
+        )
+        start_fetch(services, job["id"])
         return view(job)
 
     @router.get("/jobs/{job_id}/output")
@@ -344,10 +387,15 @@ def build_router(services: Services) -> APIRouter:
         """Picks the audio track and output format, and confirms a re-encode, before a job runs."""
         with runner.lock:
             job = job_or_404(job_id)
+            old = Options(**job["options"])
+            kept = old.keep_music if body.keep_music is None else body.keep_music
+            if job["state"] in ("fetching", "checking"):
+                # Nothing is known about the file yet; the format is checked once it is.
+                early = replace(old, keep_music=kept, format=body.format or old.format)
+                return view(store.update(job_id, options=early.to_json()))
             if job["state"] not in CHOOSABLE:
                 raise HTTPException(409, "This job has already started.")
             p = Probe.from_json(job["probe"])
-            old = Options(**job["options"])
             track = old.track if body.track is None else body.track
             if track is not None and not 0 <= track < len(p.audio):
                 raise HTTPException(400, "That audio track doesn't exist in this file.")
@@ -363,6 +411,7 @@ def build_router(services: Services) -> APIRouter:
                 track=track,
                 format=fmt,
                 reencode_ok=body.confirm or (old.reencode_ok and fmt == old.format),
+                keep_music=kept,
             )
             target = next_state(p, options)
             # A format change alone does not answer the track question.
@@ -378,6 +427,14 @@ def build_router(services: Services) -> APIRouter:
     @router.post("/jobs/{job_id}/retry")
     def retry(job_id: str) -> dict[str, Any]:
         job = job_or_404(job_id)
+        if job["link"] and job["probe"] is None:
+            # The fetch never finished, so it starts again.
+            try:
+                runner.retry(job_id, "fetching")
+            except RunnerError as exc:
+                raise HTTPException(409, str(exc)) from None
+            start_fetch(services, job_id)
+            return view(store.get(job_id))
         target = "queued"
         if job["probe"]:
             p, options = Probe.from_json(job["probe"]), Options(**job["options"])
@@ -582,10 +639,14 @@ def check_upload(services: Services, job_id: str, source: Path, size: int) -> Jo
     if free_bytes(settings) < disk_need(result.duration, size):
         shutil.rmtree(source.parent, ignore_errors=True)
         return store.transition(job_id, "failed", error=NO_SPACE, retryable=False)
-    options = Options(**store.get(job_id)["options"])
+    job = store.get(job_id)
+    options = Options(**job["options"])
     if options.format is None:
         saved = store.settings()
         preferred = saved["video_format"] if result.kind == "video" else saved["audio_format"]
+        if job["link"]:
+            # A link becomes a file that plays everywhere unless something else was chosen.
+            preferred = "mp4" if result.kind == "video" else "m4a"
         if preferred and not services.missing_encoder(preferred):
             options = replace(options, format=preferred)
     try:
@@ -604,6 +665,72 @@ def check_upload(services: Services, job_id: str, source: Path, size: int) -> Jo
         job = store.transition(job_id, target)
     services.runner.notify()
     return job
+
+
+def start_fetch(services: Services, job_id: str) -> None:
+    threading.Thread(
+        target=run_fetch, args=(services, job_id), daemon=True, name="sukoon-fetch"
+    ).start()
+
+
+def run_fetch(services: Services, job_id: str) -> None:
+    """Fetches a link job's file, then hands it to the same checks an upload gets."""
+    settings, store = services.settings, services.store
+    job = store.get(job_id)
+    folder = settings.job_path("uploads", job_id)
+    shutil.rmtree(folder, ignore_errors=True)
+    first: tuple[float, int] | None = None
+
+    def progress(done: int, total: int | None) -> None:
+        nonlocal first
+        now = time.monotonic()
+        first = first or (now, done)
+        rate = (done - first[1]) / max(now - first[0], 1e-6)
+        eta = (total - done) / rate if total and rate > 0 else None
+        link = {**job["link"], "done": done, "total": total}
+        store.update(job_id, progress=done / total if total else 0.0, eta=eta, link=link)
+
+    def cancelled() -> bool:
+        try:
+            return bool(store.get(job_id)["state"] != "fetching")
+        # Deleted, or the app is stopping; either way the download ends here.
+        except (KeyError, sqlite3.ProgrammingError):
+            return True
+
+    try:
+        fetched = links.fetch(
+            job["link"]["url"],
+            folder,
+            progress,
+            cancelled,
+            settings.max_duration_s,
+            settings.max_upload_bytes,
+            **services.fetch_options,
+        )
+        source = links.assemble(folder, fetched.parts, cancelled)
+    except Canceled:
+        shutil.rmtree(folder, ignore_errors=True)
+        return
+    except Exception as exc:
+        shutil.rmtree(folder, ignore_errors=True)
+        if not isinstance(exc, JobError):
+            log.exception("fetching job %s failed", job_id)
+        message = str(exc) if isinstance(exc, JobError) else f"Something went wrong: {exc}"
+        with contextlib.suppress(KeyError, TransitionError, sqlite3.ProgrammingError):
+            store.transition(job_id, "failed", error=message, eta=None)
+        return
+    with services.runner.lock:
+        try:
+            still = store.get(job_id)["state"] == "fetching"
+        except KeyError:
+            still = False
+        if not still:
+            shutil.rmtree(folder, ignore_errors=True)
+            return
+        name = f"{fetched.title}{source.suffix}"
+        store.update(job_id, name=name, progress=0.0, eta=None)
+        store.transition(job_id, "checking")
+    check_upload(services, job_id, source, source.stat().st_size)
 
 
 def sse(event: str, data: object) -> bytes:
