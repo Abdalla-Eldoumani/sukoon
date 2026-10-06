@@ -6,11 +6,13 @@ interface Props {
   best: ModelState
   fast: ModelState
   onDownload: (preset: Preset, switchJobs: boolean) => void
+  /** The server refused to start a download. */
+  problem?: string | null
 }
 
-export function ModelCard({ best, fast, onDownload }: Props) {
+export function ModelCard({ best, fast, onDownload, problem = null }: Props) {
   const busy = best.downloading ? best : fast.downloading ? fast : null
-  const error = best.error ?? fast.error
+  const error = problem ?? best.error ?? fast.error
   return (
     <section className={styles.card} aria-label="Model download">
       <div className={styles.text}>
