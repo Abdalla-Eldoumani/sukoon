@@ -78,11 +78,12 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
       onKeyDown={(e) => {
         if (e.key === 'Escape') onClose()
       }}
-      // A click on the dialog itself, not its contents, is a click on the backdrop.
+      // The contents fill the dialog, so a click that lands on the dialog itself is on the backdrop.
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
     >
+      <div className={styles.body}>
         <div className={styles.head}>
           <h2 id="settings-title" className="title">
             Settings
@@ -199,6 +200,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
             </button>
           )}
         </section>
+      </div>
     </dialog>
   )
 }

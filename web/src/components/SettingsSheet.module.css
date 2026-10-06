@@ -9,14 +9,19 @@
   height: 100%;
   max-height: 100%;
   overflow-y: auto;
-  padding: var(--s6);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s6);
+  padding: 0;
   background: var(--surface);
   border-radius: var(--r-lg) 0 0 var(--r-lg);
   box-shadow: var(--sheet-shadow);
   view-transition-name: settings-sheet;
+}
+
+.body {
+  min-height: 100%;
+  padding: var(--s6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
 }
 
 ::view-transition-new(settings-sheet) {
