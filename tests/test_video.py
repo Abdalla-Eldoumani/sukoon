@@ -297,6 +297,44 @@ def test_late_starting_clock_is_rebased_and_stays_in_sync(corpus, tmp_path, fmt)
     assert abs(lag) <= 0.0015, f"lag {lag * 1000:.2f} ms"
 
 
+def test_a_clock_starting_past_the_priming_trial_still_starts_on_time(corpus, tmp_path):
+    # Broadcast recordings start at any clock; the priming trial must reach their first second.
+    src = tmp_path / "late.ts"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-y",
+            "-i",
+            str(corpus / "offset-0.5s.mp4"),
+            "-c",
+            "copy",
+            "-output_ts_offset",
+            "40",
+            "-f",
+            "mpegts",
+            str(src),
+        ],
+        check=True,
+    )
+    assert first_video_time(src) > 40
+    result = pipeline.run(
+        src,
+        probe(src),
+        Options(format="mp4"),
+        functools.partial(separate_chunked, FakeEngine()),
+        lambda: False,
+        lambda *a: None,
+        tmp_path / "work",
+        tmp_path / "out",
+    )
+    out = tmp_path / "out" / result.output
+    moved = first_video_time(out) - first_video_time(src)
+    start_error = (first_audio_frame_time(out) - moved) - first_audio_frame_time(src)
+    assert abs(start_error) <= 0.001, f"start differs by {start_error * 1000:.2f} ms"
+
+
 def test_the_encode_shows_time_left_and_the_bar_fills_when_it_is_done(tmp_path):
     # Half a minute, so a second full pass after the bar filled would be plain to see.
     src = tmp_path / "talk.mp4"
