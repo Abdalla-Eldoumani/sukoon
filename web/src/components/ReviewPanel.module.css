@@ -1,0 +1,26 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s6);
+  background: var(--surface);
+  border-radius: var(--r-md);
+}
+
+.video {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  background: var(--ground);
+  border-radius: var(--r-sm);
+}
+
+.note {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.error {
+  margin: 0;
+  color: var(--fault);
+}
