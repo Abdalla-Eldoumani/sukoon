@@ -95,9 +95,10 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-m 'not model and not slow'"
+addopts = "-m 'not model and not slow and not network'"
 filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated"]
 markers = [
     "model: runs the real separation models (set SUKOON_TEST_MODELS=1)",
     "slow: takes more than a few seconds",
+    "network: fetches real links from the listed sites (set SUKOON_TEST_NETWORK=1)",
 ]
