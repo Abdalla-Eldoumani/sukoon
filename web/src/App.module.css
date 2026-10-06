@@ -26,6 +26,10 @@
   list-style: none;
 }
 
+.panelItem {
+  list-style: none;
+}
+
 .note {
   margin-bottom: 0;
   color: var(--text-2);
