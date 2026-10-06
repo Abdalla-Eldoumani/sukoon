@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 
 from sukoon import ffmpeg
 from sukoon.errors import Canceled, JobError
-from sukoon.probe import Rejected, inspect
+from sukoon.probe import MEDIA_EXTS, Rejected, inspect
 
 # Each accepted site, and the yt-dlp extractor family allowed to read it.
 SITES = {
@@ -424,7 +424,8 @@ def assemble(folder: Path, parts: list[Path], cancelled: Callable[[], bool]) -> 
     except Rejected as exc:
         raise JobError(exc.message) from None
     if len(parts) == 1:
-        source = folder / f"source{parts[0].suffix.lower()}"
+        suffix = parts[0].suffix.lower()
+        source = folder / f"source{suffix if suffix in MEDIA_EXTS else ''}"
         parts[0].replace(source)
         return source
     video = next((p for p, r in zip(parts, probes, strict=True) if r.video), parts[0])
