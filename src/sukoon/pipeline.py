@@ -13,7 +13,7 @@ from sukoon.chunk import ChunkReport
 from sukoon.decode import decode, mmss
 from sukoon.device import DevicePreference
 from sukoon.encode import AUDIO_FORMATS, default_audio_format, encode_audio
-from sukoon.errors import JobError
+from sukoon.errors import DISK_FULL, JobError
 from sukoon.models import Preset
 from sukoon.mux import mux_video
 from sukoon.probe import Probe
@@ -30,7 +30,6 @@ NOTE_SURROUND = "Surround was mixed down to stereo."
 NOTE_NO_MUSIC = "There was almost no music in this file."
 NOTE_NO_VOICE = "No voices were found; the output is nearly silent."
 NOTE_CPU = "Part of this ran on the CPU because the GPU ran out of memory."
-DISK_FULL = "The disk is full."
 
 
 class Separator(Protocol):
