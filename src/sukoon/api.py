@@ -100,14 +100,14 @@ class Services:
     store: Store
     runner: Runner
     downloads: Downloads
-    encoders: set[str] = field(default_factory=set)
+    encoders: set[str] | None = None
     model_listeners: list[Callable[[dict[str, object]], None]] = field(default_factory=list)
 
     def available_encoders(self) -> set[str]:
-        # Checked once; again only if ffmpeg was missing at startup and has appeared since.
-        if not self.encoders and tools.ffmpeg_path():
+        # Listed once; again only if ffmpeg was missing at startup and has appeared since.
+        if self.encoders is None and tools.ffmpeg_path():
             self.encoders = tools.available_encoders()
-        return self.encoders
+        return self.encoders or set()
 
     def missing_encoder(self, fmt: str) -> str | None:
         """The ffmpeg encoder a format needs and this ffmpeg lacks, if any."""
