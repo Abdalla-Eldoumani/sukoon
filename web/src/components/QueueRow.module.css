@@ -14,6 +14,11 @@
   background: var(--raised);
 }
 
+/* text-3 falls under 4.5:1 on raised, so the engraved stage label steps up a tone. */
+.selected .stage > span {
+  color: var(--text-2);
+}
+
 .nameButton {
   display: block;
   max-width: 100%;
