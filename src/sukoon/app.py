@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -6,8 +8,14 @@ from fastapi.responses import FileResponse, PlainTextResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from sukoon import __version__
+from sukoon.api import Services, build_router
 from sukoon.device import detect_cached
+from sukoon.download import Downloads
+from sukoon.models import Preset
+from sukoon.runner import Runner
 from sukoon.settings import Settings
+from sukoon.store import Store
+from sukoon.worker import Worker, WorkerConfig
 
 WEB_DIST = Path(__file__).parent / "web_dist"
 
@@ -56,11 +64,43 @@ class LocalOnlyMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
-def create_app(settings: Settings, port: int, web_dist: Path = WEB_DIST) -> ASGIApp:
+def create_app(
+    settings: Settings,
+    port: int,
+    web_dist: Path = WEB_DIST,
+    worker_config: WorkerConfig | None = None,
+    model_ready: Callable[[Preset], bool] | None = None,
+) -> ASGIApp:
+    """The whole server. Tests pass a fake engine config and their own idea of model readiness."""
+    settings.ensure_dirs()
+    config = worker_config or WorkerConfig(models_dir=settings.area("models"))
+    store = Store(settings.db_path)
+    downloads = Downloads(config.models_dir, lambda s: None, lambda: None, config.model_files)
+    ready = model_ready or (lambda preset: bool(downloads.state(preset)["ready"]))
+    runner = Runner(settings, store, Worker(config), ready)
+    services = Services(settings, store, runner, downloads)
+    downloads.on_change = services.model_changed
+    downloads.on_ready = runner.models_changed
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        runner.start()
+        try:
+            yield
+        finally:
+            runner.stop()
+            store.close()
+
     app = FastAPI(
-        title="sukoon", version=__version__, docs_url=None, redoc_url=None, openapi_url=None
+        title="sukoon",
+        version=__version__,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
     )
-    app.state.settings = settings
+    app.state.services = services
+    app.include_router(build_router(services))
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:
