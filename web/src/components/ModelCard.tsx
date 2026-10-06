@@ -33,8 +33,12 @@ export function ModelCard({ best, fast, onDownload }: Props) {
         </div>
       ) : (
         <div className={styles.actions}>
-          <button type="button" className="btn-primary" onClick={() => onDownload('best', false)}>
-            {error && best.error ? 'Retry' : `Download Best (${megabytes(best.size)})`}
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => (fast.error && !best.error ? onDownload('fast', true) : onDownload('best', false))}
+          >
+            {error ? 'Retry' : `Download Best (${megabytes(best.size)})`}
           </button>
           <button type="button" className="btn-quiet" onClick={() => onDownload('fast', true)}>
             Start with Fast ({megabytes(fast.size)})
