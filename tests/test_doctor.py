@@ -92,7 +92,7 @@ def test_nvidia_gpu_without_cuda_torch_prints_cuda_install(settings, fake_path, 
     fake_tool(fake_path, "nvidia-smi", "exit 0\n")
     _, text = run(settings)
     assert "NVIDIA GPU present but torch has no CUDA" in text
-    assert "fix: uv sync --extra cuda" in text
+    assert "fix: run uv sync, then update the NVIDIA driver" in text
 
 
 def test_cuda_device_is_reported(settings, fake_path, monkeypatch):
@@ -110,4 +110,4 @@ def test_missing_torch_fails_with_install_command(settings, fake_path, monkeypat
     monkeypatch.setitem(sys.modules, "torch", None)
     code, text = run(settings)
     assert code == 1
-    assert "fix: uv sync --extra cpu" in text
+    assert "fix: uv sync" in text
