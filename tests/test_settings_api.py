@@ -5,6 +5,7 @@ import stat
 import pytest
 from fastapi.testclient import TestClient
 
+from sukoon.tools import ffmpeg_install_command
 from tests.conftest import BASE, fake_app
 from tests.test_api import upload, wait
 
@@ -98,6 +99,6 @@ def test_missing_ffmpeg_shows_in_health_and_clears_when_it_returns(client, monke
     path = os.environ["PATH"]
     monkeypatch.setenv("PATH", "")
     gone = client.get("/api/health").json()["ffmpeg"]
-    assert gone == {"ok": False, "install": "sudo apt install ffmpeg"}
+    assert gone == {"ok": False, "install": ffmpeg_install_command()}
     monkeypatch.setenv("PATH", path)
     assert client.get("/api/health").json()["ffmpeg"]["ok"] is True
