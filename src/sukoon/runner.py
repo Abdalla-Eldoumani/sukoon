@@ -17,7 +17,7 @@ from sukoon.worker import Worker
 
 log = logging.getLogger("sukoon")
 
-WAITING = {"queued", "waiting_model", "awaiting_track", "awaiting_confirm"}
+WAITING = {"checking", "queued", "waiting_model", "awaiting_track", "awaiting_confirm"}
 
 
 def source_path(settings: Settings, job_id: str) -> Path:
@@ -62,9 +62,11 @@ class Runner:
         self.wake.set()
 
     def models_changed(self) -> None:
-        for job in self.store.list():
-            if job["state"] == "waiting_model" and self.model_ready(job["options"]["preset"]):
-                self.store.transition(job["id"], "queued")
+        # Under the lock, so a job cannot be parked as waiting just after this pass.
+        with self.lock:
+            for job in self.store.list():
+                if job["state"] == "waiting_model" and self.model_ready(job["options"]["preset"]):
+                    self.store.transition(job["id"], "queued")
         self.wake.set()
 
     def cancel(self, job_id: str) -> None:
