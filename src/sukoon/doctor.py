@@ -5,9 +5,9 @@ from collections.abc import Callable
 from datetime import date
 
 from sukoon import device, models, tools
+from sukoon.links import UPDATE
 from sukoon.settings import GB, Settings
 
-UPDATE = "uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync"
 # Sites change often enough that a yt-dlp this old starts to fail on some of them.
 STALE_DAYS = 60
 NODE_MAJOR = 22
