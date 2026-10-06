@@ -58,8 +58,14 @@ export function JobChoices({ job }: Props) {
             onChange={(e) => send({ format: e.target.value })}
           >
             {job.formats.map((f) => (
-              <option key={f.value} value={f.value}>
+              <option
+                key={f.value}
+                value={f.value}
+                disabled={f.missing !== null}
+                title={f.missing ? `Needs the ${f.missing} encoder` : undefined}
+              >
                 {formatLabel(f.value, f.video, f.reencode, fromVideo)}
+                {f.missing ? ` (needs ${f.missing})` : ''}
               </option>
             ))}
           </select>
