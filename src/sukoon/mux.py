@@ -39,9 +39,10 @@ def first_time(path: Path, selector: str, entry: str) -> float | None:
         check=False,
     )
     times = []
-    for line in out.stdout.split():
+    for line in out.stdout.splitlines():
+        # Some containers append side data after the time, as more comma separated fields.
         try:
-            times.append(float(line.strip(",")))
+            times.append(float(line.split(",")[0]))
         except ValueError:
             continue
     # Packets come in decode order, so the earliest time is not always the first one read.
@@ -111,7 +112,12 @@ def _args(
         ]
     if plan.attachments:
         args += ["-map", "0:t?", "-c:t", "copy"]
+    # Kept on the source's clock but started where the source started, so a stream whose
+    # clock begins late (MPEG-TS starts near 1.4 s) does not get a blank lead-in.
+    origin = min((s.start_time for s in probe.streams), default=0.0)
     args += [
+        "-output_ts_offset",
+        f"{-origin:.6f}",
         "-map_metadata",
         "0",
         "-map_chapters",
