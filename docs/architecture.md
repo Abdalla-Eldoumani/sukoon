@@ -55,7 +55,7 @@ There is no spike to absorb: the queue holds at most 50 waiting jobs and runs th
 | Uploaded file | `uploads/<job id>/source.<ext>` | Decoded mixture WAV, original preview |
 | Decoded mixture | `work/<job id>/` (the whole folder is deleted when the job ends) | Separated voice, waveform peaks |
 | Separated voice | `work/<job id>/voice.wav` | Output file, cleaned preview, waveform peaks |
-| Output file | `outputs/<job id>/<name> (no music).<ext>` | |
+| Output file | `outputs/<job id>/output.<ext>`; the name `<name> (no music).<ext>` is only offered in the download header | |
 | Review data | `outputs/<job id>/peaks.json`, `preview-original.webm`, `preview-clean.webm` (Opus) | The review player |
 | Models | `models/<file>`, with `<file>.part` while downloading; includes the three settings tables audio-separator reads (`download_checks.json`, `mdx_model_data.json`, `vr_model_data.json`) | |
 
