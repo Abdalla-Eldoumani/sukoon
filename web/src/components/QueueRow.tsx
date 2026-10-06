@@ -2,6 +2,7 @@ import { clock, middle } from '../format'
 import { ACTIVE, STATE_LABEL } from '../labels'
 import type { Job } from '../types'
 import { AudioFileIcon, DownloadIcon, VideoFileIcon } from './icons'
+import { JobChoices } from './JobChoices'
 import styles from './QueueRow.module.css'
 
 interface Props {
@@ -25,6 +26,7 @@ export function QueueRow({ job, arriving = false }: Props) {
         </bdi>
         {failed && job.error && <span className={`small ${styles.error}`}>{job.error}</span>}
         {!failed && job.notes.length > 0 && <span className={`small ${styles.note}`}>{job.notes.join(' ')}</span>}
+        <JobChoices job={job} />
       </div>
       <span className={`readout ${styles.duration}`}>{job.duration != null ? clock(job.duration) : ''}</span>
       <div className={styles.stage}>
