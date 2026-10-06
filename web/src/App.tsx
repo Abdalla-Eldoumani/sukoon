@@ -38,6 +38,11 @@ function localJob(id: string, file: File): Job {
   }
 }
 
+/** The values `from` holds for the keys a change touched. */
+function pick(from: Settings, change: Partial<Settings>): Partial<Settings> {
+  return Object.fromEntries(Object.keys(change).map((k) => [k, from[k as keyof Settings]]))
+}
+
 export function App() {
   const [health, setHealth] = useState<Health | null>(null)
   const server = useServerState()
@@ -87,19 +92,29 @@ export function App() {
     getJson<Settings>('/api/settings').then(setSettings, () => setSettings(null))
   }, [])
 
-  // Shown at once, put back if the server refuses, so the controls never lag the keys.
+  // Shown at once so the controls never lag the keys. Only the newest save's answer is applied;
+  // after a refusal the server's own copy is read back, since a later save may have changed it.
+  const lastSave = useRef(0)
   const changeSettings = (values: Partial<Settings>) => {
+    const turn = ++lastSave.current
     const before = settings
     setSettingsError(null)
     setSettings((s) => (s ? { ...s, ...values } : s))
     putJson<Settings>('/api/settings', values).then(
       (saved) => {
-        setSettings(saved)
+        if (turn === lastSave.current) setSettings(saved)
         if ('device' in values) checkHealth()
       },
       (e: Error) => {
-        setSettings(before)
         setSettingsError(e.message)
+        if (turn !== lastSave.current) return
+        getJson<Settings>('/api/settings').then(
+          (current) => {
+            if (turn === lastSave.current) setSettings(current)
+          },
+          // Unreachable too: put back only what this change touched.
+          () => setSettings((s) => (s && before ? { ...s, ...pick(before, values) } : s)),
+        )
       },
     )
   }
