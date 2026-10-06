@@ -10,7 +10,6 @@
   max-width: 60ch;
   margin: var(--s5) 0 0;
   color: var(--text-2);
-  font-size: 16px;
 }
 
 .controls {
@@ -36,12 +35,6 @@
 .intake .link input {
   width: 420px;
   max-width: 100%;
-}
-
-.formats {
-  max-width: 60ch;
-  margin: var(--s5) 0 0;
-  color: var(--text-2);
 }
 
 .error {
