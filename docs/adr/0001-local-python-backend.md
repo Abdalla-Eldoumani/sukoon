@@ -1,0 +1,3 @@
+# 1. Separation runs in a local Python server, not in the browser
+
+The interface is a web page, so running the models in the browser with WebGPU and ffmpeg compiled to WebAssembly looked like the simpler product: no Python, no install. It was rejected. The best voice models are PyTorch checkpoints of 900 MB with no maintained browser port, ffmpeg.wasm runs single-threaded and caps out around 2 GB of memory, which rules out long videos, and copying a video stream without re-encoding needs the native muxers. A local FastAPI server with native ffmpeg and torch costs an install step but gets full GPU speed, any file length, and stream copy. Revisit if a maintained WebGPU port of a RoFormer vocal model appears.
