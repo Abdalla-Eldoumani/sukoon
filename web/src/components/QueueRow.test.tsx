@@ -16,16 +16,23 @@ function row(fields: Parameters<typeof job>[0], problem: string | null = null) {
 
 describe('QueueRow', () => {
   it('shows the stage and how far into the recording it has got', () => {
-    row({ state: 'separating', progress: 0.42 })
+    // Overall progress also counts decoding, so it is not a position; the pass's own fraction is.
+    row({ state: 'separating', progress: 0.5, through: 0.1 })
     expect(screen.getByText('Separating')).toBeInTheDocument()
-    expect(screen.getByText('0:53 of 2:05')).toBeInTheDocument()
-    expect(screen.getByRole('listitem', { name: 'lecture.mp3' })).toHaveAttribute('aria-description', 'Separating, 42%')
+    expect(screen.getByText('0:13 of 2:05')).toBeInTheDocument()
+    expect(screen.getByRole('listitem', { name: 'lecture.mp3' })).toHaveAttribute('aria-description', 'Separating, 50%')
   })
 
   it('says a file is still uploading, and how much has gone', () => {
     row({ state: 'uploading', progress: 0.37, duration: null })
     expect(screen.getByText('Uploading')).toBeInTheDocument()
     expect(screen.getByText('37%')).toBeInTheDocument()
+  })
+
+  it('keeps both byte counts in one unit past a gigabyte', () => {
+    const link = { url: 'https://youtu.be/x', site: 'youtu.be', done: 1_200_000_000, total: 2_500_000_000 }
+    row({ state: 'fetching', kind: null, name: 'youtu.be/x', duration: null, link })
+    expect(screen.getByText('1.20 GB of 2.50 GB')).toBeInTheDocument()
   })
 
   it('counts what has arrived when a site keeps the size back', () => {
@@ -125,7 +132,7 @@ describe('QueueRow', () => {
     row({ state: 'fetching', kind: null, progress: 0.3, name: 'youtu.be/jNQXAC9IVRw', link: { url: 'https://youtu.be/jNQXAC9IVRw', site: 'youtu.be', done: 12_000_000, total: 40_000_000 } })
     expect(screen.getByText('Fetching')).toBeInTheDocument()
     expect(screen.getByText('Fetching').parentElement).toHaveTextContent('Fetching, from youtu.be')
-    expect(screen.getByText('12 of 40 MB')).toBeInTheDocument()
+    expect(screen.getByText('12 MB of 40 MB')).toBeInTheDocument()
   })
 
   it('has no review for a download-only job, since nothing was removed', () => {
