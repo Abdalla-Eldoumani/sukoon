@@ -36,6 +36,7 @@ function localJob(id: string, file: File): Job {
     confirm: null,
     output_name: null,
     link: null,
+    through: null,
   }
 }
 
@@ -238,15 +239,15 @@ export function App() {
                 <span className="small">
                   Clear {finished.length} finished {finished.length === 1 ? 'job' : 'jobs'} and their files?
                 </span>
-                <button type="button" className="btn-quiet" autoFocus onClick={clearFinished}>
+                <button type="button" className="btn-quiet btn-small" autoFocus onClick={clearFinished}>
                   Clear
                 </button>
-                <button type="button" className="btn-quiet" onClick={() => setClearing(false)}>
+                <button type="button" className="btn-quiet btn-small" onClick={() => setClearing(false)}>
                   Keep
                 </button>
               </>
             ) : (
-              <button type="button" className="btn-quiet" onClick={() => setClearing(true)}>
+              <button type="button" className="btn-quiet btn-small" onClick={() => setClearing(true)}>
                 Clear finished
               </button>
             )}
@@ -255,7 +256,15 @@ export function App() {
             )}
           </div>
         )}
-        {needsModel && best && fast && <ModelCard best={best} fast={fast} onDownload={download} problem={downloadError} />}
+        {needsModel && best && fast && (
+          <ModelCard
+            best={best}
+            fast={fast}
+            onDownload={download}
+            problem={downloadError}
+            primary={rows.length > 0 && reviewing === null}
+          />
+        )}
         {rows.length > 0 && (
           <ol className={styles.queue} aria-label="Queue">
             {rows.map((job) => (
