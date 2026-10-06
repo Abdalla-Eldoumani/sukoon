@@ -82,7 +82,7 @@ export function App() {
         {rows.length > 0 && (
           <ol className={styles.queue} aria-label="Queue">
             {rows.map((job) => (
-              <QueueRow key={job.id} job={job} />
+              <QueueRow key={job.id} job={job} arriving={server.initial !== null && !server.initial.has(job.id)} />
             ))}
           </ol>
         )}
