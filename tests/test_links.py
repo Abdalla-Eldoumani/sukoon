@@ -210,7 +210,7 @@ def fake_fetch(url, folder, outbox, max_seconds, max_bytes):
     if what == "private":
         outbox.put(("error", PRIVATE))
         return
-    outbox.put(("title", f"Talk: part 1 / {what}"))
+    outbox.put(("title", "A title that ends. " if what == "dotted" else f"Talk: part 1 / {what}"))
     if what == "playlist":
         (folder / "part0.mp4").write_text("#EXTM3U\nfile:///C:/Windows/win.ini\n")
     elif what == "split":
@@ -254,6 +254,11 @@ def test_a_link_is_fetched_checked_and_cleaned_into_mp4(links_client, settings):
     out = settings.job_path("outputs", job["id"])
     assert (out / "output.mp4").is_file()
     assert (out / "peaks.json").is_file()
+
+
+def test_a_title_ending_in_a_full_stop_makes_a_clean_name(links_client):
+    job = wait(links_client, link(links_client, "dotted")["id"])
+    assert job["name"] == "A title that ends.mp4"
 
 
 def test_video_and_audio_parts_are_joined_into_one_source(links_client, settings):
