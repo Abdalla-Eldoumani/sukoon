@@ -3,12 +3,11 @@ import { loadPeaks, paintLanes, useCanvas, type Peaks } from '../lanes'
 import type { Job } from '../types'
 import styles from './Lane.module.css'
 
-const MOVING = new Set(['uploading', 'decoding', 'separating', 'encoding'])
-
 /** How far a job has got, 0 to 1, when that is known. */
 export function position(job: Job): number | null {
   if (job.state === 'fetching') return job.link?.total ? job.link.done / job.link.total : null
-  return MOVING.has(job.state) ? job.progress : null
+  if (job.state === 'uploading') return job.progress
+  return job.through
 }
 
 function MiniStrip({ peaks, drawIn }: { peaks: Peaks; drawIn: boolean }) {
