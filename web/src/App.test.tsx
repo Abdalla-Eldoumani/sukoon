@@ -52,7 +52,7 @@ describe('App', () => {
     render(<App />)
     act(() => FakeEventSource.last!.emit('snapshot', { jobs: [job({ state: 'queued' })], models: [] }))
     expect(screen.getByText('Queued')).toBeInTheDocument()
-    act(() => FakeEventSource.last!.emit('job', job({ state: 'separating', progress: 0.5 })))
+    act(() => FakeEventSource.last!.emit('job', job({ state: 'separating', progress: 0.55, through: 0.5 })))
     expect(screen.getByText('Separating')).toBeInTheDocument()
     expect(screen.getByText('1:03 of 2:05')).toBeInTheDocument()
     act(() => FakeEventSource.last!.emit('deleted', { id: 'a1' }))
