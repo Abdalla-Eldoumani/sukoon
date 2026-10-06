@@ -12,6 +12,7 @@ import { QueueRow, type RowActions } from './components/QueueRow'
 import { TopBar } from './components/TopBar'
 import { useServerState } from './serverState'
 import type { Job, Preset } from './types'
+import { reducedMotion } from './motion'
 import { uploadFile } from './upload'
 import { useWindowDrag } from './useWindowDrag'
 
@@ -88,8 +89,7 @@ export function App() {
   // The sheet slides with a view transition where the browser has one.
   const toggleSheet = (open: boolean) => {
     const change = () => setSheetOpen(open)
-    const quiet = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (document.startViewTransition && !quiet) document.startViewTransition(() => flushSync(change))
+    if (document.startViewTransition && !reducedMotion()) document.startViewTransition(() => flushSync(change))
     else change()
   }
   const closeSheet = useCallback(() => toggleSheet(false), [])
@@ -123,8 +123,7 @@ export function App() {
   // Opening and closing the panel cross-fades where the browser has view transitions.
   const select = (job: Job) => {
     const change = () => setReviewing((id) => (id === job.id ? null : job.id))
-    const quiet = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (document.startViewTransition && !quiet) document.startViewTransition(() => flushSync(change))
+    if (document.startViewTransition && !reducedMotion()) document.startViewTransition(() => flushSync(change))
     else change()
   }
   const finished = server.jobs.filter((j) => ['done', 'failed', 'canceled', 'interrupted'].includes(j.state))
