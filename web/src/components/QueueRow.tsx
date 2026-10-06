@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { clock, megabytes, middle } from '../format'
+import { clock, megabytes } from '../format'
 import { ACTIVE, STATE_LABEL } from '../labels'
 import type { Job } from '../types'
 import { AudioFileIcon, CancelIcon, DeleteIcon, DownloadIcon, LinkIcon, RetryIcon, VideoFileIcon } from './icons'
@@ -79,7 +79,7 @@ export function QueueRow({ job, actions, problem = null, arriving = false, selec
   const wide = (failed || !!problem || hasChoices(job)) && position(job) === null && job.state !== 'done'
   const name = (
     <span className={`name ${styles.nameText}`} dir="auto">
-      {middle(job.name)}
+      {job.name}
     </span>
   )
   return (
