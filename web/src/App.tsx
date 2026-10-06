@@ -44,6 +44,7 @@ export function App() {
   const [problems, setProblems] = useState<Record<string, string>>({})
   const [library, setLibrary] = useState<number | null>(null)
   const [clearing, setClearing] = useState(false)
+  const [clearError, setClearError] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState<string | null>(null)
 
   // One upload at a time keeps jobs in the order the files were dropped.
@@ -102,7 +103,8 @@ export function App() {
   const finished = server.jobs.filter((j) => ['done', 'failed', 'canceled', 'interrupted'].includes(j.state))
   const clearFinished = () => {
     setClearing(false)
-    void postJson('/api/library/clear')
+    setClearError(null)
+    postJson('/api/library/clear').catch((e: Error) => setClearError(e.message))
   }
 
   const download = (preset: Preset, switchJobs: boolean) => {
@@ -135,7 +137,7 @@ export function App() {
                 <span className="small">
                   Clear {finished.length} finished {finished.length === 1 ? 'job' : 'jobs'} and their files?
                 </span>
-                <button type="button" className="btn-quiet" onClick={clearFinished}>
+                <button type="button" className="btn-quiet" autoFocus onClick={clearFinished}>
                   Clear
                 </button>
                 <button type="button" className="btn-quiet" onClick={() => setClearing(false)}>
@@ -147,6 +149,7 @@ export function App() {
                 Clear finished
               </button>
             )}
+            {clearError && <span className={`small ${styles.error}`}>{clearError}</span>}
           </div>
         )}
         {rows.length > 0 && (
