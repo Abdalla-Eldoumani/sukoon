@@ -95,7 +95,8 @@ export function DropWell({ compact, dragging, onFiles, onLink, linkError = null 
     <section className={styles.intake} aria-label="Add files">
       <h2 className="display">{dragging ? 'Release to add.' : 'Drop a recording anywhere on this window.'}</h2>
       <p className={styles.lede}>
-        Voices stay and the music goes, all on this computer; a link is fetched from its site, then cleaned here.
+        Voices stay and the music goes, all on this computer; a link from YouTube, X, Instagram, TikTok, Facebook,
+        Reddit, Vimeo, or SoundCloud is fetched from its site, then cleaned here.
       </p>
       <div className={styles.controls}>
         {choose}
@@ -103,10 +104,6 @@ export function DropWell({ compact, dragging, onFiles, onLink, linkError = null 
         {link}
       </div>
       {error}
-      <p className={`small ${styles.formats}`}>
-        MP3, M4A, WAV, FLAC, Opus, MP4, MKV, MOV, WebM, and most other formats. Links from YouTube, X, Instagram,
-        TikTok, Facebook, Reddit, Vimeo, and SoundCloud.
-      </p>
       {picker}
     </section>
   )
