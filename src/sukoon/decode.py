@@ -69,6 +69,8 @@ def decode(
             on_progress,
             cancelled,
         )
+    except ffmpeg.FfmpegTimeout:
+        raise
     except ffmpeg.FfmpegError:
         # A damaged file can make ffmpeg exit with an error after decoding most of it.
         if not out_wav.exists():
