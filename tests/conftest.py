@@ -1,6 +1,9 @@
+import importlib.util
 import socket
 import threading
 import time
+from pathlib import Path
+from types import ModuleType
 
 import pytest
 import uvicorn
@@ -83,19 +86,23 @@ def live(settings):
         server.stop()
 
 
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def fixture_script() -> ModuleType:
+    """scripts/make_fixtures.py, which is not part of the package."""
+    spec = importlib.util.spec_from_file_location(
+        "make_fixtures", ROOT / "scripts" / "make_fixtures.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @pytest.fixture(scope="session")
 def corpus():
     """The generated fixture folder, built once if it is missing."""
-    import importlib.util
-    from pathlib import Path
-
-    root = Path(__file__).resolve().parent.parent
-    out = root / "tests" / "fixtures" / "generated"
+    out = ROOT / "tests" / "fixtures" / "generated"
     if not (out / "truncated.mp4").exists():
-        spec = importlib.util.spec_from_file_location(
-            "make_fixtures", root / "scripts" / "make_fixtures.py"
-        )
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        module.build(out)
+        fixture_script().build(out)
     return out
