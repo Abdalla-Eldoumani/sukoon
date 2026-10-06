@@ -102,4 +102,25 @@ describe('QueueRow', () => {
     row({ state: 'separating' }, 'Cancel this job before deleting it.')
     expect(screen.getByText('Cancel this job before deleting it.')).toBeInTheDocument()
   })
+
+  it('says where a link comes from and how much has arrived', () => {
+    row({ state: 'fetching', progress: 0.3, name: 'youtu.be/jNQXAC9IVRw', link: { url: 'https://youtu.be/jNQXAC9IVRw', site: 'youtu.be', done: 12_000_000, total: 40_000_000 } })
+    expect(screen.getByText('Fetching')).toBeInTheDocument()
+    expect(screen.getByText('from youtu.be · 12 MB of 40 MB')).toBeInTheDocument()
+  })
+
+  it('has no review for a download-only job, since nothing was removed', () => {
+    const options = { preset: 'best' as const, format: 'mp4', track: null, keep_music: true }
+    render(
+      <ul>
+        <QueueRow
+          job={job({ state: 'done', options, output_name: 'Talk.mp4', link: { url: 'https://youtu.be/jNQXAC9IVRw', site: 'youtu.be', done: 12_000_000, total: 40_000_000 } })}
+          actions={{ cancel: vi.fn(), retry: vi.fn(), remove: vi.fn() }}
+          onSelect={vi.fn()}
+        />
+      </ul>,
+    )
+    expect(screen.queryByRole('button', { name: /Review/ })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Download Talk.mp4' })).toBeInTheDocument()
+  })
 })
