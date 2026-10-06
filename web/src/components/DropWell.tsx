@@ -14,6 +14,7 @@ interface Props {
   linkError?: string | null
 }
 
+/** Where work comes in: the whole window takes a drop; this holds the button and the link field. */
 export function DropWell({ compact, dragging, onFiles, onLink, linkError = null }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [url, setUrl] = useState('')
@@ -25,57 +26,88 @@ export function DropWell({ compact, dragging, onFiles, onLink, linkError = null 
     if (await onLink(url.trim())) setUrl('')
     setSending(false)
   }
-  return (
-    <section className={compact ? `${styles.well} ${styles.compact}` : styles.well} aria-label="Add files">
-      <p className={styles.prompt}>{dragging ? 'Release to add' : 'Drop audio or video here'}</p>
-      <button type="button" className="btn-quiet" onClick={() => input.current?.click()}>
-        Choose files
-      </button>
-      <form
-        className={styles.link}
-        onSubmit={(e) => {
-          e.preventDefault()
-          void submit()
-        }}
-      >
-        <input
-          className="input"
-          type="url"
-          inputMode="url"
-          aria-label="Link to a video"
-          placeholder="or paste a link"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          aria-invalid={linkError ? true : undefined}
-          aria-describedby={linkError ? errorId : undefined}
-        />
-        <button type="submit" className="btn-quiet" disabled={sending}>
-          Add link
-        </button>
-      </form>
-      {linkError && (
-        <p id={errorId} className={`small ${styles.error}`}>
-          {linkError}
-        </p>
-      )}
-      {!compact && (
-        <p className={`small ${styles.formats}`}>
-          MP3, M4A, WAV, FLAC, OGG, Opus, MP4, MOV, MKV, WEBM and most other formats, or a link from YouTube, X,
-          Instagram, TikTok, Facebook, Reddit, Vimeo, or SoundCloud
-        </p>
-      )}
+  const size = compact ? ' btn-small' : ''
+  const choose = (
+    <button
+      type="button"
+      className={compact ? `btn-quiet${size}` : 'btn-primary'}
+      onClick={() => input.current?.click()}
+    >
+      Choose files
+    </button>
+  )
+  const link = (
+    <form
+      className={styles.link}
+      onSubmit={(e) => {
+        e.preventDefault()
+        void submit()
+      }}
+    >
       <input
-        ref={input}
-        type="file"
-        multiple
-        accept={ACCEPT}
-        hidden
-        onChange={(e) => {
-          const files = Array.from(e.currentTarget.files ?? [])
-          e.currentTarget.value = ''
-          if (files.length) onFiles(files)
-        }}
+        className={compact ? 'input input-small' : 'input'}
+        type="url"
+        inputMode="url"
+        aria-label="Link to a video"
+        placeholder={compact ? 'Paste a link' : 'Paste a link from YouTube, X, SoundCloud...'}
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        aria-invalid={linkError ? true : undefined}
+        aria-describedby={linkError ? errorId : undefined}
       />
+      <button type="submit" className={`btn-quiet${size}`} disabled={sending}>
+        Add link
+      </button>
+    </form>
+  )
+  const error = linkError && (
+    <p id={errorId} className={`small ${styles.error}`}>
+      {linkError}
+    </p>
+  )
+  const picker = (
+    <input
+      ref={input}
+      type="file"
+      multiple
+      accept={ACCEPT}
+      hidden
+      onChange={(e) => {
+        const files = Array.from(e.currentTarget.files ?? [])
+        e.currentTarget.value = ''
+        if (files.length) onFiles(files)
+      }}
+    />
+  )
+
+  if (compact) {
+    return (
+      <section className={styles.bar} aria-label="Add files">
+        <p className={`body-strong ${styles.lead}`}>{dragging ? 'Release to add' : 'Drop more files anywhere'}</p>
+        {choose}
+        {link}
+        {error}
+        {picker}
+      </section>
+    )
+  }
+  return (
+    <section className={styles.intake} aria-label="Add files">
+      <h2 className="display">{dragging ? 'Release to add.' : 'Drop a recording anywhere on this window.'}</h2>
+      <p className={styles.lede}>
+        Voices stay and the music goes, all on this computer; a link is fetched from its site, then cleaned here.
+      </p>
+      <div className={styles.controls}>
+        {choose}
+        <span className={styles.or}>or</span>
+        {link}
+      </div>
+      {error}
+      <p className={`small ${styles.formats}`}>
+        MP3, M4A, WAV, FLAC, Opus, MP4, MKV, MOV, WebM, and most other formats. Links from YouTube, X, Instagram,
+        TikTok, Facebook, Reddit, Vimeo, and SoundCloud.
+      </p>
+      {picker}
     </section>
   )
 }
