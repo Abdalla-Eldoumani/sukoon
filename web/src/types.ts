@@ -59,6 +59,8 @@ export interface Job {
   output_name: string | null
   /** Where a link job comes from, and how much of it has arrived. */
   link: { url: string; site: string; done: number; total: number | null } | null
+  /** How far the running pass (decoding, separating, or encoding) is through the recording, 0 to 1. */
+  through: number | null
 }
 
 export interface ModelState {
