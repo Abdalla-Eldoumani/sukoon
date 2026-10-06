@@ -12,7 +12,7 @@ A local web app that removes music from audio and video files. One person, one m
  browser (127.0.0.1 only)
    |  HTTP + server-sent events, same origin
    v
- FastAPI app ------------------------------ SQLite (jobs)
+ FastAPI app ------------------------------ SQLite (jobs, settings)
    |  validates Host and Origin                 |
    |  streams uploads to disk                   |
    v                                            |
@@ -49,11 +49,15 @@ There is no spike to absorb: the queue holds at most 50 waiting jobs and runs th
 
 | Data | System of record | Derived from it |
 | --- | --- | --- |
-| Job metadata and state | SQLite `jobs.db` in the data folder | Live events sent to the browser |
-| Uploaded file | `uploads/<job id>/source.<ext>` | Decoded mixture WAV, waveform peaks |
-| Separated voice | `work/<job id>/voice.wav` (deleted after encoding) | Output file, preview audio, waveform peaks |
+| Job metadata and state | SQLite `jobs.db` in the data folder, `jobs` table | Live events sent to the browser |
+| Settings (preset, device, default formats) | `jobs.db`, `settings` table of keys and JSON values | Defaults applied to each new upload |
+| Theme | The browser's `localStorage` | |
+| Uploaded file | `uploads/<job id>/source.<ext>` | Decoded mixture WAV, original preview |
+| Decoded mixture | `work/<job id>/` (the whole folder is deleted when the job ends) | Separated voice, waveform peaks |
+| Separated voice | `work/<job id>/voice.wav` | Output file, cleaned preview, waveform peaks |
 | Output file | `outputs/<job id>/<name> (no music).<ext>` | |
-| Models | `models/<file>` | |
+| Review data | `outputs/<job id>/peaks.json`, `preview-original.webm`, `preview-clean.webm` (Opus) | The review player |
+| Models | `models/<file>`, with `<file>.part` while downloading | |
 
 Invariants and what enforces them:
 
@@ -81,7 +85,7 @@ Recovery: if the app dies, nothing is lost but in-flight work. Interrupted jobs 
 - **A crafted media file makes ffmpeg read other files or the network.** Probe first and reject playlist and indirection formats; run ffmpeg and ffprobe with `-protocol_whitelist file,pipe`; never pass a user string as an argument.
 - **Path traversal through file names.** User file names are kept only as display strings in the database and in the `Content-Disposition` header (RFC 6266 `filename*`). On disk everything is a UUID.
 - **A swapped model file runs code when loaded.** Pinned SHA-256 on every model file; torch 2.14 loads with `weights_only=True` by default; the Demucs path, which loads with `weights_only=False`, is not used.
-- **Resource exhaustion from a huge or malformed file.** Size, duration, and disk checks before work starts; every subprocess has a timeout scaled to the file's duration.
+- **Resource exhaustion from a huge or malformed file.** Size, duration, and disk checks before work starts; every ffmpeg and ffprobe call has a timeout scaled to the file's duration, and the separation worker is stopped if a chunk reports no progress for 30 minutes.
 - **Agents and model calls reading private data.** Not applicable: the app makes no model API calls.
 
 ## Cost
@@ -106,7 +110,7 @@ No personal data is collected and nothing is transmitted, so no privacy law is t
 
 1. **The GPU path does not work on Windows** because torch was installed from PyPI (CPU only on Windows) instead of the PyTorch CUDA index. Design change: the `cuda` extra pins the PyTorch index, and `sukoon doctor` prints the device torch actually sees.
 2. **torch and torchvision come from different indexes** and the MDX model fails to load with `operator torchvision::nms does not exist`. This happened during the 2026-10-05 spike. Design change: both are pinned to the same index in `pyproject.toml`.
-3. **Audio drifts against video** after muxing because the audio stream started at a non-zero time or the encoder added priming samples. Design change: the mux applies the source audio stream's start time, and a fixture with a 0.5 s audio offset is in the suite with a cross-correlation check.
+3. **Audio drifts against video** after muxing because the audio stream started at a non-zero time or the encoder added priming samples. Design change: the voice is decoded on the source track's own clock (`-copyts` with `aresample` filling from the track's first timestamp), the mux puts it back at that start with `-itsoffset`, and MP4 and MOV outputs get one measured trim for the AAC encoder's priming. Files whose clock starts late, such as MPEG-TS, are rebased so the earliest stream starts at zero. Tests compare the speech in source and output by cross-correlation on their absolute timelines, relative to where the picture moved, across ten container and track combinations plus two late-clock cases, to within 1 ms. One known limit: MP4 to MKV can land about 1 ms off, because Matroska stores whole milliseconds.
 4. **Chunk seams are audible.** Design change: 4-second overlaps with a linear crossfade, and a test that compares chunked output with whole-file output on the same clip.
 5. **First run feels broken** because the 913 MB model downloads silently. Design change: the model download is a visible step with progress and the option to start with Fast.
 
@@ -123,7 +127,7 @@ No personal data is collected and nothing is transmitted, so no privacy law is t
 
 - Automated suite: pipeline tests on the generated fixture corpus with a fake separator, API tests, interface component tests, and real-model tests (opt-in, CPU) with SDR thresholds.
 - `sukoon doctor` output on the target machine.
-- The benchmark command prints real-time factor per preset and device.
+- `sukoon bench --preset best|fast --device auto|cpu` separates a generated 30-second clip three times and prints the median real-time factor. GPU numbers have not been taken yet; they are recorded on the target laptop before release.
 
 ## End-of-life dates
 
