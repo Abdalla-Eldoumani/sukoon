@@ -21,6 +21,12 @@ export interface Track {
   channels: number | null
 }
 
+export interface FormatChoice {
+  value: string
+  video: boolean
+  reencode: boolean
+}
+
 export interface Job {
   id: string
   created: number
@@ -31,10 +37,12 @@ export interface Job {
   eta: number | null
   error: string | null
   retryable: boolean
-  options: { preset: Preset; format: string | null; track: number | null }
+  options: { preset: Preset; format: string | null; track: number | null; reencode_ok?: boolean }
   duration: number | null
   tracks: Track[]
   notes: string[]
+  formats: FormatChoice[]
+  confirm: string | null
   output_name: string | null
 }
 
