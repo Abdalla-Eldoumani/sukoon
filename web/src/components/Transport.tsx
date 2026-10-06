@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, type PointerEvent } from 'react'
 import { clock } from '../format'
 import { PauseIcon, PlayIcon } from './icons'
 import styles from './Transport.module.css'
@@ -21,19 +21,31 @@ interface Props {
 export function Transport({ playing, current, duration, original, onPlay, onPause, onToggle, onHold }: Props) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const holding = useRef(false)
-  const press = () => {
+  const pointer = useRef(false)
+  const press = (e: PointerEvent<HTMLButtonElement>) => {
+    // Captured, so letting go anywhere still ends a hold.
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    pointer.current = true
     holding.current = false
     timer.current = setTimeout(() => {
       holding.current = true
       onHold(true)
     }, HOLD_MS)
   }
-  const release = () => {
+  const release = (toggle: boolean) => {
     if (timer.current) clearTimeout(timer.current)
     timer.current = null
     if (holding.current) onHold(false)
-    else onToggle()
+    else if (toggle) onToggle()
     holding.current = false
+  }
+  const click = () => {
+    // A pointer press was handled on release; keyboards and screen readers arrive here.
+    if (pointer.current) {
+      pointer.current = false
+      return
+    }
+    onToggle()
   }
   return (
     <div className={styles.transport}>
@@ -60,14 +72,10 @@ export function Transport({ playing, current, duration, original, onPlay, onPaus
           aria-label="Play the original (hold C)"
           className={styles.switch}
           onPointerDown={press}
-          onPointerUp={release}
-          onPointerCancel={release}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              if (!e.repeat) onToggle()
-            }
-          }}
+          onPointerUp={() => release(true)}
+          onPointerCancel={() => release(false)}
+          onLostPointerCapture={() => release(false)}
+          onClick={click}
         >
           <span className={styles.knob} />
         </button>
