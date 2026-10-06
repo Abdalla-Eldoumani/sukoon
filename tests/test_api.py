@@ -391,3 +391,35 @@ def test_format_change_keeps_the_track_question_open(client, corpus):
     r = client.post(f"/api/jobs/{job['id']}/choose", json={"track": 1})
     assert r.json()["state"] == "awaiting_confirm"
     assert r.json()["options"]["format"] == "webm"
+
+
+def test_finished_job_serves_peaks_and_ranged_previews(client, corpus):
+    job = wait(client, upload(client, corpus / "short-2s.wav").json()["id"])
+    peaks = client.get(f"/api/jobs/{job['id']}/peaks").json()
+    assert len(peaks["voice"]) == 4000
+    for which in ("original", "clean"):
+        r = client.get(f"/api/jobs/{job['id']}/preview/{which}", headers={"range": "bytes=0-99"})
+        assert r.status_code == 206
+        assert r.headers["content-type"] == "audio/webm"
+        assert len(r.content) == 100
+    assert client.get(f"/api/jobs/{job['id']}/preview/other").status_code == 404
+    assert client.get(f"/api/jobs/{job['id']}/source").status_code == 404  # audio has no video
+    assert job["offset"] == 0.0
+
+
+def test_video_job_serves_its_source_in_ranges_with_the_audio_offset(client, corpus):
+    job = wait(client, upload(client, corpus / "offset-0.5s.mp4").json()["id"])
+    r = client.get(f"/api/jobs/{job['id']}/source", headers={"range": "bytes=10-19"})
+    assert r.status_code == 206
+    assert r.headers["content-type"] == "video/mp4"
+    assert r.content == (corpus / "offset-0.5s.mp4").read_bytes()[10:20]
+    assert abs(job["offset"] - 0.476) < 0.001
+
+
+def test_review_files_wait_for_the_job_to_finish(settings, corpus, web_dist):
+    with TestClient(
+        fake_app(settings, web_dist=web_dist, model_ready=lambda p: False), base_url=BASE
+    ) as client:
+        job = upload(client, corpus / "short-2s.wav").json()
+        for path in ("peaks", "preview/clean", "source"):
+            assert client.get(f"/api/jobs/{job['id']}/{path}").status_code == 404
