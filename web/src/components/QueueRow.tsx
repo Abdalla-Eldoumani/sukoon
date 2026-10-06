@@ -69,6 +69,7 @@ export function QueueRow({ job, actions, problem = null, arriving = false, selec
             {fetched && job.link && ` · ${megabytes(job.link.done)}${job.link.total ? ` of ${megabytes(job.link.total)}` : ''}`}
             {/* Only once ffprobe has read it, the same check an upload gets; never a virus scan. */}
             {job.kind && ` · checked as real ${job.kind}`}
+            {job.options.keep_music && ' · download only'}
           </span>
         )}
         {failed && job.error && <span className={`small ${styles.error}`}>{job.error}</span>}
