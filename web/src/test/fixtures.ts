@@ -20,6 +20,7 @@ export function job(fields: Partial<Job> = {}): Job {
     confirm: null,
     output_name: null,
     link: null,
+    through: null,
     ...fields,
   }
 }
