@@ -220,7 +220,7 @@ def library_size(settings: Settings) -> dict[str, Any]:
 
 def open_folder(folder: Path) -> None:
     if sys.platform == "win32":
-        os.startfile(folder)  # type: ignore[attr-defined]  # noqa: S606
+        os.startfile(folder)  # noqa: S606
     elif sys.platform == "darwin":
         subprocess.Popen(["open", str(folder)])
     else:
