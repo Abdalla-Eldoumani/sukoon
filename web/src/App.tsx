@@ -209,7 +209,12 @@ export function App() {
     server.jobs.some((j) => j.state === 'waiting_model') || server.models.some((m) => m.downloading || m.error)
 
   if (health && !health.ffmpeg.ok) {
-    return <SetupScreen install={health.ffmpeg.install} checking={checking} onCheck={checkHealth} />
+    return (
+      <>
+        <TopBar device={health.device} library={null} />
+        <SetupScreen install={health.ffmpeg.install} checking={checking} onCheck={checkHealth} />
+      </>
+    )
   }
 
   return (
@@ -220,21 +225,13 @@ export function App() {
         onSettings={settings ? () => toggleSheet(true) : null}
       />
       <main className={styles.main}>
-        <DropWell
-          compact={rows.length > 0}
-          dragging={dragging}
-          onFiles={addFiles}
-          onLink={addLink}
-          linkError={linkError}
-        />
         {rows.length === 0 && (
-          <p className={styles.note}>
-            Voices stay. Instruments, and most other non-voice sounds, are removed. Your files never leave this
-            computer; a link is fetched from its site, then cleaned here.
-          </p>
+          <DropWell compact={false} dragging={dragging} onFiles={addFiles} onLink={addLink} linkError={linkError} />
         )}
-        {needsModel && best && fast && <ModelCard best={best} fast={fast} onDownload={download} problem={downloadError} />}
-        {finished.length > 0 && (
+        {rows.length > 0 && (
+          <div className={styles.intakeBar}>
+            <DropWell compact dragging={dragging} onFiles={addFiles} onLink={addLink} linkError={linkError} />
+            {finished.length > 0 && (
           <div className={styles.queueBar}>
             {clearing ? (
               <>
@@ -255,7 +252,10 @@ export function App() {
             )}
             {clearError && <span className={`small ${styles.error}`}>{clearError}</span>}
           </div>
+            )}
+          </div>
         )}
+        {needsModel && best && fast && <ModelCard best={best} fast={fast} onDownload={download} problem={downloadError} />}
         {rows.length > 0 && (
           <ol className={styles.queue} aria-label="Queue">
             {rows.map((job) => (
