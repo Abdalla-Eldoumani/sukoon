@@ -25,6 +25,12 @@ def bind_first_free(first: int, last: int) -> tuple[socket.socket | None, int]:
     """Returns a bound socket on the first free port, or (None, port) if sukoon already has one."""
     for port in range(first, last + 1):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Lets a restart reclaim its port from TIME_WAIT; Windows needs the exclusive flag
+        # instead, since its SO_REUSEADDR would let two servers share the port.
+        if sys.platform == "win32":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)  # type: ignore[attr-defined]
+        else:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind(("127.0.0.1", port))
         except OSError:
@@ -40,6 +46,7 @@ def serve(settings: Settings, open_browser: bool) -> int:
     import uvicorn
 
     from sukoon.app import create_app
+    from sukoon.device import detect_cached
 
     sock, port = bind_first_free(settings.port_first, settings.port_last)
     url = f"http://127.0.0.1:{port}/"
@@ -49,6 +56,8 @@ def serve(settings: Settings, open_browser: bool) -> int:
             webbrowser.open(url)
         return 0
     settings.ensure_dirs()
+    # Importing torch takes seconds; doing it now keeps the first health check fast.
+    detect_cached()
     print(f"sukoon is running at {url}  (Ctrl+C to stop)", flush=True)
     if open_browser:
         webbrowser.open(url)
@@ -58,18 +67,19 @@ def serve(settings: Settings, open_browser: bool) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="sukoon", description="Remove the music, keep the voices."
-    )
-    parser.add_argument("--no-browser", action="store_true", help="don't open the browser")
-    sub = parser.add_subparsers(dest="command")
-    serve_p = sub.add_parser("serve", help="start the app (the default)")
-    serve_p.add_argument(
+    browser = argparse.ArgumentParser(add_help=False)
+    # SUPPRESS keeps the subcommand's copy from resetting a flag given before it.
+    browser.add_argument(
         "--no-browser",
         action="store_true",
         default=argparse.SUPPRESS,
         help="don't open the browser",
     )
+    parser = argparse.ArgumentParser(
+        prog="sukoon", description="Remove the music, keep the voices.", parents=[browser]
+    )
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("serve", help="start the app (the default)", parents=[browser])
     sub.add_parser("doctor", help="check ffmpeg, torch, disk space, and models")
     clean_p = sub.add_parser("clean", help="remove the music from files in the terminal")
     clean_p.add_argument("files", nargs="+")
@@ -81,4 +91,4 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "clean":
         print("clean is not implemented yet.", file=sys.stderr)
         return 2
-    return serve(settings, open_browser=not args.no_browser)
+    return serve(settings, open_browser=not getattr(args, "no_browser", False))
