@@ -23,14 +23,16 @@ describe('App', () => {
   it('shows the empty state with the plain promise', () => {
     serveHealth('CPU')
     render(<App />)
-    expect(screen.getByText('sukoon')).toBeInTheDocument()
-    expect(screen.getByText(/Voices stay\. Instruments, and most other non-voice sounds/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'sukoon سكون' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Drop a recording anywhere on this window.' })).toBeInTheDocument()
+    expect(screen.getByText(/Voices stay and the music goes, all on this computer/)).toBeInTheDocument()
   })
 
   it('shows the device the server reports', async () => {
     serveHealth('CUDA · RTX 3060 Laptop')
     render(<App />)
-    expect(await screen.findByText('CUDA · RTX 3060 Laptop')).toBeInTheDocument()
+    expect(await screen.findByText('RTX 3060 Laptop')).toBeInTheDocument()
+    expect(screen.getByText('CUDA')).toBeInTheDocument()
   })
 
   it('frames the window while files are dragged over it', () => {
@@ -40,7 +42,7 @@ describe('App', () => {
     Object.defineProperty(enter, 'dataTransfer', { value: { types: ['Files'], files: [] } })
     window.dispatchEvent(enter)
     return vi.waitFor(() => {
-      expect(screen.getByText('Release to add')).toBeInTheDocument()
+      expect(screen.getByText('Release to add.')).toBeInTheDocument()
       expect(screen.getByTestId('drag-frame')).toBeInTheDocument()
     })
   })
@@ -52,7 +54,7 @@ describe('App', () => {
     expect(screen.getByText('Queued')).toBeInTheDocument()
     act(() => FakeEventSource.last!.emit('job', job({ state: 'separating', progress: 0.5 })))
     expect(screen.getByText('Separating')).toBeInTheDocument()
-    expect(screen.getByText('50%')).toBeInTheDocument()
+    expect(screen.getByText('1:03 of 2:05')).toBeInTheDocument()
     act(() => FakeEventSource.last!.emit('deleted', { id: 'a1' }))
     expect(screen.queryByRole('list', { name: 'Queue' })).toBeNull()
   })
@@ -82,8 +84,8 @@ describe('App', () => {
   it('shows only the setup screen while ffmpeg is missing', async () => {
     serveHealth('CPU', false)
     render(<App />)
-    expect(await screen.findByRole('heading', { name: 'sukoon needs ffmpeg' })).toBeInTheDocument()
-    expect(screen.queryByText('Drop audio or video here')).toBeNull()
+    expect(await screen.findByRole('heading', { name: 'sukoon needs ffmpeg.' })).toBeInTheDocument()
+    expect(screen.queryByText('Drop a recording anywhere on this window.')).toBeNull()
   })
 
   it('keeps a saved setting when an earlier change is refused afterwards', async () => {
