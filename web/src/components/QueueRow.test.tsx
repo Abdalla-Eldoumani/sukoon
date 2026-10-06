@@ -121,7 +121,7 @@ describe('QueueRow', () => {
       </ul>,
     )
     expect(screen.queryByRole('button', { name: /Review/ })).toBeNull()
-    expect(screen.getByText('from youtu.be · checked as real audio')).toBeInTheDocument()
+    expect(screen.getByText('from youtu.be · checked as real audio · download only')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Download Talk.mp4' })).toBeInTheDocument()
   })
 })
