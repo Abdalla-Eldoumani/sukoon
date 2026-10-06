@@ -1,3 +1,4 @@
+import io
 import json
 import socket
 import sys
@@ -253,3 +254,15 @@ def test_missing_separation_libraries_are_reported_before_any_download(
     assert main(command) == 1
     assert "Run: uv sync" in capsys.readouterr().err
     assert not any((tmp_path / "models").glob("*"))
+
+
+def test_arabic_paths_print_on_a_terminal_that_is_not_utf8(tmp_path, monkeypatch):
+    # Git Bash on Windows hands Python a cp1252 stdout, which has no Arabic letters.
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252"))
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setitem(sys.modules, "torch", None)
+    monkeypatch.setenv("SUKOON_HOME", str(tmp_path / "بيانات سكون"))
+    assert main(["doctor"]) == 1
+    sys.stdout.flush()
+    assert "بيانات سكون" in raw.getvalue().decode("utf-8")
