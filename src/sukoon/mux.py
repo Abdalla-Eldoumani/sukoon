@@ -126,7 +126,8 @@ def _args(
         "0",
         "-map_chapters",
         "0",
-        *(["-t", f"{limit:g}"] if limit else []),
+        # Under -copyts the limit is read on the source's clock, which may start anywhere.
+        *(["-t", f"{origin + limit:.6f}"] if limit else []),
         "-f",
         MUXER[plan.container],
         "-y",
