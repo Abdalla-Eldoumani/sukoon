@@ -1,5 +1,6 @@
 import argparse
 import functools
+import importlib.util
 import json
 import shutil
 import socket
@@ -16,8 +17,11 @@ from sukoon.compat import VIDEO_CONTAINERS
 from sukoon.encode import AUDIO_FORMATS
 from sukoon.settings import Settings
 
+SEPARATION_MODULES = ("torch", "audio_separator")
+
 if TYPE_CHECKING:
     from sukoon.engine import Engine
+    from sukoon.models import Preset
     from sukoon.pipeline import Options
 
 
@@ -148,21 +152,44 @@ def clean(
     return 1 if failed else 0
 
 
-def run_clean(args: argparse.Namespace, settings: Settings) -> int:
+def missing_libraries(name: str | None) -> str:
+    return (
+        f"The separation libraries are not installed ({name}). "
+        "Run: uv sync --extra cpu (or --extra cuda)"
+    )
+
+
+def ready_to_separate(models_dir: Path, preset: "Preset") -> bool:
+    """Checks the separation libraries are installed, then downloads the model once, with progress.
+
+    The libraries come first so a missing install doesn't cost a 913 MB download.
+    """
     from sukoon import models
     from sukoon.download import download_preset
-    from sukoon.engine import AudioSeparatorEngine
-    from sukoon.pipeline import Options
 
-    models_dir = settings.area("models")
-    if not models.is_ready(models_dir, args.preset):
-        print(f"Downloading the {args.preset} model once...", file=sys.stderr)
+    missing = next((m for m in SEPARATION_MODULES if importlib.util.find_spec(m) is None), None)
+    if missing:
+        print(missing_libraries(missing), file=sys.stderr)
+        return False
+    if not models.is_ready(models_dir, preset):
+        models_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Downloading the {preset} model once...", file=sys.stderr)
 
         def shown(done: int, total: int, rate: float) -> None:
             sys.stderr.write(f"\r{done / 1e6:7.1f} of {total / 1e6:.0f} MB  {rate / 1e6:5.1f} MB/s")
 
-        download_preset(models_dir, args.preset, shown)
+        download_preset(models_dir, preset, shown)
         sys.stderr.write("\n")
+    return True
+
+
+def run_clean(args: argparse.Namespace, settings: Settings) -> int:
+    from sukoon.engine import AudioSeparatorEngine
+    from sukoon.pipeline import Options
+
+    models_dir = settings.area("models")
+    if not ready_to_separate(models_dir, args.preset):
+        return 1
     options = Options(
         preset=args.preset,
         device=args.device,
@@ -180,24 +207,16 @@ def run_clean(args: argparse.Namespace, settings: Settings) -> int:
 
 
 def run_bench(args: argparse.Namespace, settings: Settings) -> int:
-    from sukoon import models
     from sukoon.bench import bench
-    from sukoon.download import download_preset
     from sukoon.engine import AudioSeparatorEngine
 
     models_dir = settings.area("models")
-    models_dir.mkdir(parents=True, exist_ok=True)
-    if not models.is_ready(models_dir, args.preset):
-        print(f"Downloading the {args.preset} model once...", file=sys.stderr)
-        download_preset(models_dir, args.preset, lambda d, t, r: None)
+    if not ready_to_separate(models_dir, args.preset):
+        return 1
     try:
         bench(AudioSeparatorEngine(models_dir), args.preset, args.device)
     except ImportError as exc:
-        print(
-            f"The separation libraries are not installed ({exc.name}). "
-            "Run: uv sync --extra cpu (or --extra cuda)",
-            file=sys.stderr,
-        )
+        print(missing_libraries(exc.name), file=sys.stderr)
         return 1
     return 0
 
