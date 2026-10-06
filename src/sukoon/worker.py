@@ -18,6 +18,9 @@ from sukoon.models import MODEL_FILES, ModelChecksumError, ModelFile, Preset
 
 CRASHED = "The separation engine stopped unexpectedly."
 CANCEL_GRACE_S = 20.0
+# One chunk on the slowest machine measured takes about five minutes; past this it is stuck.
+STALL_S = 1800.0
+STALLED = "The separation engine stopped responding."
 
 
 @dataclass(frozen=True)
@@ -78,8 +81,9 @@ class Worker:
     on first use and again after it dies.
     """
 
-    def __init__(self, config: WorkerConfig) -> None:
+    def __init__(self, config: WorkerConfig, stall_s: float = STALL_S) -> None:
         self.config = config
+        self.stall_s = stall_s
         self.ctx = mp.get_context("spawn")
         self.process: SpawnProcess | None = None
         self.lock = threading.Lock()
@@ -134,6 +138,7 @@ class Worker:
             job_id = scratch.name
             self.inbox.put((job_id, str(mixture), str(voice), str(scratch), preset, device))
             cancel_sent: float | None = None
+            heard = time.monotonic()
             while True:
                 if cancel_sent is None and cancelled():
                     self.cancel.set()
@@ -148,7 +153,11 @@ class Worker:
                     if not process.is_alive():
                         self.process = None
                         raise JobError(CRASHED) from None
+                    if time.monotonic() - heard > self.stall_s:
+                        self.kill()
+                        raise JobError(STALLED) from None
                     continue
+                heard = time.monotonic()
                 kind, msg_job = message[0], message[1]
                 if msg_job != job_id:
                     continue
