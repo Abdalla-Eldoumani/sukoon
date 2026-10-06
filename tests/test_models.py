@@ -1,4 +1,5 @@
 import hashlib
+import re
 
 import pytest
 
@@ -25,14 +26,27 @@ FILES = (
 )
 
 
-def test_registry_holds_the_three_pinned_files():
+def test_registry_holds_the_pinned_files():
     assert [(f.preset, f.name, f.size) for f in MODEL_FILES] == [
         ("best", "vocals_mel_band_roformer.ckpt", 913106900),
         ("best", "vocals_mel_band_roformer.yaml", 944),
+        ("best", "download_checks.json", 28267),
         ("fast", "UVR-MDX-NET-Voc_FT.onnx", 66762490),
+        ("fast", "download_checks.json", 28267),
+        ("fast", "mdx_model_data.json", 15358),
+        ("fast", "vr_model_data.json", 4380),
     ]
-    assert all(f.url.startswith("https://github.com/") for f in MODEL_FILES)
     assert all(len(f.sha256) == 64 for f in MODEL_FILES)
+
+
+def test_every_address_is_fixed():
+    """Release files, or tables read at one commit, never a branch that can move."""
+    release = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/releases/download/")
+    commit = re.compile(
+        r"https://raw\.githubusercontent\.com/TRvlvr/application_data/[0-9a-f]{40}/"
+    )
+    for f in MODEL_FILES:
+        assert release.match(f.url) or commit.match(f.url), f.url
 
 
 def test_a_matching_file_passes(tmp_path):
