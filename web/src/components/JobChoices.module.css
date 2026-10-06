@@ -23,5 +23,39 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
-  color: var(--text-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* The checkbox drawn as the same detented switch as Original, smaller. */
+.toggle input {
+  appearance: none;
+  position: relative;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.toggle input::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-xs);
+  background: var(--text-2);
+  transition: transform var(--d-detent) var(--ease-out);
+}
+
+.toggle input:checked::after {
+  transform: translateX(16px);
+  background: var(--text);
+}
+
+.toggle:hover input {
+  background: var(--band);
 }
