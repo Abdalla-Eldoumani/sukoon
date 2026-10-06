@@ -4,6 +4,8 @@ import type { Job, Track } from '../types'
 import styles from './JobChoices.module.css'
 
 const CHOOSABLE = new Set(['awaiting_track', 'awaiting_confirm', 'queued', 'waiting_model'])
+// A link can switch to download only until it starts running, even while it is fetched.
+const EARLY = new Set(['fetching', 'checking', ...CHOOSABLE])
 
 function trackLabel(track: Track, index: number): string {
   const layout = track.channels === 1 ? 'mono' : track.channels === 2 ? 'stereo' : track.channels ? `${track.channels} channels` : null
@@ -25,7 +27,8 @@ export function JobChoices({ job }: Props) {
   const defaultTrack = job.options.track ?? Math.max(0, job.tracks.findIndex((t) => t.default))
   const [track, setTrack] = useState(defaultTrack)
   const [error, setError] = useState<string | null>(null)
-  if (!CHOOSABLE.has(job.state)) return null
+  const early = job.link !== null && EARLY.has(job.state)
+  if (!CHOOSABLE.has(job.state) && !early) return null
 
   const send = (body: Record<string, unknown>) => {
     setError(null)
@@ -36,6 +39,18 @@ export function JobChoices({ job }: Props) {
     <div className={styles.choices}>
       {job.state === 'awaiting_confirm' && job.confirm && <span className={`small ${styles.text}`}>{job.confirm}</span>}
       <div className={styles.controls}>
+        {early && (
+          <label className={`small ${styles.toggle}`}>
+            <input
+              type="checkbox"
+              role="switch"
+              aria-label={`Remove music from ${job.name}`}
+              checked={!job.options.keep_music}
+              onChange={(e) => send({ keep_music: !e.target.checked })}
+            />
+            {job.options.keep_music ? 'Download only' : 'Remove music'}
+          </label>
+        )}
         {job.state === 'awaiting_track' && (
           <>
             <select className="select" aria-label={`Audio track for ${job.name}`} value={track} onChange={(e) => setTrack(Number(e.target.value))}>
