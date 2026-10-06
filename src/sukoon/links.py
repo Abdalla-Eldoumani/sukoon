@@ -150,9 +150,12 @@ def refusal(info: dict[str, Any], max_seconds: float, max_bytes: int) -> str | N
     if seconds > max_seconds:
         return f"This video is longer than {max_seconds / 3600:g} hours, which is sukoon's limit."
     if sum(expected_size(p, seconds) for p in parts) > max_bytes:
-        gb = max_bytes / 1024**3
-        return f"This video is bigger than {gb:g} GB, which is sukoon's limit."
+        return too_big(max_bytes)
     return None
+
+
+def too_big(max_bytes: int) -> str:
+    return f"This video is bigger than {max_bytes / 1024**3:g} GB, which is sukoon's limit."
 
 
 def explain(message: str, family: str, geo: bool = False) -> str:
@@ -397,6 +400,9 @@ def fetch(
                 # The title becomes a file name, where a trailing dot or space would double up.
                 title = message[1].rstrip(". ") or "video"
             elif kind == "progress":
+                # A site can leave out the size until the bytes arrive, so the limit holds here too.
+                if message[1][0] > max_bytes:
+                    raise JobError(too_big(max_bytes))
                 on_progress(*message[1])
             elif kind == "done":
                 return Fetched(title, [Path(p) for p in message[1]])
