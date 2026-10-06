@@ -1,4 +1,5 @@
 import http.client
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -113,3 +114,78 @@ def fetch_separator_metadata(models_dir: Path, model_name: str) -> None:
         model_file_dir=str(models_dir), output_dir=str(models_dir), info_only=True
     )
     separator.download_model_files(model_name)
+
+
+class Downloads:
+    """Model downloads started from the interface, one thread per preset, with live state."""
+
+    def __init__(
+        self,
+        models_dir: Path,
+        on_change: Callable[[dict[str, object]], None],
+        on_ready: Callable[[], None],
+        files: tuple[ModelFile, ...] = MODEL_FILES,
+    ) -> None:
+        self.models_dir = models_dir
+        self.on_change = on_change
+        self.on_ready = on_ready
+        self.files = files
+        self.lock = threading.Lock()
+        self.active: dict[str, dict[str, object]] = {}
+
+    def state(self, preset: Preset) -> dict[str, object]:
+        wanted = [f for f in self.files if f.preset == preset]
+        total = sum(f.size for f in wanted)
+        ready = all(
+            (self.models_dir / f.name).is_file()
+            and (self.models_dir / f.name).stat().st_size == f.size
+            for f in wanted
+        )
+        base: dict[str, object] = {
+            "preset": preset,
+            "ready": ready,
+            "size": total,
+            "downloading": False,
+            "done": total if ready else 0,
+            "rate": 0.0,
+            "error": None,
+        }
+        with self.lock:
+            return {**base, **self.active.get(preset, {})}
+
+    def start(self, preset: Preset) -> None:
+        with self.lock:
+            if self.active.get(preset, {}).get("downloading"):
+                return
+            self.active[preset] = {"downloading": True, "done": 0, "rate": 0.0, "error": None}
+        threading.Thread(
+            target=self._run, args=(preset,), daemon=True, name=f"sukoon-download-{preset}"
+        ).start()
+
+    def _set(self, preset: Preset, **fields: object) -> None:
+        with self.lock:
+            self.active[preset] = {**self.active.get(preset, {}), **fields}
+        self.on_change(self.state(preset))
+
+    def _run(self, preset: Preset) -> None:
+        last = 0.0
+
+        def progress(done: int, total: int, rate: float) -> None:
+            nonlocal last
+            now = time.monotonic()
+            if now - last >= 0.25 or done == total:
+                last = now
+                self._set(preset, done=done, rate=rate)
+
+        try:
+            download_preset(self.models_dir, preset, progress, self.files)
+        except ModelChecksumError as exc:
+            self._set(preset, downloading=False, error=str(exc))
+            return
+        except Exception:
+            self._set(preset, downloading=False, error=OFFLINE_MESSAGE)
+            return
+        with self.lock:
+            self.active.pop(preset, None)
+        self.on_change(self.state(preset))
+        self.on_ready()
