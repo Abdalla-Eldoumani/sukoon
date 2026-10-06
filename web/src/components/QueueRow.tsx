@@ -9,8 +9,6 @@ import styles from './QueueRow.module.css'
 
 const CANCELABLE = new Set(['fetching', 'checking', 'awaiting_track', 'awaiting_confirm', 'queued', 'waiting_model', 'decoding', 'separating', 'encoding'])
 const STOPPED = new Set(['failed', 'canceled', 'interrupted'])
-// These passes run through the recording from start to end, so progress is a position in it.
-const THROUGH = new Set(['decoding', 'separating', 'encoding'])
 
 export interface RowActions {
   cancel: (job: Job) => void
@@ -47,13 +45,11 @@ function Time({ job }: { job: Job }) {
   let main = job.duration != null ? clock(job.duration) : ''
   let sub: string | null = null
   if (job.state === 'fetching' && job.link && job.link.done > 0) {
-    main = job.link.total
-      ? `${Math.round(job.link.done / 1e6)} of ${megabytes(job.link.total)}`
-      : `${megabytes(job.link.done)} so far`
+    main = job.link.total ? `${megabytes(job.link.done)} of ${megabytes(job.link.total)}` : `${megabytes(job.link.done)} so far`
   } else if (job.state === 'uploading') {
     main = `${Math.round(job.progress * 100)}%`
-  } else if (THROUGH.has(job.state)) {
-    main = job.duration ? `${clock(job.progress * job.duration)} of ${clock(job.duration)}` : `${Math.round(job.progress * 100)}%`
+  } else if (job.through !== null) {
+    main = job.duration ? `${clock(job.through * job.duration)} of ${clock(job.duration)}` : `${Math.round(job.through * 100)}%`
   }
   if (ACTIVE.has(job.state) && job.eta != null) sub = `${clock(job.eta)} left`
   return (
