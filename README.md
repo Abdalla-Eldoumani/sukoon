@@ -16,7 +16,7 @@ It does not edit, trim, transcribe, or separate one voice from another. You're r
 - Windows 10 or 11 (x64), macOS on Apple Silicon, or Linux (x86-64).
 - [uv](https://docs.astral.sh/uv/), which installs the right Python (3.12) by itself.
 - Node.js 22.13 or newer, to build the interface once.
-- ffmpeg and ffprobe on your PATH, built with the usual encoders (libmp3lame, aac, libopus, libvorbis, flac, libx264, libvpx-vp9). The builds from the commands below have them.
+- ffmpeg and ffprobe on your PATH, built with the usual encoders (libmp3lame, aac, libopus, libvorbis, flac, pcm_s24le, libx264, libvpx-vp9). The builds from the commands below have them.
 - About 5 GB of free disk space for the Python packages and the models, plus room for your files.
 - Optional: an NVIDIA GPU with 6 GB of memory or more and a driver new enough for CUDA 12.6. Apple Silicon Macs use their GPU without extra setup. Without either, sukoon runs on the CPU, which is much slower.
 
@@ -54,6 +54,8 @@ uv sync --extra cpu       # the CPU build of torch includes the Apple GPU (MPS)
 
 ### Linux
 
+Of these, only `python3 scripts/build_web.py` was run here.
+
 ```bash
 sudo apt install ffmpeg
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -64,7 +66,7 @@ python3 scripts/build_web.py
 uv sync --extra cuda      # with an NVIDIA GPU; use --extra cpu without one
 ```
 
-`python3 scripts/build_web.py` was run here. `uv sync` was not: PyTorch's download server was unreachable from the machine this release was built on, so the sync, and the lock file it writes, still need a first run on a real machine.
+`uv sync` was not run here: PyTorch's download server was unreachable from the machine this release was built on, so the sync, and the lock file it writes, still need a first run on a real machine. For the same reason no `uv run` command in this README was run as written. Where a section below says a command was run here, it ran from a virtual environment holding the same pinned packages without torch, for example `.venv/bin/sukoon doctor` in place of `uv run sukoon doctor`.
 
 ### Checking the GPU
 
@@ -72,9 +74,11 @@ uv sync --extra cuda      # with an NVIDIA GPU; use --extra cpu without one
 uv run sukoon doctor
 ```
 
-The torch line shows the device sukoon will use, for example `device CUDA · RTX 3060 Laptop`. If it says `NVIDIA GPU present but torch has no CUDA`, torch was installed without GPU support; run `uv sync --extra cuda` and check again. The `cpu` and `cuda` extras can't be installed together, and the last `uv sync` wins.
+The torch line shows the device sukoon will use, for example `device CUDA · GeForce RTX 3060 Laptop`. If it says `NVIDIA GPU present but torch has no CUDA`, torch was installed without GPU support; run `uv sync --extra cuda` and check again. The `cpu` and `cuda` extras can't be installed together, and the last `uv sync` wins.
 
 ## Running
+
+Run here as described under Install, with the stand-in engine in place of the models.
 
 ```bash
 uv run sukoon                # starts on http://127.0.0.1:8417/ and opens the browser
@@ -83,7 +87,7 @@ uv run sukoon --no-browser   # the same, without opening the browser
 
 If 8417 is taken, the next free port is used and printed. Starting sukoon a second time opens the one already running.
 
-Drop files on the page, or choose them. Each file is checked, cleaned, and listed; a finished job opens a player where you can switch between the original and the cleaned version at the same moment, then download the result. The first job downloads the separation model, once (913 MB for Best, 67 MB for Fast). Settings (the gear in the top bar) hold the model choice, the device, and default output formats.
+Drop files on the page, or choose them. Each file is checked, cleaned, and listed; a finished job opens a player where you can switch between the original and the cleaned version at the same moment, then download the result. The first time a job needs a model, a card above the list offers Download Best (913 MB) or Start with Fast (67 MB); the model downloads once, and waiting jobs start when it is in place. Settings (the gear in the top bar) hold the model choice, the device, and default output formats.
 
 To stop sukoon, press Ctrl+C in its terminal. A job that was running is marked interrupted and can be retried after the next start.
 
@@ -118,7 +122,7 @@ Set `SUKOON_HOME` to use another folder, for example on a bigger drive. Inside a
 
 - The server listens on `127.0.0.1` only, so other computers can't reach it, and it refuses requests from other websites.
 - No analytics, no crash reports, no fonts or scripts from the internet.
-- The only outbound requests are model downloads, from the fixed addresses in `src/sukoon/models.py`. Each file's size and SHA-256 hash are checked before it is used.
+- The only outbound requests are model downloads, from the fixed addresses in `src/sukoon/models.py`: the model files and three small tables of model settings that the separation library reads. Each file's size and SHA-256 hash are checked before it is used, and once they are downloaded sukoon works offline.
 
 ## Troubleshooting
 
@@ -129,8 +133,8 @@ Start with `uv run sukoon doctor`; each failing line comes with a `fix:` line.
 - **`torch not installed`**: run `uv sync --extra cpu`, or `uv sync --extra cuda` with an NVIDIA GPU.
 - **`NVIDIA GPU present but torch has no CUDA`**: run `uv sync --extra cuda`. If it still shows CPU, update the NVIDIA driver.
 - **`disk ... GB free`** marked FAIL: free space on that drive or set `SUKOON_HOME` to another one. While a job runs, its intermediate audio takes about 2.5 GB per hour of sound.
-- **A model download stopped**: start the job again; the download resumes where it stopped. If a file fails its hash check it is deleted and downloaded again.
-- **A job says it finished on CPU**: the GPU ran out of memory on a part of the file, and that part was redone on the CPU. Closing other programs that use the GPU helps.
+- **A model download stopped**: press Retry on the model card; the download resumes where it stopped. If a file fails its hash check it is deleted and downloaded again.
+- **A job says "Part of this ran on the CPU because the GPU ran out of memory."**: that part of the file was redone on the CPU, which is slower. Closing other programs that use the GPU helps.
 - **The page stops updating**: check that the terminal running sukoon is still open. Start it again with `uv run sukoon` and reload the page; finished jobs are still there.
 
 ## Credits
@@ -145,7 +149,7 @@ The interface uses the Archivo and Martian Mono typefaces (SIL Open Font License
 
 ## Contributing
 
-The Python side needs the steps under Install; the checks below are the ones CI runs.
+The Python side needs the steps under Install; the checks below are the ones CI runs. All of them pass here (the Python ones from the virtual environment described under Install).
 
 ```bash
 uv run ruff check
@@ -162,7 +166,7 @@ npm --prefix web run build
 The tests generate their own media into `tests/fixtures/generated/` the first time they run (they need ffmpeg and `espeak-ng`). They use a stand-in engine instead of the real models. Two more sets are left out by default:
 
 ```bash
-uv run pytest -q -m slow                         # a 70-minute file through the whole queue
+uv run pytest -q -m slow                         # a 70-minute file through the separation worker
 SUKOON_TEST_MODELS=1 uv run pytest -q -m model   # the real models; downloads about 1 GB
 ```
 
