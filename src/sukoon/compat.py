@@ -25,11 +25,11 @@ AUDIO_CODECS: dict[str, set[str] | None] = {
 }
 
 # The new voice track: AAC where Apple players expect it, Opus elsewhere.
-AUDIO_ENCODER: dict[str, tuple[str, ...]] = {
-    "mp4": ("aac", "-b:a", "256k"),
-    "mov": ("aac", "-b:a", "256k"),
-    "mkv": ("libopus", "-b:a", "160k"),
-    "webm": ("libopus", "-b:a", "160k"),
+AUDIO_ENCODER: dict[str, tuple[str, str]] = {
+    "mp4": ("aac", "256k"),
+    "mov": ("aac", "256k"),
+    "mkv": ("libopus", "160k"),
+    "webm": ("libopus", "160k"),
 }
 
 REENCODE: dict[str, tuple[str, str, tuple[str, ...]]] = {
