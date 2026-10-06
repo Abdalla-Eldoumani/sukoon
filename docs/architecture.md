@@ -17,15 +17,17 @@ A local web app that removes music from audio and video files. One person, one m
    |  streams uploads to disk                   |
    v                                            |
  job runner (one thread) --- ffprobe / ffmpeg subprocesses (argument lists, file and pipe protocols only)
+   |                                  ^
+   |  multiprocessing queue (spawn)   |  parts checked like an upload, then joined
+   v                                  |
+ separation worker (one child)     link fetcher (one thread and one child process per link)
+   |                                  |
+ audio-separator, torch            yt-dlp --- the pasted site and its media servers (https only)
    |
-   |  multiprocessing queue (spawn)
-   v
- separation worker (one child process) --- audio-separator --- torch (CUDA, MPS or CPU)
-                                                  |
-                                    models folder, SHA-256 checked before load
+ models folder, SHA-256 checked before load
 ```
 
-Trust boundaries: the browser is trusted only because it is local, and even so every request is checked for Host and Origin. Uploaded files are untrusted input to ffprobe and ffmpeg. Model files are untrusted until their hash matches. The internet is touched only to fetch a model whose hash is already known.
+Trust boundaries: the browser is trusted only because it is local, and even so every request is checked for Host and Origin. Uploaded files are untrusted input to ffprobe and ffmpeg. Model files are untrusted until their hash matches. A pasted link is untrusted twice: its address is checked against a fixed list of sites before anything is fetched, and what yt-dlp downloads is checked exactly as an upload is before sukoon's own ffmpeg opens it. The internet is touched only to fetch a model whose hash is already known, and to fetch a link from the site it names when someone pastes it.
 
 ## Load model
 
@@ -51,9 +53,11 @@ There is no spike to absorb: the queue holds at most 50 waiting jobs and runs th
 | Data | System of record | Derived from it |
 | --- | --- | --- |
 | Job metadata and state | SQLite `jobs.db` in the data folder, `jobs` table | Live events sent to the browser |
+| A link job's address, site, and bytes fetched | `jobs.link`, JSON | The row's "from youtube.com" line and its progress |
 | Settings (preset, device, default formats) | `jobs.db`, `settings` table of keys and JSON values | Defaults applied to each new upload |
 | Theme | The browser's `localStorage` | |
 | Uploaded file | `uploads/<job id>/source.<ext>` | Decoded mixture WAV, original preview |
+| A link's downloaded parts | `uploads/<job id>/part0.<ext>`, `part1.<ext>` while fetching; joined into `source.<ext>` and deleted | The source file |
 | Decoded mixture | `work/<job id>/` (the whole folder is deleted when the job ends) | Separated voice, waveform peaks |
 | Separated voice | `work/<job id>/voice.wav` | Output file, cleaned preview, waveform peaks |
 | Output file | `outputs/<job id>/output.<ext>`; the name `<name> (no music).<ext>` is only offered in the download header | |
@@ -79,6 +83,8 @@ Recovery: if the app dies, nothing is lost but in-flight work. Interrupted jobs 
 | torch CUDA | No GPU, old driver, OOM | Device badge says CPU; OOM note on the job | Auto-detect; per-chunk CPU fallback |
 | audio-separator | Import error, model load error | Job fails with the error's message | Pinned version; its settings tables are pinned and hash-checked like the models, so loading needs no network; a crashed worker is replaced |
 | Browser codec support | Cannot play the video codec | Waveform-only player with a note | Detect `error` on the video element |
+| yt-dlp and the sites it reads (link imports only) | A site changes its pages, refuses signed-out requests, blocks non-browser clients, or is unreachable | The link job fails with a sentence; an out-of-date reader gets the update command | Pinned version; `sukoon doctor` warns when it is 60 days old; nothing updates itself; every failure is mapped to a sentence in `links.explain` |
+| Node.js (YouTube links) | Missing or older than 22 | YouTube links fail as "out of date"; doctor says FAIL with the install command | yt-dlp runs YouTube's JavaScript checks in Node with the bundled `yt-dlp-ejs`, never a downloaded solver |
 
 ## Security and privacy threats
 
@@ -87,15 +93,18 @@ Recovery: if the app dies, nothing is lost but in-flight work. Interrupted jobs 
 - **Path traversal through file names.** User file names are kept only as display strings in the database and in the `Content-Disposition` header (RFC 6266 `filename*`). On disk everything is a UUID.
 - **A swapped model file runs code when loaded.** Pinned SHA-256 on every model file; torch 2.14 loads with `weights_only=True` by default; the Demucs path, which loads with `weights_only=False`, is not used.
 - **Resource exhaustion from a huge or malformed file.** Size, duration, and disk checks before work starts; every ffmpeg call has a timeout scaled to the file's duration, ffprobe and the tool checks have fixed timeouts (60 and 20 seconds), and the separation worker is stopped if a chunk reports no progress for 30 minutes.
+- **A pasted link reaches somewhere other than the site it names.** The address must be `https`, with a hostname that is exactly, or ends in a dot plus, one of twelve names; no user part, no port, no raw address, no non-ASCII letters. yt-dlp may only use the extractors of that site's family, so its generic extractor never runs and a post that links another site is refused. Short links (fb.watch, v.redd.it) are followed one redirect at a time, each checked against the same list. yt-dlp reads no config file, uses no cookies or browser profile, loads no plugins (`YTDLP_NO_PLUGINS`), fetches no remote solver, runs no post-processor, and has no ffmpeg of its own (`ffmpeg_location` points nowhere), so it cannot hand a stream to another program; only http, https, HLS and DASH parts are accepted.
+- **A link delivers something that is not media.** Each downloaded part goes through the same `inspect()` an upload does (playlist bytes, ffprobe with file and pipe protocols, the demuxer denylist) before sukoon's own ffmpeg joins video and audio, and the joined file goes through the full upload check. A link can put nothing on disk that an upload could not.
+- **A fetch hangs or crashes.** yt-dlp runs in its own spawned child; Cancel kills it, ten minutes without progress kills it, and it exits if the server dies. Metadata is checked first: live streams, DRM, more than 6 hours, or an estimated 8 GB are refused before any media is downloaded.
 - **Agents and model calls reading private data.** Not applicable: the app makes no model API calls.
 
 ## Cost
 
-Zero at any scale. There are no usage-billed services. The only network cost is a one-time 980 MB of model downloads.
+Zero at any scale. There are no usage-billed services. The network cost is a one-time 980 MB of model downloads, plus whatever links the user pastes.
 
 ## Compliance
 
-No personal data is collected and nothing is transmitted, so no privacy law is triggered. Users process their own files on their own machine; the README says that users are responsible for having the right to the media they process, and that the models are downloaded from their authors' release pages under their authors' terms.
+No personal data is collected and nothing is transmitted, so no privacy law is triggered. Users process their own files on their own machine; the README says that users are responsible for having the right to the media they process, including media they fetch by link under each site's terms, and that the models are downloaded from their authors' release pages under their authors' terms.
 
 ## Decisions
 
@@ -103,6 +112,7 @@ No personal data is collected and nothing is transmitted, so no privacy law is t
 - Keep every voice, including singing. See `docs/adr/0002-keep-all-voices.md`.
 - Separation in a dedicated child process. See `docs/adr/0003-separation-worker-process.md`.
 - Pin model hashes and download them ourselves. See `docs/adr/0004-pinned-model-hashes.md`.
+- Fetch pasted links with a pinned yt-dlp in a child process, from a fixed list of sites. See `docs/adr/0005-link-imports.md`.
 - Copy the video stream instead of re-encoding. Two-way door; the re-encode path exists only for containers that cannot hold the codec.
 - SQLite from the standard library rather than a server database or JSON files. Two-way door.
 - Plain CSS with custom properties and CSS modules, no CSS framework; no animation library, motion uses CSS transitions and the View Transitions API. Two-way doors.
@@ -128,6 +138,7 @@ No personal data is collected and nothing is transmitted, so no privacy law is t
 
 - Automated suite: pipeline tests on the generated fixture corpus with a fake separator, API tests, interface component tests, and real-model tests (opt-in, CPU) with SDR thresholds.
 - `sukoon doctor` output on the target machine.
+- Live link tests, opt-in with `SUKOON_TEST_NETWORK=1`: one short public video per site family, fetched, cleaned, checked as MP4 or M4A, and deleted. Sites that refuse signed-out requests are expected failures with their reason.
 - `sukoon bench --preset best|fast --device auto|cpu` separates a generated 30-second clip three times and prints the median real-time factor. The RTX 3060 numbers are in the load model above.
 
 ## End-of-life dates
@@ -138,3 +149,4 @@ No personal data is collected and nothing is transmitted, so no privacy law is t
 | Node.js (build only) | 24 LTS | April 2028 |
 | PyTorch | 2.14 | No fixed date; follow releases |
 | audio-separator | 0.47.0 | No fixed date; actively released |
+| yt-dlp | 2026.8.19 | Releases every few weeks; doctor warns after 60 days |
