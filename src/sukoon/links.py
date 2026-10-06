@@ -68,6 +68,10 @@ OUTDATED = (
     "yt-dlp couldn't read this {name} page. Its reader may be out of date, or {name} turned "
     "the request away. To update it, run: " + UPDATE
 )
+TURNED_AWAY = (
+    "{name} turned the request away, as it does with many requests that don't come from a "
+    "browser. Save the video another way and drop the file here."
+)
 STALLED = "The download made no progress for 10 minutes, so it was stopped."
 CRASHED = "The download stopped unexpectedly."
 STREAM = "This video is only offered as a kind of stream sukoon doesn't fetch."
@@ -179,9 +183,10 @@ def explain(message: str, family: str, geo: bool = False) -> str:
         return ELSEWHERE
     if has("timed out", "getaddrinfo", "name resolution", "unreachable", "connection", "ssl"):
         return NETWORK
-    if has("please report this issue", "unable to extract", "nsig", "signature", "challenge"):
-        return OUTDATED.format(name=name)
+    # The site answered with something other than its page; a newer yt-dlp reads it no better.
     if has("unexpected response"):
+        return TURNED_AWAY.format(name=name)
+    if has("please report this issue", "unable to extract", "nsig", "signature", "challenge"):
         return OUTDATED.format(name=name)
     detail = message.removeprefix("ERROR: ").split(": ", 1)[-1].strip()
     return f"Couldn't fetch this video. yt-dlp said: {detail}"
