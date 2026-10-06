@@ -5,7 +5,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from sukoon.cli import bind_first_free, main
+from sukoon.cli import bind_first_free, clean
+from sukoon.engine import FakeEngine
+from sukoon.pipeline import Options
 
 
 def free_port_pair():
@@ -79,6 +81,39 @@ def test_all_ports_busy_is_a_clear_error():
             s.close()
 
 
-def test_clean_stub_says_not_implemented(capsys):
-    assert main(["clean", "a.mp3"]) == 2
-    assert "not implemented" in capsys.readouterr().err
+def test_clean_writes_next_to_the_output_folder_and_prints_the_path(corpus, settings, tmp_path):
+    printed = []
+    code = clean([corpus / "song-with-cover.mp3", corpus / "short-2s.wav"], tmp_path / "out",
+                 Options(preset="fast"), FakeEngine(), settings, out=printed.append)
+    assert code == 0
+    assert printed == [str(tmp_path / "out" / "song-with-cover (no music).mp3"),
+                       str(tmp_path / "out" / "short-2s (no music).wav")]
+    assert all((tmp_path / "out" / n).stat().st_size > 1000
+               for n in ("song-with-cover (no music).mp3", "short-2s (no music).wav"))
+    assert list((settings.home / "work").iterdir()) == []
+    assert list((settings.home / "outputs").iterdir()) == []
+
+
+def test_clean_never_overwrites(corpus, settings, tmp_path):
+    for _ in range(2):
+        clean([corpus / "short-2s.wav"], tmp_path, Options(), FakeEngine(), settings,
+              out=lambda s: None)
+    assert sorted(p.name for p in tmp_path.glob("short-2s*")) == [
+        "short-2s (no music) (2).wav", "short-2s (no music).wav"]
+
+
+def test_clean_reports_a_rejected_file_and_carries_on(corpus, settings, tmp_path):
+    printed = []
+    code = clean([corpus / "video-no-audio.mp4", corpus / "short-2s.wav"], tmp_path,
+                 Options(), FakeEngine(), settings, out=printed.append)
+    assert code == 1
+    assert printed[0] == ("video-no-audio.mp4: This video has no sound track, so there is "
+                          "nothing to clean.")
+    assert printed[1].endswith("short-2s (no music).wav")
+
+
+def test_clean_format_option(corpus, settings, tmp_path):
+    printed = []
+    clean([corpus / "short-2s.wav"], tmp_path, Options(format="flac"), FakeEngine(), settings,
+          out=printed.append)
+    assert printed == [str(tmp_path / "short-2s (no music).flac")]
