@@ -61,16 +61,16 @@ describe('QueueRow', () => {
   it('cancels a running job', async () => {
     const actions = row({ state: 'separating', progress: 0.3 })
     await userEvent.click(screen.getByRole('button', { name: 'Cancel lecture.mp3' }))
-    expect(actions.cancel).toHaveBeenCalledOnce()
+    expect(actions.cancel).toHaveBeenCalledWith(expect.objectContaining({ name: 'lecture.mp3' }))
     expect(screen.queryByRole('button', { name: /Delete/ })).toBeNull()
   })
 
   it('offers retry and delete after a failure', async () => {
     const actions = row({ state: 'interrupted' })
     await userEvent.click(screen.getByRole('button', { name: 'Retry lecture.mp3' }))
-    expect(actions.retry).toHaveBeenCalledOnce()
+    expect(actions.retry).toHaveBeenCalledWith(expect.objectContaining({ name: 'lecture.mp3' }))
     await userEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }))
-    expect(actions.remove).toHaveBeenCalledOnce()
+    expect(actions.remove).toHaveBeenCalledWith(expect.objectContaining({ name: 'lecture.mp3' }))
   })
 
   it('does not offer retry for a file that was rejected', () => {
@@ -88,7 +88,7 @@ describe('QueueRow', () => {
     expect(screen.queryByText('Delete this job and its cleaned file?')).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }))
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(actions.remove).toHaveBeenCalledOnce()
+    expect(actions.remove).toHaveBeenCalledWith(expect.objectContaining({ name: 'lecture.mp3' }))
   })
 
   it('shows why an action failed', () => {
