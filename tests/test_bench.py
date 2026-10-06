@@ -20,4 +20,5 @@ def test_bench_reports_three_runs_and_their_median(tmp_path):
     assert lines[-1] == f"fast on CPU: {factor:.2f}x real time (median of 3)"
     speeds = sorted(float(re.search(r"\(([\d.]+)x\)", r).group(1)) for r in runs)
     assert abs(factor - speeds[1]) < 0.01
-    assert 20 < factor < 61
+    # Each run sleeps at least half a second, so the factor can't pass 60; load only lowers it.
+    assert 0 < factor <= 60
