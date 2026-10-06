@@ -1,6 +1,6 @@
 # sukoon
 
-Drop in an audio or video file, get it back without the music. Voices stay: speech, recitation, and singing. Everything runs on your own computer, and nothing is uploaded anywhere.
+Drop in an audio or video file, or paste a link, and get it back without the music. Voices stay: speech, recitation, and singing. Everything runs on your own computer, and nothing is uploaded anywhere.
 
 ## What it keeps and what it removes
 
@@ -9,7 +9,7 @@ Drop in an audio or video file, get it back without the music. Voices stay: spee
 - For video, the picture is copied untouched and the cleaned audio is put back in sync with it. Subtitles, chapters, other audio tracks, and metadata are carried across when the output container can hold them.
 - The result keeps the input's format unless you choose another: MP3, M4A, WAV, FLAC, Opus, or OGG for audio; MP4, MKV, WebM, or MOV for video.
 
-It does not edit, trim, transcribe, or separate one voice from another. You're responsible for having the right to the media you process.
+It does not edit, trim, transcribe, or separate one voice from another. You're responsible for having the right to the media you process, including what you fetch by link under each site's terms.
 
 ## Requirements
 
@@ -83,17 +83,35 @@ Drop files on the page, or choose them. Each file is checked, cleaned, and liste
 
 To stop sukoon, press Ctrl+C in its terminal. A job that was running is marked interrupted and can be retried after the next start.
 
+## Links
+
+Paste a link into the field in the drop area, or press Ctrl+V anywhere on the page outside a text field. sukoon takes single videos from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud; playlists, channels, and live streams are refused with a sentence that says why.
+
+The row shows where the file comes from and how much has arrived, then the same stages as a dropped file. Remove music is on by default. Turn it off on the row for download only: the file is converted to the format you pick, with every stream copied that the format can hold. A link becomes MP4 (H.264 and AAC where the site offers them), or M4A when it has no picture.
+
+sukoon never signs in to a site. Some sites refuse signed-out requests, and the job says so: as of October 2026 that is Vimeo, Instagram's sound, and TikTok. YouTube, X, Facebook, Reddit, and SoundCloud worked in testing.
+
+Sites change their pages every few weeks, so a link that worked last month can stop working. When a job says the reader may be out of date, or `sukoon doctor` says yt-dlp is old, update it:
+
+```bash
+uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync
+```
+
+YouTube links also need Node.js 22 or newer, the same Node the install uses; `sukoon doctor` checks it.
+
 ## The command line
 
 ```bash
 uv run sukoon clean talk.mp3 --out cleaned/
 uv run sukoon clean lecture.mkv --format mp4 --allow-reencode
+uv run sukoon clean "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+uv run sukoon clean "https://soundcloud.com/..." --keep-music --format mp3
 uv run sukoon doctor
 uv run sukoon bench --preset best
 ```
 
-- `clean` runs the same steps as the browser on one or more files and prints the path of each result, for example `cleaned/talk (no music).mp3`. Options: `--preset best|fast`, `--device auto|cpu`, `--format` (any output format above), `--track 2` to clean the second audio track, `--allow-reencode` when the chosen video container can't hold the original picture, and `--out` for the results folder (by default, next to each input).
-- `doctor` checks ffmpeg, ffprobe, the encoders, torch and its device, free disk space, and which models are downloaded. It prints the fix for anything missing and exits with 1 if something needs fixing.
+- `clean` runs the same steps as the browser on files or links and prints the path of each result, for example `cleaned/talk (no music).mp3`. Options: `--preset best|fast`, `--device auto|cpu`, `--format` (any output format above), `--track 2` to clean the second audio track, `--allow-reencode` when the chosen video container can't hold the original picture, `--keep-music` for download only, and `--out` for the results folder (by default, next to each file, and the current folder for links). Put a link in quotes, since `&` and `?` mean something to the shell.
+- `doctor` checks ffmpeg, ffprobe, the encoders, torch and its device, free disk space, yt-dlp and its age, `yt-dlp-ejs`, Node.js, and which models are downloaded. It prints the fix for anything missing and exits with 1 if something needs fixing.
 - `bench` times separation on a generated 30-second clip and prints how many times faster than real time it ran.
 
 On an RTX 3060 Laptop GPU, Best runs about 6.7 times faster than real time, so an hour of audio takes about 9 minutes. Fast always runs on the CPU (about 1.1 times real time on that laptop) and is a 67 MB download instead of 913 MB. With an NVIDIA GPU, use Best. Fast is for computers without one; it also returns speech a little quieter than the original, which Best does not.
@@ -114,7 +132,8 @@ Set `SUKOON_HOME` to use another folder, for example on a bigger drive. Inside a
 
 - The server listens on `127.0.0.1` only, so other computers can't reach it, and it refuses requests from other websites.
 - No analytics, no crash reports, no fonts or scripts from the internet.
-- The only outbound requests are model downloads, from the fixed addresses in `src/sukoon/models.py`: the model files and three small tables of model settings that the separation library reads. Each file's size and SHA-256 hash are checked before it is used, and once they are downloaded sukoon works offline.
+- Model downloads go to the fixed addresses in `src/sukoon/models.py`: the model files and three small tables of model settings that the separation library reads. Each file's size and SHA-256 hash are checked before it is used, and once they are downloaded sukoon works offline.
+- When you paste a link, and only then, sukoon fetches it from that site and the site's media servers. It sends no cookies and no account, reads no browser data, and loads no code from the internet; the YouTube solver it uses is installed with the app. The downloaded file is checked to be real audio or video, the same check a dropped file gets, before anything else opens it. That check is not a virus scan.
 
 ## Troubleshooting
 
@@ -127,6 +146,7 @@ Start with `uv run sukoon doctor`; each failing line comes with a `fix:` line.
 - **`disk ... GB free`** marked FAIL: free space on that drive or set `SUKOON_HOME` to another one. While a job runs, its intermediate audio takes about 2.5 GB per hour of sound.
 - **A model download stopped**: press Retry on the model card; the download resumes where it stopped. If a file fails its hash check it is deleted and downloaded again.
 - **A job says "Part of this ran on the CPU because the GPU ran out of memory."**: that part of the file was redone on the CPU, which is slower. Closing other programs that use the GPU helps.
+- **A link fails**: the job's sentence says why. "Its reader may be out of date" means updating yt-dlp with the command under Links; a site that only shares with signed-in people can't be fetched, so save the file another way and drop it in.
 - **The page stops updating**: check that the terminal running sukoon is still open. Start it again with `uv run sukoon` and reload the page; finished jobs are still there.
 
 ## Credits
