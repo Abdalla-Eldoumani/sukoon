@@ -2,7 +2,10 @@ import asyncio
 import contextlib
 import errno
 import json
+import os
 import shutil
+import subprocess
+import sys
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -23,7 +26,7 @@ from sukoon.errors import JobError
 from sukoon.naming import content_disposition, download_name
 from sukoon.pipeline import Options, extension, output_format
 from sukoon.probe import Probe, Rejected, probe
-from sukoon.runner import Runner
+from sukoon.runner import Runner, RunnerError
 from sukoon.settings import GB, Settings
 from sukoon.store import Job, Store, TransitionError
 
@@ -143,6 +146,29 @@ def public(job: Job) -> dict[str, Any]:
     }
 
 
+def folder_size(folder: Path) -> int:
+    return sum(p.stat().st_size for p in folder.rglob("*") if p.is_file())
+
+
+def library_size(settings: Settings) -> dict[str, Any]:
+    """Bytes held by jobs (what Clear finished frees) and by models, and where they live."""
+    jobs = sum(folder_size(settings.area(a)) for a in ("uploads", "work", "outputs"))
+    return {
+        "jobs": jobs,
+        "models": folder_size(settings.area("models")),
+        "folder": str(settings.home),
+    }
+
+
+def open_folder(folder: Path) -> None:
+    if sys.platform == "win32":
+        os.startfile(folder)  # type: ignore[attr-defined]  # noqa: S606
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(folder)])
+    else:
+        subprocess.Popen(["xdg-open", str(folder)])
+
+
 def disk_need(duration_s: float, upload_bytes: int) -> float:
     """Scratch for the decoded audio, an output about the upload's size, and headroom."""
     return duration_s / 3600 * SCRATCH_PER_HOUR + upload_bytes + HEADROOM
@@ -256,6 +282,37 @@ def build_router(services: Services) -> APIRouter:
         runner.notify()
         return public(job)
 
+    @router.post("/jobs/{job_id}/retry")
+    def retry(job_id: str) -> dict[str, Any]:
+        job_or_404(job_id)
+        try:
+            runner.retry(job_id)
+        except RunnerError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return public(store.get(job_id))
+
+    @router.delete("/jobs/{job_id}", status_code=204)
+    def delete(job_id: str) -> None:
+        job_or_404(job_id)
+        try:
+            runner.delete(job_id)
+        except RunnerError as exc:
+            raise HTTPException(409, str(exc)) from None
+
+    @router.get("/library")
+    def library() -> dict[str, Any]:
+        return library_size(settings)
+
+    @router.post("/library/clear")
+    def clear() -> dict[str, Any]:
+        removed = runner.clear_finished()
+        return {"removed": removed, **library_size(settings)}
+
+    @router.post("/library/open", status_code=204)
+    def open_outputs() -> None:
+        # Only ever the outputs folder; no path from the request reaches the file manager.
+        open_folder(settings.area("outputs"))
+
     @router.get("/models")
     def list_models() -> list[dict[str, object]]:
         return [services.downloads.state(p) for p in models.PRESETS]
@@ -358,7 +415,8 @@ async def receive_upload(
         if handle is not None:
             handle.close()
         if job is not None:
-            store.delete(job["id"])
+            with contextlib.suppress(KeyError):  # Already deleted from another tab.
+                store.delete(job["id"])
         if folder is not None:
             shutil.rmtree(folder, ignore_errors=True)
         if isinstance(exc, _TooBig):
