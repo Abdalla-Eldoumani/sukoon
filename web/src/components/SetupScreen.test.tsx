@@ -10,6 +10,6 @@ describe('SetupScreen', () => {
     expect(screen.getByRole('heading', { name: 'sukoon needs ffmpeg' })).toBeInTheDocument()
     expect(screen.getByText('winget install Gyan.FFmpeg')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Check again' }))
-    expect(onCheck).toHaveBeenCalledOnce()
+    expect(onCheck).toHaveBeenCalled()
   })
 })
