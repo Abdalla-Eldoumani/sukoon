@@ -18,7 +18,7 @@ from sukoon.worker import Worker
 
 log = logging.getLogger("sukoon")
 
-WAITING = {"checking", "queued", "waiting_model", "awaiting_track", "awaiting_confirm"}
+WAITING = {"fetching", "checking", "queued", "waiting_model", "awaiting_track", "awaiting_confirm"}
 STALE_PART_S = 3600
 
 
@@ -29,6 +29,11 @@ class RunnerError(Exception):
 def source_path(settings: Settings, job_id: str) -> Path | None:
     folder = settings.job_path("uploads", job_id)
     return next(folder.glob("source*"), None) if folder.is_dir() else None
+
+
+def first_stage(job: dict[str, Any]) -> str:
+    """Download only has nothing to separate, so it goes straight to encoding."""
+    return "encoding" if job["options"].get("keep_music") else "decoding"
 
 
 class Runner:
@@ -61,8 +66,12 @@ class Runner:
         for job in self.store.list():
             if job["state"] not in RUNNING:
                 continue
+            if job["link"] and job["probe"] is None:
+                # A link that was still being fetched starts over on Retry.
+                shutil.rmtree(self.settings.job_path("uploads", job["id"]), ignore_errors=True)
+                self.store.transition(job["id"], "interrupted", eta=None)
             # Without a probe the file was never checked, so a retry would have nothing to run.
-            if source_path(self.settings, job["id"]) is None or job["probe"] is None:
+            elif source_path(self.settings, job["id"]) is None or job["probe"] is None:
                 shutil.rmtree(self.settings.job_path("uploads", job["id"]), ignore_errors=True)
                 self.store.transition(
                     job["id"], "failed", retryable=False, error="The upload didn't finish."
@@ -84,7 +93,8 @@ class Runner:
             job = self.store.get(job_id)
             if job["state"] not in STOPPED:
                 raise RunnerError("Only a failed, canceled, or interrupted job can be retried.")
-            if not job["retryable"] or source_path(self.settings, job_id) is None:
+            refetch = target == "fetching" and job["link"]
+            if not job["retryable"] or (source_path(self.settings, job_id) is None and not refetch):
                 raise RunnerError("This file can't be retried; add it again.")
             shutil.rmtree(self.settings.job_path("outputs", job_id), ignore_errors=True)
             self.store.transition(
@@ -145,7 +155,7 @@ class Runner:
 
     def _next(self) -> dict[str, Any] | None:
         while job := self.store.next_queued():
-            if self.model_ready(job["options"]["preset"]):
+            if job["options"].get("keep_music") or self.model_ready(job["options"]["preset"]):
                 return job
             self.store.transition(job["id"], "waiting_model")
         return None
@@ -158,8 +168,8 @@ class Runner:
                     self.current = job["id"]
                     self.store.transition(
                         job["id"],
-                        "decoding",
-                        stage="decoding",
+                        first_stage(job),
+                        stage=first_stage(job),
                         progress=0.0,
                         error=None,
                         result=None,
@@ -179,7 +189,7 @@ class Runner:
         job_id = job["id"]
         options = Options(**job["options"])
         out_dir = self.settings.job_path("outputs", job_id)
-        current_stage, shown = "decoding", 0.0
+        current_stage, shown = first_stage(job), 0.0
 
         def progress(stage: str, fraction: float, eta: float | None) -> None:
             nonlocal current_stage, shown
