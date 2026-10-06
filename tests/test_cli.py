@@ -251,5 +251,5 @@ def test_missing_separation_libraries_are_reported_before_any_download(
     # How Python sees a package that isn't installed.
     monkeypatch.setitem(sys.modules, "torch", None)
     assert main(command) == 1
-    assert "uv sync --extra cpu" in capsys.readouterr().err
+    assert "Run: uv sync" in capsys.readouterr().err
     assert not any((tmp_path / "models").glob("*"))
