@@ -9,7 +9,6 @@ from pathlib import Path
 from sukoon.models import (
     CHECKSUM_MESSAGE,
     MODEL_FILES,
-    PRIMARY,
     ModelChecksumError,
     ModelFile,
     Preset,
@@ -99,22 +98,6 @@ def download_preset(
             download_file(f, models_dir, overall)
         offset += f.size
         on_progress(offset, total, 0.0)
-    fetch_separator_metadata(models_dir, PRIMARY[preset])
-
-
-def fetch_separator_metadata(models_dir: Path, model_name: str) -> None:
-    """audio-separator reads small JSON tables of model settings that it fetches for itself.
-
-    The pinned model file is already in place, so only those tables are downloaded.
-    """
-    try:
-        from audio_separator.separator import Separator
-    except ImportError:
-        return
-    separator = Separator(
-        model_file_dir=str(models_dir), output_dir=str(models_dir), info_only=True
-    )
-    separator.download_model_files(model_name)
 
 
 class Downloads:
