@@ -14,12 +14,12 @@ from typing import Any
 import anyio
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from python_multipart.exceptions import MultipartParseError
 from python_multipart.multipart import MultipartParser, parse_options_header
 from starlette.requests import ClientDisconnect
 
-from sukoon import compat, models
+from sukoon import compat, models, tools
 from sukoon.download import Downloads
 from sukoon.encode import AUDIO_FORMATS
 from sukoon.errors import JobError
@@ -74,6 +74,20 @@ NO_SPACE = "There isn't enough free disk space for this file."
 CHOOSABLE = {"awaiting_track", "awaiting_confirm", "queued", "waiting_model"}
 
 
+class SettingsBody(BaseModel):
+    # Theme stays in the browser, so it is refused here rather than quietly dropped.
+    model_config = ConfigDict(extra="forbid")
+
+    preset: str | None = None
+    device: str | None = None
+    audio_format: str | None = None
+    video_format: str | None = None
+
+
+def needs_encoder(fmt: str, encoder: str) -> str:
+    return f"{fmt.upper()} needs the {encoder} encoder, which this ffmpeg doesn't have."
+
+
 class Choice(BaseModel):
     track: int | None = None
     format: str | None = None
@@ -86,20 +100,47 @@ class Services:
     store: Store
     runner: Runner
     downloads: Downloads
+    encoders: set[str] = field(default_factory=set)
     model_listeners: list[Callable[[dict[str, object]], None]] = field(default_factory=list)
+
+    def available_encoders(self) -> set[str]:
+        # Checked once; again only if ffmpeg was missing at startup and has appeared since.
+        if not self.encoders and tools.ffmpeg_path():
+            self.encoders = tools.available_encoders()
+        return self.encoders
+
+    def missing_encoder(self, fmt: str) -> str | None:
+        """The ffmpeg encoder a format needs and this ffmpeg lacks, if any."""
+        encoder = (
+            AUDIO_FORMATS[fmt].encoder
+            if fmt in AUDIO_FORMATS
+            else (compat.AUDIO_ENCODER[fmt][0] if fmt in compat.AUDIO_ENCODER else None)
+        )
+        return encoder if encoder and encoder not in self.available_encoders() else None
 
     def model_changed(self, state: dict[str, object]) -> None:
         for listener in list(self.model_listeners):
             listener(state)
 
 
-def format_choices(probe: Probe, track: int) -> list[dict[str, Any]]:
-    """Every output format this job can have, marking the ones that re-encode the picture."""
-    audio = [{"value": f, "video": False, "reencode": False} for f in AUDIO_FORMATS]
+def format_choices(
+    probe: Probe, track: int, missing: Callable[[str], str | None] = lambda f: None
+) -> list[dict[str, Any]]:
+    """Every output format this job can have, marking the ones that re-encode the picture
+    and the ones this ffmpeg cannot write."""
+    audio = [
+        {"value": f, "video": False, "reencode": False, "missing": missing(f)}
+        for f in AUDIO_FORMATS
+    ]
     if probe.kind != "video":
         return audio
     video = [
-        {"value": c, "video": True, "reencode": compat.plan(probe, track, c).reencode is not None}
+        {
+            "value": c,
+            "video": True,
+            "reencode": compat.plan(probe, track, c).reencode is not None,
+            "missing": missing(c),
+        }
         for c in compat.VIDEO_CONTAINERS
     ]
     return video + audio
@@ -114,7 +155,7 @@ def next_state(probe: Probe, options: Options) -> str:
     return "queued"
 
 
-def public(job: Job) -> dict[str, Any]:
+def public(job: Job, missing: Callable[[str], str | None] = lambda f: None) -> dict[str, Any]:
     """What the interface sees of a job."""
     p = job.get("probe") or {}
     result = job.get("result") or {}
@@ -125,7 +166,7 @@ def public(job: Job) -> dict[str, Any]:
         probe_ = Probe.from_json(p)
         options = Options(**job["options"])
         track = options.track if options.track is not None else probe_.default_audio()
-        choices = format_choices(probe_, track)
+        choices = format_choices(probe_, track, missing)
         if probe_.video:
             # Where the previews' time zero sits on the video's timeline.
             offset = probe_.audio[track].start_time - probe_.video[0].start_time
@@ -199,6 +240,9 @@ def build_router(services: Services) -> APIRouter:
     router = APIRouter(prefix="/api")
     settings, store, runner = services.settings, services.store, services.runner
 
+    def view(job: Job) -> dict[str, Any]:
+        return public(job, services.missing_encoder)
+
     def job_or_404(job_id: str) -> Job:
         try:
             return store.get(job_id)
@@ -210,11 +254,11 @@ def build_router(services: Services) -> APIRouter:
 
     @router.get("/jobs")
     def list_jobs() -> list[dict[str, Any]]:
-        return [public(j) for j in store.list()]
+        return [view(j) for j in store.list()]
 
     @router.get("/jobs/{job_id}")
     def get_job(job_id: str) -> dict[str, Any]:
-        return public(job_or_404(job_id))
+        return view(job_or_404(job_id))
 
     @router.post("/jobs", status_code=201, response_model=None)
     async def upload(request: Request) -> dict[str, Any] | JSONResponse:
@@ -231,19 +275,22 @@ def build_router(services: Services) -> APIRouter:
         ctype, params = parse_options_header(request.headers.get("content-type", ""))
         if ctype != b"multipart/form-data" or b"boundary" not in params:
             return refuse(400, "Send the file as multipart form data.")
-        preset = request.query_params.get("preset", "best")
+        saved = store.settings()
+        preset = request.query_params.get("preset") or saved["preset"]
         fmt = request.query_params.get("format") or None
         known = fmt is None or fmt in AUDIO_FORMATS or fmt in compat.VIDEO_CONTAINERS
         if preset not in models.PRESETS or not known:
             return refuse(400, "Unknown preset or format.")
-        options = Options(preset=preset, format=fmt)
+        if fmt and (encoder := services.missing_encoder(fmt)):
+            return refuse(400, needs_encoder(fmt, encoder))
+        options = Options(preset=preset, device=saved["device"], format=fmt)
         try:
             job = await receive_upload(services, request, params[b"boundary"], options)
         except ClientDisconnect:
             return refuse(400, "The upload was interrupted.")
         if job is None:
             return refuse(400, "No file was sent.")
-        return public(job)
+        return view(job)
 
     @router.get("/jobs/{job_id}/output")
     def output(job_id: str) -> FileResponse:
@@ -253,7 +300,7 @@ def build_router(services: Services) -> APIRouter:
         path = settings.job_path("outputs", job_id) / job["result"]["output"]
         if not path.is_file():
             raise HTTPException(404, "The output file is missing.")
-        name = public(job)["output_name"]
+        name = view(job)["output_name"]
         return FileResponse(path, headers={"content-disposition": content_disposition(name)})
 
     def finished_file(job_id: str, name: str, media_type: str) -> FileResponse:
@@ -290,7 +337,7 @@ def build_router(services: Services) -> APIRouter:
         # A finished job ignores cancel, so a second click is harmless.
         with contextlib.suppress(TransitionError):
             runner.cancel(job_id)
-        return public(store.get(job_id))
+        return view(store.get(job_id))
 
     @router.post("/jobs/{job_id}/choose")
     def choose(job_id: str, body: Choice) -> dict[str, Any]:
@@ -305,6 +352,8 @@ def build_router(services: Services) -> APIRouter:
             if track is not None and not 0 <= track < len(p.audio):
                 raise HTTPException(400, "That audio track doesn't exist in this file.")
             fmt = body.format or old.format
+            if body.format and (encoder := services.missing_encoder(body.format)):
+                raise HTTPException(400, needs_encoder(body.format, encoder))
             try:
                 fmt = output_format(p, replace(old, format=fmt), job["name"])
             except JobError as exc:
@@ -324,7 +373,7 @@ def build_router(services: Services) -> APIRouter:
             else:
                 job = store.transition(job_id, target, options=options.to_json())
         runner.notify()
-        return public(job)
+        return view(job)
 
     @router.post("/jobs/{job_id}/retry")
     def retry(job_id: str) -> dict[str, Any]:
@@ -339,7 +388,7 @@ def build_router(services: Services) -> APIRouter:
             runner.retry(job_id, target)
         except RunnerError as exc:
             raise HTTPException(409, str(exc)) from None
-        return public(store.get(job_id))
+        return view(store.get(job_id))
 
     @router.delete("/jobs/{job_id}", status_code=204)
     def delete(job_id: str) -> None:
@@ -348,6 +397,33 @@ def build_router(services: Services) -> APIRouter:
             runner.delete(job_id)
         except RunnerError as exc:
             raise HTTPException(409, str(exc)) from None
+
+    @router.get("/settings")
+    def get_settings() -> dict[str, Any]:
+        return settings_view()
+
+    @router.put("/settings")
+    def put_settings(body: SettingsBody) -> dict[str, Any]:
+        values = body.model_dump(exclude_unset=True)
+        checks = {
+            "preset": lambda v: v in models.PRESETS,
+            "device": lambda v: v in ("auto", "cpu"),
+            "audio_format": lambda v: v is None or v in AUDIO_FORMATS,
+            "video_format": lambda v: v is None or v in compat.VIDEO_CONTAINERS,
+        }
+        for key, value in values.items():
+            if not checks[key](value):
+                raise HTTPException(400, f"{value!r} isn't a choice for {key}.")
+        store.save_settings(values)
+        return settings_view()
+
+    def settings_view() -> dict[str, Any]:
+        formats = [*AUDIO_FORMATS, *compat.VIDEO_CONTAINERS]
+        return {
+            **store.settings(),
+            "missing": {f: e for f in formats if (e := services.missing_encoder(f))},
+            "folder": str(settings.home),
+        }
 
     @router.get("/library")
     def library() -> dict[str, Any]:
@@ -507,6 +583,11 @@ def check_upload(services: Services, job_id: str, source: Path, size: int) -> Jo
         shutil.rmtree(source.parent, ignore_errors=True)
         return store.transition(job_id, "failed", error=NO_SPACE, retryable=False)
     options = Options(**store.get(job_id)["options"])
+    if options.format is None:
+        saved = store.settings()
+        preferred = saved["video_format"] if result.kind == "video" else saved["audio_format"]
+        if preferred and not services.missing_encoder(preferred):
+            options = replace(options, format=preferred)
     try:
         fmt = output_format(result, options, store.get(job_id)["name"])
     except JobError as exc:
@@ -534,8 +615,11 @@ async def event_stream(services: Services) -> AsyncIterator[bytes]:
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[bytes] = asyncio.Queue()
 
+    def view(job: Job) -> dict[str, Any]:
+        return public(job, services.missing_encoder)
+
     def on_job(event: str, job: Job) -> None:
-        payload = sse("job", public(job)) if event == "job" else sse("deleted", {"id": job["id"]})
+        payload = sse("job", view(job)) if event == "job" else sse("deleted", {"id": job["id"]})
         loop.call_soon_threadsafe(queue.put_nowait, payload)
 
     def on_model(state: dict[str, object]) -> None:
@@ -547,7 +631,7 @@ async def event_stream(services: Services) -> AsyncIterator[bytes]:
         yield sse(
             "snapshot",
             {
-                "jobs": [public(j) for j in services.store.list()],
+                "jobs": [view(j) for j in services.store.list()],
                 "models": [services.downloads.state(p) for p in models.PRESETS],
             },
         )
