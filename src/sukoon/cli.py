@@ -102,10 +102,9 @@ def clean(
     """The browser's pipeline, run from the terminal one file at a time. 1 if any file failed."""
     from sukoon import pipeline
     from sukoon.chunk import separate_chunked
-    from sukoon.errors import JobError
     from sukoon.models import ModelChecksumError, ModelMissingError
     from sukoon.naming import download_name
-    from sukoon.probe import Rejected, probe
+    from sukoon.probe import probe
 
     settings.ensure_dirs()
     try:
@@ -143,7 +142,8 @@ def clean(
             out(str(target))
             for note in result.notes:
                 out(f"  {note}")
-        except (Rejected, JobError, OSError) as exc:
+        # Anything else that goes wrong (an ffmpeg or engine error) fails this file, not the run.
+        except Exception as exc:
             sys.stderr.write("\n")
             out(f"{path.name}: {getattr(exc, 'message', None) or exc}")
             failed += 1
