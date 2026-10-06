@@ -1,3 +1,4 @@
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -71,3 +72,39 @@ def is_ready(models_dir: Path, preset: Preset) -> bool:
 
 def ready_presets(models_dir: Path) -> dict[Preset, bool]:
     return {p: is_ready(models_dir, p) for p in PRESETS}
+
+
+CHECKSUM_MESSAGE = "The model file didn't match its expected checksum and was removed."
+
+
+class ModelChecksumError(Exception):
+    pass
+
+
+class ModelMissingError(Exception):
+    pass
+
+
+def sha256_of(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        while block := f.read(1 << 20):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def verify_preset(
+    models_dir: Path, preset: Preset, files: tuple[ModelFile, ...] = MODEL_FILES
+) -> Path:
+    """Checks every file of a preset against its pinned hash, deleting any that differ.
+
+    Returns the path to hand to the engine. This is the only way a model path reaches it.
+    """
+    for f in (f for f in files if f.preset == preset):
+        path = models_dir / f.name
+        if not path.is_file():
+            raise ModelMissingError(f"{f.name} is not downloaded")
+        if path.stat().st_size != f.size or sha256_of(path) != f.sha256:
+            path.unlink(missing_ok=True)
+            raise ModelChecksumError(CHECKSUM_MESSAGE)
+    return models_dir / PRIMARY[preset]
