@@ -31,6 +31,17 @@ WEIGHTS: dict[Stage, tuple[float, float]] = {
     "encoding": (0.95, 1.0),
 }
 
+
+def through(state: str, progress: float, kept: bool) -> float | None:
+    """How far the running pass has got through the recording, 0 to 1. Progress is weighted across
+    the passes, but each pass runs from the start of the recording to its end."""
+    for stage, (lo, hi) in WEIGHTS.items():
+        if stage == state:
+            # Download only has one pass, which reports its own fraction.
+            return progress if kept else min(1.0, max(0.0, (progress - lo) / (hi - lo)))
+    return None
+
+
 NOTE_SURROUND = "Surround was mixed down to stereo."
 NOTE_NO_MUSIC = "There was almost no music in this file."
 NOTE_NO_VOICE = "No voices were found; the output is nearly silent."
