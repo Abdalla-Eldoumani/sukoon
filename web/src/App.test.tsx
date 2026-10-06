@@ -1,4 +1,5 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { FakeEventSource, job, model } from './test/fixtures'
@@ -83,5 +84,34 @@ describe('App', () => {
     render(<App />)
     expect(await screen.findByRole('heading', { name: 'sukoon needs ffmpeg' })).toBeInTheDocument()
     expect(screen.queryByText('Drop audio or video here')).toBeNull()
+  })
+
+  it('keeps a saved setting when an earlier change is refused afterwards', async () => {
+    const stored = { preset: 'best', device: 'auto', audio_format: null, video_format: null, missing: {}, folder: '/data' }
+    let refuse: (r: Response) => void = () => {}
+    const json = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.endsWith('/api/health')) return json({ status: 'ok', version: '0.1.0', device: 'CPU', ffmpeg: { ok: true, install: '' } })
+        if (!url.endsWith('/api/settings')) return json({ jobs: 0, models: 0 })
+        if (init?.method !== 'PUT') return json(stored)
+        const change = JSON.parse(String(init.body)) as Record<string, string>
+        // The quality change is held and refused later; the device change saves at once.
+        if ('preset' in change) return new Promise<Response>((resolve) => (refuse = resolve))
+        Object.assign(stored, change)
+        return json(stored)
+      }),
+    )
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Settings' }, { timeout: 2000 }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Fast' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'CPU' }))
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'CPU' })).toHaveAttribute('aria-checked', 'true'))
+    await act(async () => refuse(json({ detail: 'Could not save.' }, 500)))
+    expect(await screen.findByText('Could not save.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Best' })).toHaveAttribute('aria-checked', 'true'))
+    expect(screen.getByRole('radio', { name: 'CPU' })).toHaveAttribute('aria-checked', 'true')
   })
 })
