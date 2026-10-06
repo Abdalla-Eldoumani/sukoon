@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { getJson, postJson, request, type Health } from './api'
 import styles from './App.module.css'
 import { DropWell } from './components/DropWell'
 import { LiveRegion } from './components/LiveRegion'
+import { ReviewPanel } from './components/ReviewPanel'
 import { ModelCard } from './components/ModelCard'
 import { QueueRow, type RowActions } from './components/QueueRow'
 import { TopBar } from './components/TopBar'
@@ -27,6 +29,7 @@ function localJob(id: string, file: File): Job {
     tracks: [],
     notes: [],
     formats: [],
+    offset: 0,
     confirm: null,
     output_name: null,
   }
@@ -41,6 +44,7 @@ export function App() {
   const [problems, setProblems] = useState<Record<string, string>>({})
   const [library, setLibrary] = useState<number | null>(null)
   const [clearing, setClearing] = useState(false)
+  const [reviewing, setReviewing] = useState<string | null>(null)
 
   // One upload at a time keeps jobs in the order the files were dropped.
   const addFiles = useCallback((files: File[]) => {
@@ -87,6 +91,13 @@ export function App() {
       if (job.id.startsWith('local-')) setUploads((u) => u.filter((j) => j.id !== job.id))
       else attempt(job, request(`/api/jobs/${job.id}`, { method: 'DELETE' }))
     },
+  }
+  // Opening and closing the panel cross-fades where the browser has view transitions.
+  const select = (job: Job) => {
+    const change = () => setReviewing((id) => (id === job.id ? null : job.id))
+    const quiet = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (document.startViewTransition && !quiet) document.startViewTransition(() => flushSync(change))
+    else change()
   }
   const finished = server.jobs.filter((j) => ['done', 'failed', 'canceled', 'interrupted'].includes(j.state))
   const clearFinished = () => {
@@ -141,13 +152,21 @@ export function App() {
         {rows.length > 0 && (
           <ol className={styles.queue} aria-label="Queue">
             {rows.map((job) => (
-              <QueueRow
-                key={job.id}
-                job={job}
-                actions={actions}
-                problem={problems[job.id] ?? null}
-                arriving={server.initial !== null && !server.initial.has(job.id)}
-              />
+              <Fragment key={job.id}>
+                <QueueRow
+                  job={job}
+                  actions={actions}
+                  problem={problems[job.id] ?? null}
+                  arriving={server.initial !== null && !server.initial.has(job.id)}
+                  selected={reviewing === job.id}
+                  onSelect={select}
+                />
+                {reviewing === job.id && job.state === 'done' && (
+                  <li className={styles.panelItem}>
+                    <ReviewPanel job={job} />
+                  </li>
+                )}
+              </Fragment>
             ))}
           </ol>
         )}
