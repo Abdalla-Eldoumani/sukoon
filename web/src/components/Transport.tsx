@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { clock } from '../format'
 import { PauseIcon, PlayIcon } from './icons'
 import styles from './Transport.module.css'
@@ -24,6 +24,13 @@ export function Transport({ playing, current, duration, original, onPlay, onPaus
   // A primary press is down; and, separately, its click is still to come.
   const pressed = useRef(false)
   const pointer = useRef(false)
+  // Closing the panel mid-press must not start a hold afterwards.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
+    },
+    [],
+  )
   const press = (e: PointerEvent<HTMLButtonElement>) => {
     // Only the primary button: a right click opens the menu and sends no click to match.
     if (e.button > 0) return
