@@ -40,13 +40,13 @@ def run(settings: Settings, out: Callable[[str], None] = print) -> int:
 
     info = device.detect()
     if info.torch_version is None:
-        line(False, "torch", "not installed", "uv sync --extra cpu (or --extra cuda for NVIDIA)")
+        line(False, "torch", "not installed", "uv sync")
     elif device.nvidia_gpu_present() and info.kind != "cuda":
         line(
             False,
             "torch",
             f"{info.torch_version}, device {info.label}: NVIDIA GPU present but torch has no CUDA",
-            "uv sync --extra cuda",
+            "run uv sync, then update the NVIDIA driver if it still says CPU",
         )
     else:
         line(True, "torch", f"{info.torch_version}, device {info.label}")
