@@ -34,7 +34,6 @@ export function QueueRow({ job, actions, problem = null, arriving = false, selec
   const percent = Math.round(job.progress * 100)
   const label = STATE_LABEL[job.state]
   const description = active ? `${label}, ${percent}%` : label
-  const local = job.state === 'uploading'
   return (
     <li
       className={[styles.row, arriving && styles.arriving, selected && styles.selected].filter(Boolean).join(' ')}
@@ -81,7 +80,8 @@ export function QueueRow({ job, actions, problem = null, arriving = false, selec
       <div className={styles.actions}>
         {confirming ? (
           <>
-            <button type="button" className="btn-quiet" onClick={() => actions.remove(job)}>
+            {/* The icon that opened this is gone, so focus moves to the answer. */}
+            <button type="button" className="btn-quiet" autoFocus onClick={() => actions.remove(job)}>
               Delete
             </button>
             <button type="button" className="btn-quiet" onClick={() => setConfirming(false)}>
@@ -117,7 +117,7 @@ export function QueueRow({ job, actions, problem = null, arriving = false, selec
                 className="btn-quiet btn-icon"
                 aria-label={`Delete ${job.name}`}
                 title="Delete"
-                onClick={() => (job.state === 'done' && !local ? setConfirming(true) : actions.remove(job))}
+                onClick={() => (job.state === 'done' ? setConfirming(true) : actions.remove(job))}
               >
                 <DeleteIcon />
               </button>
