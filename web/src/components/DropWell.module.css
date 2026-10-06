@@ -1,5 +1,5 @@
 .well {
-  height: 240px;
+  min-height: 240px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -13,8 +13,9 @@
 }
 
 .compact {
-  height: 88px;
+  min-height: 88px;
   flex-direction: row;
+  flex-wrap: wrap;
   gap: var(--s4);
 }
 
@@ -25,4 +26,21 @@
 .formats {
   margin: 0;
   color: var(--text-2);
+}
+
+.link {
+  display: flex;
+  gap: var(--s2);
+  max-width: 100%;
+}
+
+.link input {
+  width: 320px;
+  min-width: 0;
+}
+
+.error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--fault);
 }
