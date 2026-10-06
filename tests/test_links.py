@@ -3,11 +3,14 @@ import os
 import shutil
 import subprocess
 import time
+from datetime import date
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from sukoon import doctor
+from sukoon.doctor import age_in_days, node_major
 from sukoon.errors import JobError
 from sukoon.links import (
     AGE,
@@ -372,3 +375,24 @@ def test_a_restart_during_a_fetch_leaves_it_interrupted_with_retry(settings, web
         again = c.get(f"/api/jobs/{job['id']}").json()
         assert again["state"] == "interrupted"
         assert again["retryable"]
+
+
+def test_doctor_counts_yt_dlp_age_from_its_version():
+    assert age_in_days("2026.8.19", date(2026, 10, 18)) == 60
+    assert age_in_days("2026.08.19", date(2026, 8, 19)) == 0
+    assert age_in_days("2026.8.19.1", date(2026, 8, 20)) == 1
+    assert age_in_days("nightly", date(2026, 8, 20)) is None
+
+
+def test_doctor_reads_the_node_major_version():
+    assert node_major("v24.7.0") == 24
+    assert node_major("v20.11.1\n") == 20
+    assert node_major("") is None
+
+
+def test_doctor_notes_an_old_yt_dlp_with_the_update_command(settings):
+    lines = []
+    doctor.run(settings, out=lines.append, today=date(2027, 1, 1))
+    text = "\n".join(lines)
+    assert "--   yt-dlp     2026.8.19, 135 days old" in text
+    assert "uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync" in text
