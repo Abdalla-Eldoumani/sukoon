@@ -32,6 +32,7 @@ class Stream:
     channels: int = 0
     sample_rate: int = 0
     start_time: float = 0.0
+    duration: float = 0.0
     language: str | None = None
     title: str | None = None
     default: bool = False
@@ -120,6 +121,7 @@ def parse(raw: dict[str, Any]) -> Probe:
                 channels=_int(s.get("channels")),
                 sample_rate=_int(s.get("sample_rate")),
                 start_time=_float(s.get("start_time")),
+                duration=_float(s.get("duration")),
                 language=tags.get("language"),
                 title=tags.get("title"),
                 default=bool(disp.get("default")),
