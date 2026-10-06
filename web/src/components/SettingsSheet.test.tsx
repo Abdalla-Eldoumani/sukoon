@@ -59,6 +59,12 @@ describe('SettingsSheet', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('stays open when a click lands in the space between its sections', async () => {
+    const { onClose } = open()
+    await userEvent.click(screen.getByRole('heading', { name: 'Settings' }).parentElement!.parentElement!)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('shows the data folder and storage, and closes on Escape', async () => {
     const { onClose } = open()
     expect(screen.getByText('/home/me/.local/share/sukoon')).toBeInTheDocument()
