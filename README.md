@@ -89,7 +89,7 @@ Paste a link into the field in the drop area, or press Ctrl+V anywhere on the pa
 
 The row shows where the file comes from and how much has arrived, then the same stages as a dropped file. Remove music is on by default. Turn it off on the row for download only: the file is converted to the format you pick, with every stream copied that the format can hold. A link becomes MP4 (H.264 and AAC where the site offers them), or M4A when it has no picture.
 
-sukoon never signs in to a site. Some sites refuse signed-out requests, and the job says so: as of October 2026 that is Vimeo, Instagram's sound, and TikTok. YouTube, X, Facebook, Reddit, and SoundCloud worked in testing.
+sukoon never signs in to a site. Some sites refuse requests like sukoon's, and the job says so: as of October 2026, Vimeo and Instagram's sound are only for signed-in people, and TikTok turns away requests that don't come from a browser. YouTube, X, Facebook, Reddit, and SoundCloud worked in testing.
 
 Sites change their pages every few weeks, so a link that worked last month can stop working. When a job says the reader may be out of date, or `sukoon doctor` says yt-dlp is old, update it:
 
