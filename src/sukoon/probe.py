@@ -187,8 +187,11 @@ def is_denied(format_name: str) -> bool:
     return bool(names & DENIED_FORMATS) or any(n.endswith("_pipe") for n in names)
 
 
-def probe(path: Path, max_duration: float | None = None) -> Probe:
-    """Reads a file's streams and decides whether sukoon can work on it; raises Rejected."""
+def inspect(path: Path) -> Probe:
+    """Reads a file's streams, refusing playlists and anything ffprobe can't read; raises Rejected.
+
+    Every upload goes through this, and so does each part of a link before it is joined.
+    """
     if path.stat().st_size == 0:
         raise Rejected(UNREADABLE)
     with path.open("rb") as f:
@@ -198,6 +201,12 @@ def probe(path: Path, max_duration: float | None = None) -> Probe:
     result = parse(*run_ffprobe(path))
     if is_denied(result.format_name):
         raise Rejected(PLAYLIST)
+    return result
+
+
+def probe(path: Path, max_duration: float | None = None) -> Probe:
+    """Reads a file's streams and decides whether sukoon can work on it; raises Rejected."""
+    result = inspect(path)
     if not result.audio:
         raise Rejected(NO_SOUND if result.video else UNREADABLE)
     if result.duration <= 0:
