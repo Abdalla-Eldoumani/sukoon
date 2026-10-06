@@ -1,0 +1,20 @@
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.text {
+  color: var(--text-2);
+}
+
+.error {
+  color: var(--fault);
+}
