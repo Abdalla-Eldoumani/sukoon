@@ -69,6 +69,25 @@ describe('follow', () => {
     expect(late).toBeLessThan(1 / 24)
   })
 
+  it('does not mistake a seek by the user for a correction that landed badly', () => {
+    const clock = new FakeMedia(1)
+    const follower = new FakeMedia(1, 0.042)
+    for (const m of [clock, follower]) m.play()
+    const tick = () => {
+      for (const m of [clock, follower]) m.advance(0.25)
+      follow(clock, [follower])
+    }
+    follower.currentTime = 0.1
+    for (let i = 0; i < 40; i++) tick()
+    // A correction is pending when the user jumps ahead five seconds.
+    follower.currentTime = clock.currentTime + 0.1
+    follow(clock, [follower])
+    clock.currentTime += 5
+    tick()
+    tick()
+    expect(Math.abs(follower.currentTime - clock.currentTime)).toBeLessThan(1 / 24)
+  })
+
   it('leaves small differences alone so playback does not stutter', () => {
     const clock = new FakeMedia()
     clock.currentTime = 10
