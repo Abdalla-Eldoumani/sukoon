@@ -43,7 +43,7 @@ def clean(corpus, tmp_path, name, engine=None, cancelled=never, **opts):
         Options(**opts),
         functools.partial(separate_chunked, engine or FakeEngine()),
         cancelled,
-        lambda stage, f, d, t: stages.append((stage, f)),
+        lambda stage, f, eta: stages.append((stage, f)),
         tmp_path / "work",
         tmp_path / "out",
     )
@@ -168,7 +168,7 @@ def test_scratch_is_removed_on_success_and_on_failure(corpus, tmp_path):
 def test_cancel_leaves_no_output(corpus, tmp_path):
     with pytest.raises(Canceled):
         clean(corpus, tmp_path, "speech-over-music-30s.wav", cancelled=lambda: True)
-    assert list((tmp_path / "out").iterdir()) == []
+    assert not (tmp_path / "out").exists()
     assert not (tmp_path / "work").exists()
 
 
@@ -179,7 +179,7 @@ def test_disk_full_fails_cleanly(corpus, tmp_path):
 
     with pytest.raises(JobError, match=r"The disk is full\."):
         clean(corpus, tmp_path, "short-2s.wav", engine=Full())
-    assert list((tmp_path / "out").iterdir()) == []
+    assert not (tmp_path / "out").exists()
     assert not (tmp_path / "work").exists()
 
 
