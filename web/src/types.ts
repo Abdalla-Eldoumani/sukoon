@@ -1,5 +1,6 @@
 export type JobState =
   | 'uploading'
+  | 'fetching'
   | 'checking'
   | 'awaiting_track'
   | 'awaiting_confirm'
@@ -40,7 +41,14 @@ export interface Job {
   eta: number | null
   error: string | null
   retryable: boolean
-  options: { preset: Preset; format: string | null; track: number | null; reencode_ok?: boolean }
+  options: {
+    preset: Preset
+    format: string | null
+    track: number | null
+    reencode_ok?: boolean
+    /** Download only: the link is converted, music and all. */
+    keep_music?: boolean
+  }
   duration: number | null
   tracks: Track[]
   notes: string[]
@@ -49,6 +57,8 @@ export interface Job {
   offset: number
   confirm: string | null
   output_name: string | null
+  /** Where a link job comes from, and how much of it has arrived. */
+  link: { url: string; site: string; done: number; total: number | null } | null
 }
 
 export interface ModelState {
