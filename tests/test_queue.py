@@ -299,3 +299,18 @@ def test_open_folder_opens_only_the_outputs_folder(client, settings, monkeypatch
     monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: opened.append(args))
     assert client.post("/api/library/open").status_code == 204
     assert opened == [["xdg-open", str(settings.home / "outputs")]]
+
+
+def test_retry_returns_to_an_unanswered_confirm(client, corpus):
+    job = upload(client, corpus / "vp9-opus.webm", format="mov").json()
+    assert job["state"] == "awaiting_confirm"
+    client.post(f"/api/jobs/{job['id']}/cancel")
+    assert client.post(f"/api/jobs/{job['id']}/retry").json()["state"] == "awaiting_confirm"
+
+
+def test_retry_returns_to_an_unanswered_track_question(client, corpus):
+    job = upload(client, corpus / "two-tracks.mkv").json()
+    client.post(f"/api/jobs/{job['id']}/cancel")
+    retried = client.post(f"/api/jobs/{job['id']}/retry").json()
+    assert retried["state"] == "awaiting_track"
+    assert [t["default"] for t in retried["tracks"]] == [True, False]
