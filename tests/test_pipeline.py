@@ -129,8 +129,6 @@ def test_truncated_file_gets_the_damage_note(corpus, tmp_path):
 def test_silent_voice_gets_the_no_voice_note(corpus, tmp_path):
     class Silent(FakeEngine):
         def separate(self, mixture_wav, voice_wav, *, on_cpu=False):
-            import soundfile as sf
-
             data, rate = sf.read(mixture_wav, dtype="float32")
             sf.write(voice_wav, data * 0, rate, subtype="FLOAT")
 
