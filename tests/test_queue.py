@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import sys
 import threading
 import time
 
@@ -310,6 +311,7 @@ def test_library_size_and_clear_finished(client, corpus, settings):
 
 def test_open_folder_opens_only_the_outputs_folder(client, settings, monkeypatch):
     opened = []
+    monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: opened.append(args))
     assert client.post("/api/library/open").status_code == 204
     assert opened == [["xdg-open", str(settings.home / "outputs")]]
