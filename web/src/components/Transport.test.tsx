@@ -1,91 +1,106 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Transport } from './Transport'
 
 afterEach(() => vi.useRealTimers())
 
-function setup(original = false) {
-  const props = { onPlay: vi.fn(), onPause: vi.fn(), onToggle: vi.fn(), onHold: vi.fn() }
-  render(<Transport playing={false} current={65} duration={200} original={original} {...props} />)
-  return props
+/** Holds the state the review panel would, so tests read what the user sees. */
+function Harness({ startOriginal = false }: { startOriginal?: boolean }) {
+  const [playing, setPlaying] = useState(false)
+  const [original, setOriginal] = useState(startOriginal)
+  const [held, setHeld] = useState(false)
+  return (
+    <>
+      <Transport
+        playing={playing}
+        current={65}
+        duration={200}
+        original={original}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onToggle={() => setOriginal((o) => !o)}
+        onHold={setHeld}
+      />
+      <output aria-label="hearing">{held || original ? 'original' : 'clean'}</output>
+    </>
+  )
 }
 
+const switchEl = () => screen.getByRole('switch')
+const hearing = () => screen.getByLabelText('hearing').textContent
+
 describe('Transport', () => {
-  it('shows the time and a play button', async () => {
-    const props = setup()
+  it('shows the time and plays and pauses', async () => {
+    render(<Harness />)
     expect(screen.getByText('1:05')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Play' }))
-    expect(props.onPlay).toHaveBeenCalledOnce()
+    await userEvent.click(screen.getByRole('button', { name: 'Pause' }))
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
   })
 
   it('has a real switch for the original', () => {
-    setup(true)
-    const sw = screen.getByRole('switch', { name: 'Play the original (hold C)' })
-    expect(sw).toHaveAttribute('aria-checked', 'true')
+    render(<Harness startOriginal />)
+    expect(screen.getByRole('switch', { name: 'Play the original (hold C)' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('toggles on a click and on Space', async () => {
-    const props = setup()
-    const sw = screen.getByRole('switch')
-    await userEvent.click(sw)
-    expect(props.onToggle).toHaveBeenCalledTimes(1)
-    sw.focus()
+    render(<Harness />)
+    await userEvent.click(switchEl())
+    expect(switchEl()).toHaveAttribute('aria-checked', 'true')
+    switchEl().focus()
     await userEvent.keyboard(' ')
-    expect(props.onToggle).toHaveBeenCalledTimes(2)
-    expect(props.onHold).not.toHaveBeenCalled()
+    expect(switchEl()).toHaveAttribute('aria-checked', 'false')
   })
 
   it('toggles from a screen reader, which sends a bare click', () => {
-    const props = setup()
-    screen.getByRole('switch').click()
-    expect(props.onToggle).toHaveBeenCalledOnce()
+    render(<Harness />)
+    act(() => switchEl().click())
+    expect(switchEl()).toHaveAttribute('aria-checked', 'true')
   })
 
   it('plays the original only while the switch is held', () => {
     vi.useFakeTimers()
-    const props = setup()
-    const sw = screen.getByRole('switch')
-    fireEvent.pointerDown(sw)
+    render(<Harness />)
+    fireEvent.pointerDown(switchEl())
     act(() => vi.advanceTimersByTime(400))
-    expect(props.onHold).toHaveBeenLastCalledWith(true)
-    fireEvent.pointerUp(sw)
-    expect(props.onHold).toHaveBeenLastCalledWith(false)
-    expect(props.onToggle).not.toHaveBeenCalled()
+    expect(hearing()).toBe('original')
+    fireEvent.pointerUp(switchEl())
+    expect(hearing()).toBe('clean')
+    expect(switchEl()).toHaveAttribute('aria-checked', 'false')
   })
 
   it('ends a hold when the pointer is let go somewhere else', () => {
     vi.useFakeTimers()
-    const props = setup()
-    const sw = screen.getByRole('switch')
-    fireEvent.pointerDown(sw)
+    render(<Harness />)
+    fireEvent.pointerDown(switchEl())
     act(() => vi.advanceTimersByTime(400))
-    fireEvent(sw, new Event('lostpointercapture', { bubbles: true }))
-    expect(props.onHold).toHaveBeenLastCalledWith(false)
-    expect(props.onToggle).not.toHaveBeenCalled()
+    fireEvent(switchEl(), new Event('lostpointercapture', { bubbles: true }))
+    expect(hearing()).toBe('clean')
+    expect(switchEl()).toHaveAttribute('aria-checked', 'false')
   })
 
   it('ignores a right click and still answers the keyboard after a canceled press', async () => {
-    const props = setup()
-    const sw = screen.getByRole('switch')
-    fireEvent.pointerDown(sw, { button: 2 })
-    fireEvent.pointerUp(sw, { button: 2 })
-    expect(props.onToggle).not.toHaveBeenCalled()
-    fireEvent.pointerDown(sw, { button: 0 })
-    fireEvent.pointerCancel(sw)
-    sw.focus()
+    render(<Harness />)
+    fireEvent.pointerDown(switchEl(), { button: 2 })
+    fireEvent.pointerUp(switchEl(), { button: 2 })
+    expect(switchEl()).toHaveAttribute('aria-checked', 'false')
+    fireEvent.pointerDown(switchEl(), { button: 0 })
+    fireEvent.pointerCancel(switchEl())
+    switchEl().focus()
     await userEvent.keyboard('{Enter}')
-    expect(props.onToggle).toHaveBeenCalledOnce()
+    expect(switchEl()).toHaveAttribute('aria-checked', 'true')
   })
 
   it('flips once when Enter is held down', () => {
-    const props = setup()
-    const sw = screen.getByRole('switch')
-    fireEvent.keyDown(sw, { key: 'Enter' })
-    sw.click()
-    const repeat = fireEvent.keyDown(sw, { key: 'Enter', repeat: true })
+    render(<Harness />)
+    fireEvent.keyDown(switchEl(), { key: 'Enter' })
+    act(() => switchEl().click())
+    const repeat = fireEvent.keyDown(switchEl(), { key: 'Enter', repeat: true })
     // false: the repeat's default action, another click, was prevented.
     expect(repeat).toBe(false)
-    expect(props.onToggle).toHaveBeenCalledOnce()
+    expect(switchEl()).toHaveAttribute('aria-checked', 'true')
   })
+
 })
