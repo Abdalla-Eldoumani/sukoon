@@ -157,15 +157,7 @@
     grid-template-columns: 20px minmax(0, 1fr) auto;
     grid-template-areas:
       'glyph name actions'
-      'lane lane lane'
-      'time time time';
+      'lane lane time';
     row-gap: var(--s3);
-  }
-
-  .time {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: baseline;
-    width: 100%;
   }
 }
