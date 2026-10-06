@@ -214,3 +214,30 @@ def test_opus_is_160k(corpus, tmp_path):
 
     rate = int(ffprobe(out)["format"]["bit_rate"])
     assert reference(96) < rate < reference(320)
+
+
+def test_peaks_describe_voice_and_removed_lanes(corpus, tmp_path):
+    clean(corpus, tmp_path, "speech-over-music-30s.wav")
+    peaks = json.loads((tmp_path / "out" / "peaks.json").read_text())
+    assert peaks["seconds"] == 30.0
+    assert len(peaks["voice"]) == len(peaks["removed"]) == 4000
+    # The fake engine keeps half the input, so what it removed is the same other half.
+    assert peaks["voice"] == peaks["removed"]
+    mins, maxs = peaks["voice"][0::2], peaks["voice"][1::2]
+    assert all(lo <= hi for lo, hi in zip(mins, maxs, strict=True))
+    import soundfile as sf
+
+    mono = sf.read(corpus / "speech-over-music-30s.wav")[0].mean(axis=1)
+    assert abs(max(maxs) - mono.max() / 2) < 1e-3
+    assert abs(min(mins) - mono.min() / 2) < 1e-3
+
+
+def test_previews_are_opus_and_the_same_length(corpus, tmp_path):
+    clean(corpus, tmp_path, "speech-over-music-30s.wav")
+    durations = []
+    for name in ("preview-original.webm", "preview-clean.webm"):
+        info = ffprobe(tmp_path / "out" / name)
+        assert info["streams"][0]["codec_name"] == "opus"
+        durations.append(float(info["format"]["duration"]))
+    assert durations[0] == durations[1]
+    assert abs(durations[0] - 30.0) < 0.03
