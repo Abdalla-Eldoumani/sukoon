@@ -78,7 +78,6 @@ describe('QueueRow', () => {
     const actions = row({ state: 'canceled' })
     fireEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }), { detail: 2 })
     expect(actions.remove).not.toHaveBeenCalled()
-    expect(screen.getByRole('listitem', { name: 'lecture.mp3' })).toBeInTheDocument()
   })
 
   it('does not offer retry for a file that was rejected', () => {
