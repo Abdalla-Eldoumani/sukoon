@@ -50,8 +50,6 @@ class Probe:
     streams: list[Stream] = field(default_factory=list)
     chapters: int = 0
     tags: dict[str, str] = field(default_factory=dict)
-    # ffprobe guessed the duration from the bitrate (raw AAC, for one), so it is approximate.
-    estimated: bool = False
 
     @property
     def audio(self) -> list[Stream]:
@@ -108,7 +106,7 @@ def _int(value: Any, default: int = 0) -> int:
         return default
 
 
-def parse(raw: dict[str, Any], estimated: bool = False) -> Probe:
+def parse(raw: dict[str, Any]) -> Probe:
     fmt = raw.get("format", {})
     streams = []
     for s in raw.get("streams", []):
@@ -145,7 +143,6 @@ def parse(raw: dict[str, Any], estimated: bool = False) -> Probe:
         streams=streams,
         chapters=len(raw.get("chapters", [])),
         tags={str(k): str(v) for k, v in fmt.get("tags", {}).items()},
-        estimated=estimated,
     )
 
 
@@ -182,6 +179,40 @@ def run_ffprobe(path: Path, timeout: float = 60) -> tuple[dict[str, Any], bool]:
     return data, b"Estimating duration from bitrate" in out.stderr
 
 
+def counted_seconds(path: Path) -> float:
+    """A file's length from its audio packets added up, for when ffprobe only guessed it."""
+    exe = tools.ffprobe_path()
+    if exe is None:
+        raise RuntimeError("ffprobe was not found")
+    out = subprocess.run(
+        [
+            exe,
+            "-v",
+            "error",
+            "-protocol_whitelist",
+            "file,pipe",
+            "-select_streams",
+            "a:0",
+            "-show_entries",
+            "packet=duration_time",
+            "-of",
+            "csv=p=0",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+    total = 0.0
+    for line in out.stdout.splitlines():
+        try:
+            total += float(line.split(",")[0])
+        except ValueError:
+            continue
+    return total
+
+
 def is_denied(format_name: str) -> bool:
     names = {n.strip() for n in format_name.split(",")}
     return bool(names & DENIED_FORMATS) or any(n.endswith("_pipe") for n in names)
@@ -198,7 +229,14 @@ def inspect(path: Path) -> Probe:
         head = f.read(64).lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(PLAYLIST_MAGIC):
         raise Rejected(PLAYLIST)
-    result = parse(*run_ffprobe(path))
+    raw, guessed = run_ffprobe(path)
+    if guessed and (seconds := counted_seconds(path)) > 0:
+        # A raw stream (AAC, for one) has no length of its own, and the bitrate guess can be
+        # off by half; every limit, the disk check, and progress use this number.
+        raw.setdefault("format", {})["duration"] = seconds
+        for stream in raw.get("streams", []):
+            stream["duration"] = seconds
+    result = parse(raw)
     if is_denied(result.format_name):
         raise Rejected(PLAYLIST)
     return result
