@@ -35,6 +35,12 @@ export const VideoFileIcon = () => (
   </Icon>
 )
 
+export const LinkIcon = () => (
+  <Icon>
+    <path d="M8.5 11.5a3 3 0 0 0 4.2 0l2.6-2.6a3 3 0 0 0-4.2-4.2l-.9.9M11.5 8.5a3 3 0 0 0-4.2 0l-2.6 2.6a3 3 0 0 0 4.2 4.2l.9-.9" />
+  </Icon>
+)
+
 export const PlayIcon = () => (
   <Icon>
     <path d="M6.5 4.25v11.5l9-5.75z" />
