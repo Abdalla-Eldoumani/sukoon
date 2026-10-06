@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { postJson, type Settings } from '../api'
+import { request, type Settings } from '../api'
 import { megabytes } from '../format'
 import { applyTheme, storedTheme, type Theme } from '../theme'
 import { CancelIcon, FolderIcon } from './icons'
@@ -11,6 +11,8 @@ const VIDEO = ['mp4', 'mkv', 'webm', 'mov']
 
 interface Props {
   settings: Settings
+  /** Why the last change was not saved. */
+  error?: string | null
   library: { jobs: number; models: number } | null
   onChange: (values: Partial<Settings>) => void
   onClearFinished: () => void
@@ -41,28 +43,44 @@ function FormatSelect({ label, value, formats, missing, onChange }: {
 }
 
 /** Quality, device, default formats, theme, and where files live. Escape or the close button shuts it. */
-export function SettingsSheet({ settings, library, onChange, onClearFinished, onClose }: Props) {
+export function SettingsSheet({ settings, error = null, library, onChange, onClearFinished, onClose }: Props) {
   const [theme, setTheme] = useState<Theme>(storedTheme)
   const [clearing, setClearing] = useState(false)
-  const sheet = useRef<HTMLDivElement>(null)
+  const [openError, setOpenError] = useState<string | null>(null)
+  const sheet = useRef<HTMLDialogElement>(null)
 
+  // A modal dialog keeps focus inside and makes the page behind it inert.
   useEffect(() => {
+    const dialog = sheet.current
     const opener = document.activeElement as HTMLElement | null
-    sheet.current?.querySelector<HTMLElement>('[role=radio][tabindex="0"]')?.focus()
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+    if (dialog && !dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal()
+      else dialog.setAttribute('open', '')
     }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      opener?.focus()
-    }
-  }, [onClose])
+    dialog?.querySelector<HTMLElement>('[role=radio][tabindex="0"]')?.focus()
+    return () => opener?.focus()
+  }, [])
+
+  const openFolder = () => {
+    setOpenError(null)
+    request('/api/library/open', { method: 'POST' }).catch((e: Error) => setOpenError(e.message))
+  }
 
   return (
-    <>
-      <div className={styles.backdrop} onClick={onClose} aria-hidden="true" />
-      <div ref={sheet} className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <dialog
+      ref={sheet}
+      className={styles.sheet}
+      aria-labelledby="settings-title"
+      // Escape reaches onKeyDown first; this only stops the browser closing it a second way.
+      onCancel={(e) => e.preventDefault()}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose()
+      }}
+      // A click on the dialog itself, not its contents, is a click on the backdrop.
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
         <div className={styles.head}>
           <h2 id="settings-title" className="title">
             Settings
@@ -72,6 +90,7 @@ export function SettingsSheet({ settings, library, onChange, onClearFinished, on
           </button>
         </div>
 
+        {error && <p className={`small ${styles.error}`}>{error}</p>}
         <section className={styles.group}>
           <h3 className="label">Quality</h3>
           <Segmented
@@ -97,7 +116,9 @@ export function SettingsSheet({ settings, library, onChange, onClearFinished, on
             ]}
             onChange={(device) => onChange({ device })}
           />
-          <p className={`small ${styles.hint}`}>Auto uses the graphics card when torch can reach it.</p>
+          <p className={`small ${styles.hint}`}>
+            Auto uses the graphics card when torch can reach it. Changes apply to files added from now on.
+          </p>
         </section>
 
         <section className={styles.group}>
@@ -138,9 +159,10 @@ export function SettingsSheet({ settings, library, onChange, onClearFinished, on
         <section className={styles.group}>
           <h3 className="label">Data folder</h3>
           <p className={`readout ${styles.path}`}>{settings.folder}</p>
-          <button type="button" className="btn-quiet" onClick={() => void postJson('/api/library/open')}>
-            <FolderIcon /> Open folder
+          <button type="button" className="btn-quiet" onClick={openFolder}>
+            <FolderIcon /> Open the cleaned files
           </button>
+          {openError && <p className={`small ${styles.error}`}>{openError}</p>}
         </section>
 
         <section className={styles.group}>
@@ -175,7 +197,6 @@ export function SettingsSheet({ settings, library, onChange, onClearFinished, on
             </button>
           )}
         </section>
-      </div>
-    </>
+    </dialog>
   )
 }
