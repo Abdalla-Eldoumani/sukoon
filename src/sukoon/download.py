@@ -13,6 +13,7 @@ from sukoon.models import (
     ModelChecksumError,
     ModelFile,
     Preset,
+    is_ready,
     sha256_of,
 )
 
@@ -134,13 +135,8 @@ class Downloads:
         self.active: dict[str, dict[str, object]] = {}
 
     def state(self, preset: Preset) -> dict[str, object]:
-        wanted = [f for f in self.files if f.preset == preset]
-        total = sum(f.size for f in wanted)
-        ready = all(
-            (self.models_dir / f.name).is_file()
-            and (self.models_dir / f.name).stat().st_size == f.size
-            for f in wanted
-        )
+        total = sum(f.size for f in self.files if f.preset == preset)
+        ready = is_ready(self.models_dir, preset, self.files)
         base: dict[str, object] = {
             "preset": preset,
             "ready": ready,
