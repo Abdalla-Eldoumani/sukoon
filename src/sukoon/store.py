@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 STATES = (
+    "fetching",
     "checking",
     "awaiting_track",
     "awaiting_confirm",
@@ -21,11 +22,12 @@ STATES = (
     "canceled",
     "interrupted",
 )
-RUNNING = {"checking", "decoding", "separating", "encoding"}
+RUNNING = {"fetching", "checking", "decoding", "separating", "encoding"}
 FINISHED = {"done", "failed", "canceled", "interrupted"}
 STOPPED = {"failed", "canceled", "interrupted"}
 
 TRANSITIONS: dict[str, set[str]] = {
+    "fetching": {"checking", "failed", "canceled", "interrupted"},
     "checking": {
         "queued",
         "awaiting_track",
@@ -36,18 +38,19 @@ TRANSITIONS: dict[str, set[str]] = {
     },
     "awaiting_track": {"queued", "awaiting_confirm", "canceled"},
     "awaiting_confirm": {"queued", "canceled"},
-    "queued": {"waiting_model", "decoding", "awaiting_confirm", "canceled"},
+    # Download only skips straight to encoding.
+    "queued": {"waiting_model", "decoding", "encoding", "awaiting_confirm", "canceled"},
     "waiting_model": {"queued", "awaiting_confirm", "canceled"},
     "decoding": {"separating", "failed", "canceled", "interrupted"},
     "separating": {"encoding", "failed", "canceled", "interrupted"},
     "encoding": {"done", "failed", "canceled", "interrupted"},
     "done": set(),
-    "failed": {"queued", "awaiting_track", "awaiting_confirm"},
-    "canceled": {"queued", "awaiting_track", "awaiting_confirm"},
-    "interrupted": {"queued", "awaiting_track", "awaiting_confirm"},
+    "failed": {"fetching", "queued", "awaiting_track", "awaiting_confirm"},
+    "canceled": {"fetching", "queued", "awaiting_track", "awaiting_confirm"},
+    "interrupted": {"fetching", "queued", "awaiting_track", "awaiting_confirm"},
 }
 
-JSON_FIELDS = ("options", "probe", "result")
+JSON_FIELDS = ("options", "probe", "result", "link")
 # None for a format means "the same kind as the input".
 DEFAULT_SETTINGS: dict[str, Any] = {
     "preset": "best",
@@ -67,6 +70,7 @@ FIELDS = (
     "result",
     "error",
     "retryable",
+    "link",
 )
 
 SCHEMA = f"""
@@ -83,9 +87,14 @@ CREATE TABLE IF NOT EXISTS jobs (
     probe TEXT,
     result TEXT,
     error TEXT,
-    retryable INTEGER NOT NULL DEFAULT 1
+    retryable INTEGER NOT NULL DEFAULT 1,
+    link TEXT
 )
 """
+# The columns a first-release table has, copied across when it is rebuilt.
+OLD_COLUMNS = (
+    "id, created, name, kind, state, stage, progress, eta, options, probe, result, error, retryable"
+)
 
 Job = dict[str, Any]
 Listener = Callable[[str, Job], None]
@@ -105,10 +114,23 @@ class Store:
         self.db = sqlite3.connect(str(path), check_same_thread=False, isolation_level=None)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
+        self._migrate()
         self.db.execute(SCHEMA)
         self.db.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
         self.lock = threading.RLock()
         self.listeners: list[Listener] = []
+
+    def _migrate(self) -> None:
+        """A table from the first release has neither the fetching state nor the link column,
+        and SQLite cannot change a CHECK in place, so the table is rebuilt once."""
+        row = self.db.execute("SELECT sql FROM sqlite_master WHERE name = 'jobs'").fetchone()
+        if row is None or "'fetching'" in row[0]:
+            return
+        self.db.executescript(
+            f"BEGIN; ALTER TABLE jobs RENAME TO jobs_old; {SCHEMA}; "  # noqa: S608
+            f"INSERT INTO jobs ({OLD_COLUMNS}) SELECT {OLD_COLUMNS} FROM jobs_old; "
+            "DROP TABLE jobs_old; COMMIT;"
+        )
 
     def close(self) -> None:
         with self.lock:
@@ -131,12 +153,26 @@ class Store:
         job["retryable"] = bool(job["retryable"])
         return job
 
-    def create(self, name: str, options: dict[str, Any], state: str = "checking") -> Job:
+    def create(
+        self,
+        name: str,
+        options: dict[str, Any],
+        state: str = "checking",
+        link: dict[str, Any] | None = None,
+    ) -> Job:
         job_id = str(uuid.uuid4())
         with self.lock:
             self.db.execute(
-                "INSERT INTO jobs (id, created, name, state, options) VALUES (?, ?, ?, ?, ?)",
-                (job_id, time.time(), name, state, json.dumps(options)),
+                "INSERT INTO jobs (id, created, name, state, options, link) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    job_id,
+                    time.time(),
+                    name,
+                    state,
+                    json.dumps(options),
+                    None if link is None else json.dumps(link),
+                ),
             )
             job = self.get(job_id)
             self._emit("job", job)
