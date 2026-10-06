@@ -96,7 +96,6 @@ def clean(
     """The browser's pipeline, run from the terminal one file at a time. 1 if any file failed."""
     from sukoon import pipeline
     from sukoon.chunk import separate_chunked
-    from sukoon.encode import AUDIO_FORMATS
     from sukoon.errors import JobError
     from sukoon.models import ModelChecksumError, ModelMissingError
     from sukoon.naming import download_name
@@ -131,7 +130,7 @@ def clean(
                 staging,
             )
             target = free_name(
-                out_dir or path.parent, download_name(path.name, AUDIO_FORMATS[result.format].ext)
+                out_dir or path.parent, download_name(path.name, pipeline.extension(result.format))
             )
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(staging / result.output, target)
@@ -168,6 +167,7 @@ def run_clean(args: argparse.Namespace, settings: Settings) -> int:
         device=args.device,
         format=args.format,
         track=None if args.track is None else args.track - 1,
+        reencode_ok=args.allow_reencode,
     )
     return clean(
         [Path(f) for f in args.files],
@@ -204,6 +204,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     clean_p.add_argument(
         "--track", type=int, help="audio track number, from 1 (default: the track marked default)"
+    )
+    clean_p.add_argument(
+        "--allow-reencode",
+        action="store_true",
+        help="re-encode the picture when the chosen container needs it",
     )
     clean_p.add_argument("--out", help="folder for the results (default: next to each input)")
     args = parser.parse_args(argv)
