@@ -41,7 +41,7 @@ This is a single-user desktop tool, so the usual sessions-per-second arithmetic 
 
 The tightest ceiling is GPU memory: 6 GB on the target laptop. The worker processes 60-second chunks, which keeps peak VRAM bounded regardless of file length. CUDA out-of-memory on a chunk retries that chunk once on CPU and marks the job "finished on CPU" so the user knows why it slowed down.
 
-The second ceiling is disk. Every upload is refused up front when free space is below the job's estimated need (upload size, plus 2.6 GB per hour of audio for scratch, plus an output estimate, plus 1 GB headroom).
+The second ceiling is disk, checked twice. Before an upload streams in, free space must exceed its size plus 1 GB. Once it is on disk and probed, free space must exceed 2.6 GB per hour of audio for scratch, plus an output estimate the size of the upload, plus 1 GB headroom; otherwise the job is refused.
 
 There is no spike to absorb: the queue holds at most 50 waiting jobs and runs them in order. The HTTP capacity test used for networked services does not apply to a server that only ever has one client on loopback; the throughput benchmark above takes its place.
 
@@ -57,7 +57,7 @@ There is no spike to absorb: the queue holds at most 50 waiting jobs and runs th
 | Separated voice | `work/<job id>/voice.wav` | Output file, cleaned preview, waveform peaks |
 | Output file | `outputs/<job id>/<name> (no music).<ext>` | |
 | Review data | `outputs/<job id>/peaks.json`, `preview-original.webm`, `preview-clean.webm` (Opus) | The review player |
-| Models | `models/<file>`, with `<file>.part` while downloading | |
+| Models | `models/<file>`, with `<file>.part` while downloading; includes the three settings tables audio-separator reads (`download_checks.json`, `mdx_model_data.json`, `vr_model_data.json`) | |
 
 Invariants and what enforces them:
 
@@ -76,7 +76,7 @@ Recovery: if the app dies, nothing is lost but in-flight work. Interrupted jobs 
 | ffmpeg / ffprobe (system install) | Missing, too old, missing an encoder | Setup screen naming the install command | `sukoon doctor` and a startup check; formats needing a missing encoder are hidden |
 | GitHub release hosting (models) | Slow, down, rate limited, offline | Model download card with retry | Resumable download with timeout, SHA-256 check, clear offline message; once downloaded, works offline |
 | torch CUDA | No GPU, old driver, OOM | Device badge says CPU; OOM note on the job | Auto-detect; per-chunk CPU fallback |
-| audio-separator | Import error, model load error | Job fails with the model named | Pinned version; the worker reports its own startup health |
+| audio-separator | Import error, model load error | Job fails with the error's message | Pinned version; its settings tables are pinned and hash-checked like the models, so loading needs no network; a crashed worker is replaced |
 | Browser codec support | Cannot play the video codec | Waveform-only player with a note | Detect `error` on the video element |
 
 ## Security and privacy threats
@@ -85,7 +85,7 @@ Recovery: if the app dies, nothing is lost but in-flight work. Interrupted jobs 
 - **A crafted media file makes ffmpeg read other files or the network.** Probe first and reject playlist and indirection formats; run ffmpeg and ffprobe with `-protocol_whitelist file,pipe`; never pass a user string as an argument.
 - **Path traversal through file names.** User file names are kept only as display strings in the database and in the `Content-Disposition` header (RFC 6266 `filename*`). On disk everything is a UUID.
 - **A swapped model file runs code when loaded.** Pinned SHA-256 on every model file; torch 2.14 loads with `weights_only=True` by default; the Demucs path, which loads with `weights_only=False`, is not used.
-- **Resource exhaustion from a huge or malformed file.** Size, duration, and disk checks before work starts; every ffmpeg and ffprobe call has a timeout scaled to the file's duration, and the separation worker is stopped if a chunk reports no progress for 30 minutes.
+- **Resource exhaustion from a huge or malformed file.** Size, duration, and disk checks before work starts; every ffmpeg call has a timeout scaled to the file's duration, ffprobe and the tool checks have fixed timeouts (60 and 20 seconds), and the separation worker is stopped if a chunk reports no progress for 30 minutes.
 - **Agents and model calls reading private data.** Not applicable: the app makes no model API calls.
 
 ## Cost
