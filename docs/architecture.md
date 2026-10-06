@@ -35,7 +35,7 @@ This is a single-user desktop tool, so the usual sessions-per-second arithmetic 
 - Typical input: 3 to 30 minutes. Worst accepted input: 6 hours, 8 GB.
 - Decoded working audio is 32-bit float stereo at 44.1 kHz: 21.2 MB per minute, 1.27 GB per hour. A job holds two copies on disk at peak (mixture and voice), so a six-hour file needs about 15 GB of scratch space before its upload and output are counted.
 - Throughput measured on 2026-10-05 in a two-core x86 sandbox, 30-second clip, torch 2.14.1 CPU: Fast (MDX-Net Voc FT) took 67 s, 0.45 times real time; Best (Mel-Band RoFormer) took 151 to 199 s, about 0.2 times real time. Model load: 5 s and 5 to 14 s.
-- Target on the RTX 3060 Laptop GPU: Best at 10 times real time or better. Unmeasured; the benchmark task records it.
+- Target on the RTX 3060 Laptop GPU: Best at 10 times real time or better. Not measured yet; `sukoon bench` on that laptop records it.
 
 ## Capacity and spike plan
 
