@@ -28,13 +28,18 @@ describe('Transport', () => {
   it('toggles on a click and on Space', async () => {
     const props = setup()
     const sw = screen.getByRole('switch')
-    fireEvent.pointerDown(sw)
-    fireEvent.pointerUp(sw)
+    await userEvent.click(sw)
     expect(props.onToggle).toHaveBeenCalledTimes(1)
     sw.focus()
     await userEvent.keyboard(' ')
     expect(props.onToggle).toHaveBeenCalledTimes(2)
     expect(props.onHold).not.toHaveBeenCalled()
+  })
+
+  it('toggles from a screen reader, which sends a bare click', () => {
+    const props = setup()
+    screen.getByRole('switch').click()
+    expect(props.onToggle).toHaveBeenCalledOnce()
   })
 
   it('plays the original only while the switch is held', () => {
@@ -45,6 +50,17 @@ describe('Transport', () => {
     act(() => vi.advanceTimersByTime(400))
     expect(props.onHold).toHaveBeenLastCalledWith(true)
     fireEvent.pointerUp(sw)
+    expect(props.onHold).toHaveBeenLastCalledWith(false)
+    expect(props.onToggle).not.toHaveBeenCalled()
+  })
+
+  it('ends a hold when the pointer is let go somewhere else', () => {
+    vi.useFakeTimers()
+    const props = setup()
+    const sw = screen.getByRole('switch')
+    fireEvent.pointerDown(sw)
+    act(() => vi.advanceTimersByTime(400))
+    fireEvent(sw, new Event('lostpointercapture', { bubbles: true }))
     expect(props.onHold).toHaveBeenLastCalledWith(false)
     expect(props.onToggle).not.toHaveBeenCalled()
   })
