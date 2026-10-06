@@ -2,8 +2,9 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from sukoon.chunk import Canceled, separate_chunked, windows
+from sukoon.chunk import separate_chunked, windows
 from sukoon.engine import FakeEngine
+from sukoon.errors import Canceled
 
 SR = 44100
 
