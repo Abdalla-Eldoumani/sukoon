@@ -104,7 +104,7 @@ describe('QueueRow', () => {
   })
 
   it('says where a link comes from and how much has arrived', () => {
-    row({ state: 'fetching', progress: 0.3, name: 'youtu.be/jNQXAC9IVRw', link: { url: 'https://youtu.be/jNQXAC9IVRw', site: 'youtu.be', done: 12_000_000, total: 40_000_000 } })
+    row({ state: 'fetching', kind: null, progress: 0.3, name: 'youtu.be/jNQXAC9IVRw', link: { url: 'https://youtu.be/jNQXAC9IVRw', site: 'youtu.be', done: 12_000_000, total: 40_000_000 } })
     expect(screen.getByText('Fetching')).toBeInTheDocument()
     expect(screen.getByText('from youtu.be · 12 MB of 40 MB')).toBeInTheDocument()
   })
@@ -121,6 +121,7 @@ describe('QueueRow', () => {
       </ul>,
     )
     expect(screen.queryByRole('button', { name: /Review/ })).toBeNull()
+    expect(screen.getByText('from youtu.be · checked as real audio')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Download Talk.mp4' })).toBeInTheDocument()
   })
 })
