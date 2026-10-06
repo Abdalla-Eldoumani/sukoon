@@ -1,4 +1,4 @@
-import { useRef, type PointerEvent } from 'react'
+import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { clock } from '../format'
 import { PauseIcon, PlayIcon } from './icons'
 import styles from './Transport.module.css'
@@ -21,10 +21,15 @@ interface Props {
 export function Transport({ playing, current, duration, original, onPlay, onPause, onToggle, onHold }: Props) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const holding = useRef(false)
+  // A primary press is down; and, separately, its click is still to come.
+  const pressed = useRef(false)
   const pointer = useRef(false)
   const press = (e: PointerEvent<HTMLButtonElement>) => {
+    // Only the primary button: a right click opens the menu and sends no click to match.
+    if (e.button > 0) return
     // Captured, so letting go anywhere still ends a hold.
     e.currentTarget.setPointerCapture?.(e.pointerId)
+    pressed.current = true
     pointer.current = true
     holding.current = false
     timer.current = setTimeout(() => {
@@ -33,11 +38,18 @@ export function Transport({ playing, current, duration, original, onPlay, onPaus
     }, HOLD_MS)
   }
   const release = (toggle: boolean) => {
+    if (!pressed.current) return
+    pressed.current = false
     if (timer.current) clearTimeout(timer.current)
     timer.current = null
     if (holding.current) onHold(false)
     else if (toggle) onToggle()
     holding.current = false
+  }
+  const cancel = () => {
+    release(false)
+    // The browser took the pointer back, so no click follows.
+    pointer.current = false
   }
   const click = () => {
     // A pointer press was handled on release; keyboards and screen readers arrive here.
@@ -46,6 +58,12 @@ export function Transport({ playing, current, duration, original, onPlay, onPaus
       return
     }
     onToggle()
+  }
+  const key = (e: KeyboardEvent<HTMLButtonElement>) => {
+    // A key press is never the tail of a pointer press.
+    pointer.current = false
+    // Holding Enter would flip the switch on every repeat.
+    if (e.key === 'Enter' && e.repeat) e.preventDefault()
   }
   return (
     <div className={styles.transport}>
@@ -73,9 +91,10 @@ export function Transport({ playing, current, duration, original, onPlay, onPaus
           className={styles.switch}
           onPointerDown={press}
           onPointerUp={() => release(true)}
-          onPointerCancel={() => release(false)}
+          onPointerCancel={cancel}
           onLostPointerCapture={() => release(false)}
           onClick={click}
+          onKeyDown={key}
         >
           <span className={styles.knob} />
         </button>
