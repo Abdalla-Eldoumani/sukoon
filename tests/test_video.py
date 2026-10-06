@@ -100,6 +100,21 @@ def timeline(path, tmp_path, track=0):
     return sf.read(out)[0]
 
 
+def speech_lag(src, out, tmp_path, track=0):
+    """Seconds by which the output's speech is off from the source's, relative to the picture."""
+    moved = first_video_time(out) - first_video_time(src)
+    a, b = timeline(src, tmp_path, track), timeline(out, tmp_path, track)
+    expected = round(moved * 44100)
+    a, b = (a[-expected:], b) if expected < 0 else (a, b[expected:])
+    window = 2205  # 50 ms either side of where the picture went
+    n = min(len(a), len(b)) - window
+    scores = [
+        np.dot(a[window : n - window], b[window + k : n - window + k])
+        for k in range(-window, window)
+    ]
+    return (int(np.argmax(scores)) - window) / 44100
+
+
 def clean(corpus, tmp_path, name, **opts):
     src = corpus / name
     result = pipeline.run(
@@ -172,14 +187,7 @@ def test_new_audio_stays_in_sync_with_the_picture(corpus, tmp_path, name, track,
             src, track
         )
         assert abs(start_error) <= 0.001, f"start differs by {start_error * 1000:.2f} ms"
-    a, b = timeline(src, tmp_path, track), timeline(out, tmp_path, track)
-    n = min(len(a), len(b))
-    window = 2205  # 50 ms either way
-    scores = [
-        np.dot(a[window : n - window], b[window + k : n - window + k])
-        for k in range(-window, window)
-    ]
-    lag = (int(np.argmax(scores)) - window) / 44100 - moved
+    lag = speech_lag(src, out, tmp_path, track)
     assert abs(lag) <= 0.001, f"lag {lag * 1000:.2f} ms"
 
 
@@ -249,3 +257,40 @@ def test_audio_only_output_from_video(corpus, tmp_path, fmt):
 def test_audio_file_cannot_become_video(corpus, tmp_path):
     with pytest.raises(JobError, match="no picture"):
         clean(corpus, tmp_path, "short-2s.wav", format="mp4")
+
+
+@pytest.mark.parametrize("fmt", ["mp4", "mkv"])
+def test_late_starting_clock_is_rebased_and_stays_in_sync(corpus, tmp_path, fmt):
+    """MPEG-TS clocks start near 1.4 s; the output starts at zero with sound still on the lips."""
+    src = tmp_path / "late.ts"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-y",
+            "-i",
+            str(corpus / "offset-0.5s.mp4"),
+            "-c",
+            "copy",
+            "-f",
+            "mpegts",
+            str(src),
+        ],
+        check=True,
+    )
+    assert first_video_time(src) > 1.0
+    result = pipeline.run(
+        src,
+        probe(src),
+        Options(format=fmt),
+        functools.partial(separate_chunked, FakeEngine()),
+        lambda: False,
+        lambda *a: None,
+        tmp_path / "work",
+        tmp_path / "out",
+    )
+    out = tmp_path / "out" / result.output
+    assert first_video_time(out) < 0.1
+    lag = speech_lag(src, out, tmp_path)
+    assert abs(lag) <= 0.0015, f"lag {lag * 1000:.2f} ms"
