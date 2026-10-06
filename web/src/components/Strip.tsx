@@ -35,7 +35,8 @@ export function Strip({ peaks, current, onSeek }: Props) {
       for (let t = 0; t < peaks.seconds; t += step) {
         const x = Math.round((t / peaks.seconds) * width)
         ctx.fillRect(x, RULER - 7, 1, 6)
-        ctx.fillText(clock(t), x + 6, 0)
+        const label = clock(t)
+        if (x + 6 + ctx.measureText(label).width <= width) ctx.fillText(label, x + 6, 0)
       }
       paintLanes(ctx, el, peaks, width, { top: RULER, lane: LANE, gap: 1, bar: 2, step: 3 })
     },
