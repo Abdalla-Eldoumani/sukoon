@@ -6,14 +6,11 @@ import numpy as np
 import soundfile as sf
 
 from sukoon.engine import Engine, OutOfMemory
+from sukoon.errors import Canceled
 
 CHUNK_S = 60
 OVERLAP_S = 4
 MIN_S = 10
-
-
-class Canceled(Exception):
-    pass
 
 
 @dataclass(frozen=True)
