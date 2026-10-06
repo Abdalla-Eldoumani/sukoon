@@ -9,7 +9,10 @@ import { Transport } from './Transport'
 const TICK_MS = 250
 
 function typing(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)
+  return (
+    target instanceof HTMLElement &&
+    (['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName) || target.isContentEditable)
+  )
 }
 
 /** Plays a finished job: the cleaned audio, the original at the same moment, and the strip. */
@@ -38,12 +41,16 @@ export function ReviewPanel({ job }: { job: Job }) {
     if (source.current) source.current.muted = !hearOriginal
   }, [hearOriginal])
 
+  // Video is the clock when there is one; otherwise the preview being heard leads, so the
+  // one that gets nudged is always the muted one.
   const parts = useCallback(() => {
-    const audios = [clean.current, source.current].filter((m): m is HTMLAudioElement => m !== null)
-    const leader: Media | null = hasVideo ? video.current : clean.current
+    const audible = hearOriginal ? source.current : clean.current
+    const muted = hearOriginal ? clean.current : source.current
+    const audios = [audible, muted].filter((m): m is HTMLAudioElement => m !== null)
+    const leader: Media | null = hasVideo ? video.current : audible
     const followers: Media[] = hasVideo ? audios : audios.slice(1)
     return { leader, followers }
-  }, [hasVideo])
+  }, [hasVideo, hearOriginal])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -58,16 +65,24 @@ export function ReviewPanel({ job }: { job: Job }) {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      // Copy shortcuts are not a compare; macOS sends no keyup for C while Cmd is down.
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       if ((e.key === 'c' || e.key === 'C') && !e.repeat && !typing(e.target)) setHeld(true)
     }
     const up = (e: KeyboardEvent) => {
       if (e.key === 'c' || e.key === 'C') setHeld(false)
     }
+    // A key released while the window is elsewhere never reaches us.
+    const letGo = () => setHeld(false)
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
+    window.addEventListener('blur', letGo)
+    document.addEventListener('visibilitychange', letGo)
     return () => {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', letGo)
+      document.removeEventListener('visibilitychange', letGo)
     }
   }, [])
 
