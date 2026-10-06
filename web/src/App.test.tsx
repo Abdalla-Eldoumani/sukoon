@@ -6,14 +6,15 @@ import { FakeEventSource, job, model } from './test/fixtures'
 beforeEach(() => vi.stubGlobal('EventSource', FakeEventSource))
 afterEach(() => vi.unstubAllGlobals())
 
-function serveHealth(device: string) {
+function serveHealth(device: string, ffmpeg = true) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () =>
-      new Response(JSON.stringify({ status: 'ok', version: '0.1.0', device }), {
-        headers: { 'content-type': 'application/json' },
-      }),
-    ),
+    vi.fn(async (url: string) => {
+      const body = url.endsWith('/api/health')
+        ? { status: 'ok', version: '0.1.0', device, ffmpeg: { ok: ffmpeg, install: 'sudo apt install ffmpeg' } }
+        : { jobs: 0, models: 0 }
+      return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
+    }),
   )
 }
 
@@ -75,5 +76,12 @@ describe('App', () => {
     const [old, added] = screen.getAllByRole('listitem')
     expect(old.className).not.toMatch(/arriving/)
     expect(added.className).toMatch(/arriving/)
+  })
+
+  it('shows only the setup screen while ffmpeg is missing', async () => {
+    serveHealth('CPU', false)
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'sukoon needs ffmpeg' })).toBeInTheDocument()
+    expect(screen.queryByText('Drop audio or video here')).toBeNull()
   })
 })
