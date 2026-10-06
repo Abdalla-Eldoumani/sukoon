@@ -218,18 +218,9 @@ def _resolve_short(url: str) -> str:
     return final
 
 
-def download(
-    url: str, folder: Path, report: Callable[[str, Any], None], max_seconds: float, max_bytes: int
-) -> list[Path]:
-    """Runs yt-dlp: metadata and refusals first, then each part on its own. Child process only."""
-    # yt-dlp would otherwise import plugin code from the user's folders.
-    os.environ["YTDLP_NO_PLUGINS"] = "1"
-    import yt_dlp
-    from yt_dlp.utils import DownloadError, GeoRestrictedError
-
-    family = SITES[site(url)]
+def ytdl_options(family: str, folder: Path) -> dict[str, Any]:
     node = shutil.which("node")
-    options: dict[str, Any] = {
+    return {
         "quiet": True,
         "no_warnings": True,
         "noprogress": True,
@@ -251,10 +242,40 @@ def download(
         "overwrites": True,
         "format": FORMAT,
     }
+
+
+def guarded(options: dict[str, Any]) -> Any:
+    """A YoutubeDL that reads no address off the list. A post can hand yt-dlp a link elsewhere
+    (an X card's t.co link), and yt-dlp would request it before finding no extractor for it."""
+    import yt_dlp
+
+    class Guarded(yt_dlp.YoutubeDL):  # type: ignore[misc]
+        def extract_info(self, url: str, *args: Any, **kwargs: Any) -> Any:
+            # A bare video id passed on with its extractor's name has no address to check.
+            if "://" in url:
+                try:
+                    site(url)
+                except LinkRefused:
+                    raise LinkRefused(ELSEWHERE) from None
+            return super().extract_info(url, *args, **kwargs)
+
+    return Guarded(options)
+
+
+def download(
+    url: str, folder: Path, report: Callable[[str, Any], None], max_seconds: float, max_bytes: int
+) -> list[Path]:
+    """Runs yt-dlp: metadata and refusals first, then each part on its own. Child process only."""
+    # yt-dlp would otherwise import plugin code from the user's folders.
+    os.environ["YTDLP_NO_PLUGINS"] = "1"
+    from yt_dlp.utils import DownloadError, GeoRestrictedError
+
+    family = SITES[site(url)]
+    options = ytdl_options(family, folder)
     try:
         if site(url) in SHORT:
             url = _resolve_short(url)
-        with yt_dlp.YoutubeDL(options) as ydl:
+        with guarded(options) as ydl:
             raw = ydl.extract_info(url, download=False, process=False)
             if reason := refusal(raw, max_seconds, max_bytes):
                 raise JobError(reason)
@@ -286,7 +307,7 @@ def download(
                 "outtmpl": {"default": f"part{index}.%(ext)s"},
                 "progress_hooks": [hook],
             }
-            with yt_dlp.YoutubeDL(one) as ydl:
+            with guarded(one) as ydl:
                 ydl.process_ie_result(copy.deepcopy(raw), download=True)
     except LinkRefused as exc:
         raise JobError(exc.message) from None
