@@ -5,10 +5,10 @@ import { job } from '../test/fixtures'
 import { JobChoices } from './JobChoices'
 
 const VIDEO_FORMATS = [
-  { value: 'mp4', video: true, reencode: false },
-  { value: 'mkv', video: true, reencode: false },
-  { value: 'webm', video: true, reencode: true },
-  { value: 'mp3', video: false, reencode: false },
+  { value: 'mp4', video: true, reencode: false, missing: null },
+  { value: 'mkv', video: true, reencode: false, missing: null },
+  { value: 'webm', video: true, reencode: true, missing: null },
+  { value: 'mp3', video: false, reencode: false, missing: null },
 ]
 
 let posted: { url: string; body: unknown }[]
@@ -80,6 +80,14 @@ describe('JobChoices', () => {
     ])
     await userEvent.selectOptions(select, 'MKV')
     expect(posted[0].body).toEqual({ format: 'mkv' })
+  })
+
+  it('disables a format whose encoder is missing and names it', () => {
+    const formats = [...VIDEO_FORMATS.slice(0, 3), { value: 'mp3', video: false, reencode: false, missing: 'libmp3lame' }]
+    render(<JobChoices job={job({ kind: 'video', formats, options: { preset: 'best', format: 'mp4', track: null } })} />)
+    const option = screen.getByRole('option', { name: 'MP3 (audio only) (needs libmp3lame)' })
+    expect(option).toBeDisabled()
+    expect(option).toHaveAttribute('title', 'Needs the libmp3lame encoder')
   })
 
   it('offers nothing once the job is running', () => {
