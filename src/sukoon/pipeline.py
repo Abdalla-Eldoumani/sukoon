@@ -1,5 +1,6 @@
 import errno
 import json
+import os
 import shutil
 import threading
 import time
@@ -16,7 +17,7 @@ from sukoon import compat, ffmpeg
 from sukoon.chunk import ChunkReport
 from sukoon.decode import decode, mmss
 from sukoon.device import DevicePreference
-from sukoon.encode import AUDIO_FORMATS, default_audio_format, encode_audio
+from sukoon.encode import AUDIO_FORMATS, default_audio_format, encode_audio, output_rate
 from sukoon.errors import DISK_FULL, JobError
 from sukoon.models import Preset
 from sukoon.mux import mux_video
@@ -54,6 +55,8 @@ class Options:
     format: str | None = None
     track: int | None = None
     reencode_ok: bool = False
+    # Download only: a link converted to the chosen format, music and all.
+    keep_music: bool = False
 
     def to_json(self) -> dict[str, Any]:
         return asdict(self)
@@ -156,6 +159,79 @@ def encode_preview(wav: Path, target: Path, cancelled: Callable[[], bool]) -> fl
     return time.monotonic() - started
 
 
+def time_left(started: float, fraction: float) -> float | None:
+    """ffmpeg moves steadily, so the time so far scales up to the time left."""
+    elapsed = time.monotonic() - started
+    return elapsed / fraction - elapsed if fraction > 0.01 else None
+
+
+# The codecs each audio format is written in; a download already in one is copied as it is.
+OWN_CODECS = {
+    "mp3": {"mp3"},
+    "m4a": {"aac", "alac"},
+    "wav": {"pcm_s24le"},
+    "flac": {"flac"},
+    "opus": {"opus"},
+    "ogg": {"vorbis"},
+}
+
+
+def keep_music(
+    source: Path,
+    probe: Probe,
+    track: int,
+    fmt: str,
+    plan: compat.Plan | None,
+    out_dir: Path,
+    progress: Progress,
+    cancelled: Callable[[], bool],
+) -> Result:
+    """Download only: the chosen format, each stream copied wherever the format can hold it."""
+    stream = probe.audio[track]
+    args = ["-protocol_whitelist", "file,pipe", "-i", str(source)]
+    for video in probe.video if plan else []:
+        args += ["-map", f"0:{video.index}"]
+    args += ["-map", f"0:{stream.index}"]
+    if plan is not None:
+        if plan.reencode:
+            _, video_encoder, video_options = compat.REENCODE[fmt]
+            args += ["-c:v", video_encoder, *video_options]
+        else:
+            args += ["-c:v", "copy"]
+        held = compat.AUDIO_CODECS[fmt]
+        encoder, bitrate = compat.AUDIO_ENCODER[fmt]
+        fits = held is None or stream.codec_name in held
+        args += ["-c:a", "copy"] if fits else ["-c:a", encoder, "-b:a", bitrate]
+        muxer = compat.MUXER[fmt]
+    else:
+        audio = AUDIO_FORMATS[fmt]
+        fits = stream.codec_name in OWN_CODECS[fmt]
+        rate = str(output_rate(audio, stream.sample_rate))
+        args += ["-c:a", "copy"] if fits else [*audio.codec_args, "-ar", rate]
+        muxer = audio.muxer
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"output.{extension(fmt)}"
+    partial = out.with_name(f".{out.name}.part")
+    started = time.monotonic()
+    try:
+        ffmpeg.run(
+            [*args, "-map_metadata", "0", "-f", muxer, "-y", str(partial)],
+            probe.duration,
+            lambda f: progress("encoding", f, time_left(started, f)),
+            cancelled,
+            timeout=None if plan is None or not plan.reencode else 600 + probe.duration * 20,
+        )
+        os.replace(partial, out)
+    except BaseException as exc:
+        shutil.rmtree(out_dir, ignore_errors=True)
+        if isinstance(exc, OSError) and exc.errno == errno.ENOSPC:
+            raise JobError(DISK_FULL) from exc
+        raise
+    finally:
+        partial.unlink(missing_ok=True)
+    return Result(output=out.name, format=fmt, seconds=probe.duration)
+
+
 def output_format(probe: Probe, options: Options, source_name: str) -> str:
     """The chosen format, or the one matching the input; checked against what can be written."""
     if options.format:
@@ -194,6 +270,8 @@ def run(
     encoder = compat.AUDIO_ENCODER[fmt][0] if video_plan else AUDIO_FORMATS[fmt].encoder
     if video_plan and video_plan.reencode and not options.reencode_ok:
         raise JobError(video_plan.confirm_message or "The picture needs re-encoding.")
+    if options.keep_music:
+        return keep_music(source, probe, track, fmt, video_plan, out_dir, progress, cancelled)
 
     def report(stage: Stage, fraction: float, eta: float | None = None) -> None:
         lo, hi = WEIGHTS[stage]
@@ -259,9 +337,7 @@ def run(
         encode_started = time.monotonic()
 
         def encoding(fraction: float) -> None:
-            # ffmpeg moves steadily, so the time so far scales up to the time left.
-            elapsed = time.monotonic() - encode_started
-            report("encoding", fraction, elapsed / fraction - elapsed if fraction > 0.01 else None)
+            report("encoding", fraction, time_left(encode_started, fraction))
 
         out = out_dir / f"output.{extension(fmt)}"
         if video_plan is not None:
