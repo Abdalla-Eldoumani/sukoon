@@ -14,6 +14,31 @@ NO_SOUND = "This video has no sound track, so there is nothing to clean."
 
 # Demuxers that open other files or network addresses.
 DENIED_FORMATS = {"hls", "concat", "sdp", "rtp", "rtsp", "tee", "image2", "image2pipe"}
+# Kept on disk only for these, so ffmpeg never sees a playlist extension it might act on.
+MEDIA_EXTS = {
+    ".mp3",
+    ".m4a",
+    ".aac",
+    ".wav",
+    ".flac",
+    ".ogg",
+    ".oga",
+    ".opus",
+    ".webm",
+    ".mp4",
+    ".m4v",
+    ".mov",
+    ".mkv",
+    ".mka",
+    ".avi",
+    ".wma",
+    ".wmv",
+    ".aif",
+    ".aiff",
+    ".ts",
+    ".mpg",
+    ".mpeg",
+}
 # Playlists are refused on sight, before ffprobe gets a chance to follow them.
 PLAYLIST_MAGIC = (b"#EXTM3U", b"ffconcat", b"v=0\r\n", b"v=0\n", b"[playlist]")
 
