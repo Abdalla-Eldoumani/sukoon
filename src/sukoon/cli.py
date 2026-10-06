@@ -1,6 +1,7 @@
 import argparse
 import functools
 import importlib.util
+import io
 import json
 import shutil
 import socket
@@ -219,6 +220,10 @@ def run_bench(args: argparse.Namespace, settings: Settings) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    # Git Bash hands Windows Python a cp1252 stdout, which can't print Arabic file names.
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     browser = argparse.ArgumentParser(add_help=False)
     # SUPPRESS keeps the subcommand's copy from resetting a flag given before it.
     browser.add_argument(
