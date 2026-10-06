@@ -1,5 +1,6 @@
 import json
 import socket
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -230,3 +231,15 @@ def test_clean_accepts_every_output_format(capsys):
     shown = capsys.readouterr().out
     for fmt in [*AUDIO_FORMATS, *VIDEO_CONTAINERS]:
         assert fmt in shown
+
+
+@pytest.mark.parametrize("command", [["bench"], ["clean", "talk.mp3"]])
+def test_missing_separation_libraries_are_reported_before_any_download(
+    command, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setenv("SUKOON_HOME", str(tmp_path))
+    # How Python sees a package that isn't installed.
+    monkeypatch.setitem(sys.modules, "torch", None)
+    assert main(command) == 1
+    assert "uv sync --extra cpu" in capsys.readouterr().err
+    assert not any((tmp_path / "models").glob("*"))
