@@ -59,7 +59,7 @@ def _args(
     partial: Path,
 ) -> list[str]:
     chosen = probe.audio[track]
-    args = ["-protocol_whitelist", "file,pipe", "-i", str(source)]
+    args = ["-copyts", "-protocol_whitelist", "file,pipe", "-i", str(source)]
     if trim > 0:
         args += ["-ss", f"{trim:.6f}"]
     args += [
@@ -78,7 +78,7 @@ def _args(
     else:
         args += ["-c:v", "copy"]
 
-    encoder, *bitrate = AUDIO_ENCODER[plan.container]
+    encoder, bitrate = AUDIO_ENCODER[plan.container]
     for out_index, (stream, step) in enumerate(zip(probe.audio, plan.audio, strict=True)):
         args += ["-map", "1:a:0" if stream is chosen else f"0:{stream.index}"]
         if step.action == "copy":
@@ -89,7 +89,7 @@ def _args(
             f"-c:a:{out_index}",
             encoder,
             f"-b:a:{out_index}",
-            bitrate[1],
+            bitrate,
             f"-ar:a:{out_index}",
             str(rate),
             f"-ac:a:{out_index}",
@@ -136,40 +136,50 @@ def mux_video(
 ) -> None:
     """Copies the picture and swaps in the voice track, in sync, keeping everything else it can.
 
-    The voice goes where the source track's first sample was. Muxers then move things: an
-    encoder's priming can show up in front of the voice, and Matroska shifts every stream when
-    one starts below zero. So the result is measured against the copied picture and, if the
-    voice landed more than half a millisecond off, muxed again with the difference taken out.
+    The voice WAV starts at the source track's start time, and both are muxed on the source's
+    own clock, so the speech lands where it was. AAC's priming can still show up in front of
+    it when the track starts late, which moves the track's start time. That is measured once
+    and, if present, cut from the front of the voice and muxed again; a cut under -copyts
+    keeps every remaining sample at its original time.
     """
     partial = out_path.with_name(f".{out_path.name}.part")
-    selector = f"a:{track}"
-    source_audio = first_time(source, selector, "frame")
-    source_video = first_time(source, "v:0", "packet") or 0.0
-    offset = source_audio if source_audio is not None else probe.audio[track].start_time
-    target_audio = offset
-    trim = 0.0
+    start = probe.audio[track].start_time
     timeout = None if plan.reencode is None else 600 + probe.duration * 20
     try:
-        for attempt in range(3):
+        ffmpeg.run(
+            _args(voice_wav, source, probe, track, plan, start, 0.0, partial),
+            probe.duration,
+            on_progress,
+            cancelled,
+            timeout=timeout,
+        )
+        # Only AAC shows its priming as an earlier start. Matroska reports an Opus track's first
+        # frame after taking off its codec delay, so that time is not the speech's time.
+        # ceiling: a re-encoded picture is not muxed twice, since that would encode it again;
+        # its audio may start up to one priming length early. Revisit if that is noticed.
+        aac = AUDIO_ENCODER[plan.container][0] == "aac"
+        priming = (
+            _visible_priming(source, partial, track, start) if aac and not plan.reencode else None
+        )
+        if priming is not None:
             ffmpeg.run(
-                _args(voice_wav, source, probe, track, plan, offset, trim, partial),
+                _args(voice_wav, source, probe, track, plan, start, priming, partial),
                 probe.duration,
-                on_progress if attempt == 0 else lambda _f: None,
+                lambda _f: None,
                 cancelled,
-                timeout=timeout,
             )
-            landed = first_time(partial, selector, "frame")
-            moved = (first_time(partial, "v:0", "packet") or 0.0) - source_video
-            # ceiling: a re-encoded picture is not muxed twice, since that would encode it again;
-            # revisit if re-encoded outputs show drift.
-            if landed is None or plan.reencode:
-                break
-            error = target_audio + moved - landed
-            if abs(error) <= 0.0005:
-                break
-            # Priming in front of the voice is cut from the voice's start, so the speech stays put.
-            trim += max(0.0, offset - landed)
-            offset += error
         os.replace(partial, out_path)
     finally:
         partial.unlink(missing_ok=True)
+
+
+def _visible_priming(source: Path, output: Path, track: int, start: float) -> float | None:
+    """How far before its start the new track begins, when that is worth fixing."""
+    landed = first_time(output, f"a:{track}", "packet")
+    source_video = first_time(source, "v:0", "packet")
+    output_video = first_time(output, "v:0", "packet")
+    if landed is None or source_video is None or output_video is None:
+        return None
+    # Muxers may move a whole file's clock; the picture shows by how much.
+    early = start + (output_video - source_video) - landed
+    return early if 0.001 < early < 0.2 else None
