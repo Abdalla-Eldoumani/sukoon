@@ -62,7 +62,8 @@ class Runner:
         for job in self.store.list():
             if job["state"] not in RUNNING:
                 continue
-            if source_path(self.settings, job["id"]) is None:
+            # Without a probe the file was never checked, so a retry would have nothing to run.
+            if source_path(self.settings, job["id"]) is None or job["probe"] is None:
                 shutil.rmtree(self.settings.job_path("uploads", job["id"]), ignore_errors=True)
                 self.store.transition(
                     job["id"], "failed", retryable=False, error="The upload didn't finish."
@@ -73,7 +74,7 @@ class Runner:
         for folder in self.settings.area("work").iterdir():
             shutil.rmtree(folder, ignore_errors=True)
         cutoff = time.time() - STALE_PART_S
-        for area in ("uploads", "models"):
+        for area in ("uploads", "outputs", "models"):
             for part in self.settings.area(area).rglob("*.part"):
                 if part.stat().st_mtime < cutoff:
                     part.unlink(missing_ok=True)
@@ -96,17 +97,23 @@ class Runner:
         """Removes a job and every file it made. A running job has to be canceled first."""
         with self.lock:
             job = self.store.get(job_id)
-            if job["state"] in RUNNING - {"checking"} or job_id == self.current:
+            if job["state"] in RUNNING or job_id == self.current:
                 raise RunnerError("Cancel this job before deleting it.")
             for area in ("uploads", "work", "outputs"):
                 shutil.rmtree(self.settings.job_path(area, job_id), ignore_errors=True)
             self.store.delete(job_id)
 
     def clear_finished(self) -> int:
-        finished = [j["id"] for j in self.store.list() if j["state"] in FINISHED]
-        for job_id in finished:
-            self.delete(job_id)
-        return len(finished)
+        """One pass under the lock, so a job retried or started meanwhile is left alone."""
+        removed = 0
+        with self.lock:
+            for job in self.store.list():
+                if job["state"] in FINISHED and job["id"] != self.current:
+                    for area in ("uploads", "work", "outputs"):
+                        shutil.rmtree(self.settings.job_path(area, job["id"]), ignore_errors=True)
+                    self.store.delete(job["id"])
+                    removed += 1
+        return removed
 
     def stop(self) -> None:
         self.stopping.set()
