@@ -14,9 +14,12 @@ uv sync --extra cpu             # or --extra cuda on a machine with an NVIDIA GP
 uv run sukoon                   # starts on http://127.0.0.1:8417/ and opens the browser
 uv run sukoon --no-browser      # same, without opening the browser
 uv run sukoon doctor            # checks ffmpeg, encoders, torch, disk space, and models
+uv run sukoon clean talk.mp3 --preset fast --out cleaned/
 ```
 
-The `uv sync` step is the one command above not yet confirmed on a clean machine.
+`clean` runs the same steps as the browser and prints the path of each finished file, for example `cleaned/talk (no music).mp3`. Add `--format flac` for another format, or `--track 2` to clean the second audio track. Models download the first time they are needed, from the addresses pinned in `src/sukoon/models.py`.
+
+The `uv sync` and `clean` lines are the two commands above not yet confirmed on a clean machine.
 
 To work on the interface with live reload, run `uv run sukoon --no-browser` in one terminal and `npm --prefix web run dev` in another, then open the address Vite prints.
 
