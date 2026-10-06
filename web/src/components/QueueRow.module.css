@@ -8,6 +8,9 @@
   padding: var(--s2) var(--s4);
   background: var(--surface);
   border-radius: var(--r-md);
+}
+
+.arriving {
   animation: arrive var(--d-hover) var(--ease-out);
 }
 
@@ -65,7 +68,7 @@
 .track {
   height: 4px;
   background: var(--rule);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   overflow: hidden;
 }
 
