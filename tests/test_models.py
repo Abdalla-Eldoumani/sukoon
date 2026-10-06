@@ -13,6 +13,7 @@ from sukoon.models import (
     is_ready,
     verify_preset,
 )
+from sukoon.settings import Settings
 
 CONTENT = b"pretend model weights " * 100
 FILES = (
@@ -80,3 +81,10 @@ def test_ready_needs_every_file_at_its_pinned_size(tmp_path):
     assert not is_ready(tmp_path, "best")
     (tmp_path / "vocals_mel_band_roformer.yaml").write_bytes(b"x" * 944)
     assert not is_ready(tmp_path, "best")
+
+
+def test_engine_scratch_lives_in_the_work_area(tmp_path):
+    """Every start clears work/, so a worker killed mid-job leaves nothing behind for long."""
+    settings = Settings(home=tmp_path)
+    engine = AudioSeparatorEngine(settings.area("models"))
+    assert engine.scratch.is_relative_to(settings.area("work"))
