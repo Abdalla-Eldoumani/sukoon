@@ -70,15 +70,17 @@ def create_app(
     web_dist: Path = WEB_DIST,
     worker_config: WorkerConfig | None = None,
     model_ready: Callable[[Preset], bool] | None = None,
+    fetch_options: dict[str, Any] | None = None,
 ) -> ASGIApp:
-    """The whole server. Tests pass a fake engine config and their own idea of model readiness."""
+    """The whole server. Tests pass a fake engine config, their own idea of model readiness,
+    and a stand-in downloader."""
     settings.ensure_dirs()
     config = worker_config or WorkerConfig(models_dir=settings.area("models"))
     store = Store(settings.db_path)
     downloads = Downloads(config.models_dir, lambda s: None, lambda: None, config.model_files)
     ready = model_ready or (lambda preset: bool(downloads.state(preset)["ready"]))
     runner = Runner(settings, store, Worker(config), ready)
-    services = Services(settings, store, runner, downloads)
+    services = Services(settings, store, runner, downloads, fetch_options=fetch_options or {})
     services.available_encoders()  # Once at startup, so the format menus know what works.
     downloads.on_change = services.model_changed
     downloads.on_ready = runner.models_changed
