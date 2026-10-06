@@ -264,3 +264,21 @@ input {
 .select:hover {
   border-color: var(--text-3);
 }
+
+.input {
+  height: 36px;
+  padding: 0 var(--s3);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  font: inherit;
+}
+
+.input::placeholder {
+  color: var(--text-2);
+}
+
+.input:hover {
+  border-color: var(--text-3);
+}
