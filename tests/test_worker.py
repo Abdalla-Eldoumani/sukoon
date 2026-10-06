@@ -1,4 +1,8 @@
 import hashlib
+import os
+import signal
+import subprocess
+import sys
 import time
 
 import numpy as np
@@ -141,3 +145,54 @@ def test_a_chunk_that_never_finishes_fails_the_job_and_the_next_job_succeeds(job
         assert run(worker, scratch).chunks == 2
     finally:
         worker.stop()
+
+
+def running(pid):
+    if sys.platform == "win32":
+        out = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True
+        ).stdout
+        return str(pid) in out
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+SERVER = """
+import os, sys, time
+from pathlib import Path
+from sukoon.worker import Worker, WorkerConfig
+
+if __name__ == "__main__":
+    scratch = Path(sys.argv[1])
+    w = Worker(WorkerConfig(models_dir=scratch, fake={}))
+    w.separate(scratch / "mixture.wav", scratch / "voice.wav", scratch,
+               lambda: False, lambda d, t: None, preset="fast", device="cpu")
+    print(os.getpid(), w.process.pid, flush=True)
+    time.sleep(120)
+"""
+
+
+def test_the_worker_exits_when_the_server_is_killed(job, tmp_path):
+    # Task Manager's End task, or kill -9: nothing in the server gets to stop the child.
+    scratch, _ = job
+    (tmp_path / "server.py").write_text(SERVER)
+    proc = subprocess.Popen(
+        [sys.executable, str(tmp_path / "server.py"), str(scratch)],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    # The interpreter's own pid: on Windows a venv's python.exe is a launcher around it.
+    parent, child = map(int, proc.stdout.readline().split())
+    assert running(child)
+    os.kill(parent, getattr(signal, "SIGKILL", signal.SIGTERM))
+    proc.wait()
+    deadline = time.monotonic() + 15
+    while running(child) and time.monotonic() < deadline:
+        time.sleep(0.2)
+    survived = running(child)
+    if survived:
+        os.kill(child, getattr(signal, "SIGKILL", signal.SIGTERM))
+    assert not survived
