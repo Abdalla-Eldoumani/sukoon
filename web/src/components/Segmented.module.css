@@ -1,0 +1,28 @@
+.group {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--raised);
+  border-radius: var(--r-sm);
+}
+
+.segment {
+  height: 32px;
+  padding: 0 var(--s4);
+  background: transparent;
+  color: var(--text-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: color var(--d-hover) var(--ease-out);
+}
+
+.segment:hover {
+  color: var(--text);
+}
+
+.segment[aria-checked='true'] {
+  background: var(--surface);
+  color: var(--text);
+  border-bottom-color: var(--voice);
+}
