@@ -29,3 +29,21 @@ def web_dist(tmp_path):
 def client(settings, web_dist):
     with TestClient(create_app(settings, PORT, web_dist=web_dist), base_url=BASE) as c:
         yield c
+
+
+@pytest.fixture(scope="session")
+def corpus():
+    """The generated fixture folder, built once if it is missing."""
+    import importlib.util
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    out = root / "tests" / "fixtures" / "generated"
+    if not (out / "truncated.mp4").exists():
+        spec = importlib.util.spec_from_file_location(
+            "make_fixtures", root / "scripts" / "make_fixtures.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.build(out)
+    return out
