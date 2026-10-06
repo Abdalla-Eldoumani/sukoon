@@ -79,7 +79,7 @@ uv run sukoon --no-browser   # the same, without opening the browser
 
 If 8417 is taken, the next free port is used and printed. Starting sukoon a second time opens the one already running.
 
-Drop files on the page, or choose them. Each file is checked, cleaned, and listed; a finished job opens a player where you can switch between the original and the cleaned version at the same moment, then download the result. The first time a job needs a model, a card above the list offers Download Best (913 MB) or Start with Fast (67 MB); the model downloads once, and waiting jobs start when it is in place. Settings (the gear in the top bar) hold the model choice, the device, and default output formats.
+Drop files anywhere on the window, choose them, or paste a link. Each one becomes a row. While it works, the row shows how far into the recording it has got and the time left ("17:44 of 30:34, 1:36 left"). When it finishes, the row draws what was kept, the voice in amber above the line, and what was removed, in steel below it. Click the file name to open the review: play it, hold C (or the switch) to hear the original at the same moment, and download the result. The first time a job needs a model, a card above the list offers Download Best (913 MB) or Start with Fast (67 MB); the model downloads once, and waiting jobs start when it is in place. Settings (the sliders button in the top bar) hold the model choice, the device, default output formats, and the theme.
 
 To stop sukoon, press Ctrl+C in its terminal. A job that was running is marked interrupted and can be retried after the next start.
 
