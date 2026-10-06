@@ -13,7 +13,8 @@ class CopyWebHook(BuildHookInterface):  # type: ignore[type-arg]
             return
         path = Path(self.root) / "scripts" / "build_web.py"
         spec = importlib.util.spec_from_file_location("build_web", path)
-        assert spec and spec.loader
+        if spec is None or spec.loader is None:
+            return
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         if (module.DIST / "index.html").is_file():
