@@ -70,9 +70,19 @@ class Result:
         return asdict(self)
 
 
-# stage, overall fraction, seconds left (known only while separating)
+# stage, overall fraction, seconds left (known while separating and encoding)
 Progress = Callable[[Stage, float, float | None], None]
 ETA_SMOOTHING = 0.5
+# Each output encoder's time next to the Opus preview's, on 20 minutes of speech on the
+# RTX 3060 laptop. ceiling: one machine's ratios; revisit if the time left often runs over.
+ENCODE_COST = {
+    "aac": 7.7,
+    "libopus": 1.7,
+    "libmp3lame": 1.9,
+    "libvorbis": 2.1,
+    "flac": 0.3,
+    "pcm_s24le": 0.05,
+}
 
 
 @dataclass(frozen=True)
@@ -181,6 +191,7 @@ def run(
         raise JobError("That audio track doesn't exist in this file.")
     fmt = output_format(probe, options, source.name)
     video_plan = compat.plan(probe, track, fmt) if fmt in compat.VIDEO_CONTAINERS else None
+    encoder = compat.AUDIO_ENCODER[fmt][0] if video_plan else AUDIO_FORMATS[fmt].encoder
     if video_plan and video_plan.reencode and not options.reencode_ok:
         raise JobError(video_plan.confirm_message or "The picture needs re-encoding.")
 
@@ -230,9 +241,8 @@ def run(
                 if original_preview.done() and original_preview.exception() is None
                 else 4 * decode_s
             )
-            report(
-                "separating", done / total, (total - done) * per_chunk + preview_s + 2 * decode_s
-            )
+            after = preview_s * (1 + ENCODE_COST.get(encoder, 1.0)) + 2 * decode_s
+            report("separating", done / total, (total - done) * per_chunk + after)
 
         chunks = separate(mixture, voice, work_dir, cancelled, on_chunk)
         original_preview.result()
@@ -246,6 +256,13 @@ def run(
         if chunks.cpu_fallbacks:
             notes.append(NOTE_CPU)
         report("encoding", 0.0)
+        encode_started = time.monotonic()
+
+        def encoding(fraction: float) -> None:
+            # ffmpeg moves steadily, so the time so far scales up to the time left.
+            elapsed = time.monotonic() - encode_started
+            report("encoding", fraction, elapsed / fraction - elapsed if fraction > 0.01 else None)
+
         out = out_dir / f"output.{extension(fmt)}"
         if video_plan is not None:
             notes.extend(video_plan.notes)
@@ -256,13 +273,11 @@ def run(
                 track,
                 video_plan,
                 out,
-                lambda f: report("encoding", f),
+                encoding,
                 cancelled,
             )
         else:
-            encode_audio(
-                voice, source, probe, track, fmt, out, lambda f: report("encoding", f), cancelled
-            )
+            encode_audio(voice, source, probe, track, fmt, out, encoding, cancelled)
         return Result(output=out.name, format=fmt, notes=notes, seconds=decoded.seconds)
     except BaseException as exc:
         # The output folder is this job's alone; nothing half made may stay in it.
