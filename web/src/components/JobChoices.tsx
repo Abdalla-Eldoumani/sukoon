@@ -22,13 +22,17 @@ interface Props {
   job: Job
 }
 
+export function hasChoices(job: Job): boolean {
+  return CHOOSABLE.has(job.state) || (job.link !== null && EARLY.has(job.state))
+}
+
 /** The choices a job takes before it runs: which audio track, which format, and re-encode consent. */
 export function JobChoices({ job }: Props) {
   const defaultTrack = job.options.track ?? Math.max(0, job.tracks.findIndex((t) => t.default))
   const [track, setTrack] = useState(defaultTrack)
   const [error, setError] = useState<string | null>(null)
   const early = job.link !== null && EARLY.has(job.state)
-  if (!CHOOSABLE.has(job.state) && !early) return null
+  if (!hasChoices(job)) return null
 
   const send = (body: Record<string, unknown>) => {
     setError(null)
