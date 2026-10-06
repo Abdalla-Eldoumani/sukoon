@@ -165,8 +165,12 @@ export function App() {
     postJson('/api/library/clear').catch((e: Error) => setClearError(e.message))
   }
 
+  const [downloadError, setDownloadError] = useState<string | null>(null)
   const download = (preset: Preset, switchJobs: boolean) => {
-    void fetch(`/api/models/${preset}/download${switchJobs ? '?switch=1' : ''}`, { method: 'POST' })
+    setDownloadError(null)
+    request(`/api/models/${preset}/download${switchJobs ? '?switch=1' : ''}`, { method: 'POST' }).catch((e: Error) =>
+      setDownloadError(e.message),
+    )
     // Choosing Fast on the card makes it the default for files added later too.
     if (switchJobs) changeSettings({ preset })
   }
@@ -197,7 +201,7 @@ export function App() {
             computer.
           </p>
         )}
-        {needsModel && best && fast && <ModelCard best={best} fast={fast} onDownload={download} />}
+        {needsModel && best && fast && <ModelCard best={best} fast={fast} onDownload={download} problem={downloadError} />}
         {finished.length > 0 && (
           <div className={styles.queueBar}>
             {clearing ? (
