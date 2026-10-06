@@ -1,6 +1,6 @@
 .row {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) 64px 160px 48px auto;
+  grid-template-columns: 20px minmax(0, 1fr) 64px 160px 64px auto;
   grid-template-areas: 'glyph name duration stage percent actions';
   align-items: center;
   column-gap: var(--s3);
@@ -81,8 +81,10 @@
 
 .percent {
   grid-area: percent;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   color: var(--text-2);
-  text-align: right;
 }
 
 .actions {
