@@ -65,7 +65,7 @@ def test_chapters_are_counted(corpus):
 
 
 def test_duration_limit(corpus):
-    with pytest.raises(Rejected, match="longer than 0.00277778 hours"):
+    with pytest.raises(Rejected, match=r"longer than 0\.00277778 hours"):
         probe(corpus / "speech-over-music-30s.wav", max_duration=10)
 
 
