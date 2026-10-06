@@ -331,3 +331,54 @@ def test_event_stream_sends_keep_alives(live, monkeypatch):
                 break
     assert lines[0] == "event: snapshot"
     assert lines[-1] == ": keep-alive"
+
+
+def test_track_choice_continues_the_job(client, corpus):
+    job = upload(client, corpus / "two-tracks.mkv").json()
+    assert job["state"] == "awaiting_track"
+    assert job["options"]["format"] == "mkv"
+    r = client.post(f"/api/jobs/{job['id']}/choose", json={"track": 1})
+    assert r.json()["state"] == "queued"
+    done = wait(client, job["id"], {"done", "failed"})
+    assert done["state"] == "done"
+    assert done["options"]["track"] == 1
+    assert done["output_name"] == "two-tracks (no music).mkv"
+
+
+def test_bad_track_is_refused(client, corpus):
+    job = upload(client, corpus / "two-tracks.mkv").json()
+    assert client.post(f"/api/jobs/{job['id']}/choose", json={"track": 5}).status_code == 400
+
+
+def test_reencode_waits_for_a_confirm(client, corpus, tmp_path):
+    job = upload(client, corpus / "vp9-opus.webm", format="mov").json()
+    assert job["state"] == "awaiting_confirm"
+    assert job["confirm"].startswith("The picture will be re-encoded to H.264 for MOV")
+    assert {f["value"]: f["reencode"] for f in job["formats"] if f["video"]} == {
+        "mp4": False,
+        "mkv": False,
+        "webm": False,
+        "mov": True,
+    }
+    r = client.post(f"/api/jobs/{job['id']}/choose", json={"confirm": True})
+    assert r.json()["state"] == "queued"
+    done = wait(client, job["id"], {"done", "failed"})
+    assert done["output_name"] == "vp9-opus (no music).mov"
+
+
+def test_switching_away_from_a_reencode_needs_no_confirm(client, corpus):
+    job = upload(client, corpus / "vp9-opus.webm", format="mov").json()
+    r = client.post(f"/api/jobs/{job['id']}/choose", json={"format": "mkv"})
+    assert r.json()["state"] == "queued"
+    assert r.json()["confirm"] is None
+
+
+def test_choosing_after_the_job_ran_is_refused(client, corpus):
+    job = wait(client, upload(client, corpus / "offset-0.5s.mp4").json()["id"])
+    assert job["output_name"] == "offset-0.5s (no music).mp4"
+    assert client.post(f"/api/jobs/{job['id']}/choose", json={"format": "mkv"}).status_code == 409
+
+
+def test_audio_file_offers_audio_formats_only(client, corpus):
+    job = upload(client, corpus / "short-2s.wav").json()
+    assert [f["value"] for f in job["formats"]] == ["mp3", "m4a", "wav", "flac", "opus", "ogg"]
