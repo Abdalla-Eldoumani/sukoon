@@ -29,7 +29,7 @@ export function TopBar({ device, library, onSettings }: Props) {
             </span>
           )}
           {library != null && (
-            <span className={styles.item} title="Space used by jobs">
+            <span className={`${styles.item} ${styles.library}`} title="Space used by jobs">
               <span className={`small ${styles.key}`}>Library</span> <span className="readout">{megabytes(library)}</span>
             </span>
           )}
