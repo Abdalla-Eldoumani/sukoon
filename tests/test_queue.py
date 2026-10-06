@@ -326,3 +326,96 @@ def test_retry_returns_to_an_unanswered_track_question(client, corpus):
     retried = client.post(f"/api/jobs/{job['id']}/retry").json()
     assert retried["state"] == "awaiting_track"
     assert [t["default"] for t in retried["tracks"]] == [True, False]
+
+
+def test_closing_the_tab_mid_job_loses_nothing(live, long_mix):
+    server = live(fake={"delay": 0.5})
+    with httpx.Client(base_url=server.url) as client:
+        job = upload(client, long_mix).json()
+        first = events_until(server.url, lambda ev: True)  # connect, take the snapshot, leave
+        assert first[0][1]["jobs"][0]["state"] in {"queued", *RUNNING}
+        deadline = time.monotonic() + 60
+        while client.get(f"/api/jobs/{job['id']}").json()["state"] != "done":
+            assert time.monotonic() < deadline
+            time.sleep(0.2)
+        again = events_until(server.url, lambda ev: True)
+    assert again[0][0] == "snapshot"
+    assert again[0][1]["jobs"][0]["state"] == "done"
+    assert again[0][1]["jobs"][0]["output_name"] == "five-minutes (no music).wav"
+
+
+def test_data_folder_with_arabic_letters_and_spaces(tmp_path, corpus, web_dist):
+    from sukoon.settings import Settings
+
+    home = Settings(home=tmp_path / "مجلد البيانات" / "with spaces")
+    home.ensure_dirs()
+    with TestClient(fake_app(home, web_dist=web_dist), base_url=BASE) as client:
+        job = wait(
+            client,
+            upload(client, corpus / "song-with-cover.mp3", name="أغنية مع غلاف.mp3").json()["id"],
+            END,
+        )
+        assert job["state"] == "done"
+        r = client.get(f"/api/jobs/{job['id']}/output")
+    assert r.status_code == 200
+    assert "filename*=UTF-8''" in r.headers["content-disposition"]
+    assert job["output_name"] == "أغنية مع غلاف (no music).mp3"
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not os.path.exists("/proc/self/status"), reason="reads peak memory from /proc")
+def test_seventy_minutes_runs_in_constant_memory(tmp_path):
+    """75 chunks for 4,200 s, and the worker's peak memory stays far below the whole file."""
+    import importlib.util
+
+    import numpy as np
+    import soundfile as sf
+
+    from sukoon.worker import Worker, WorkerConfig
+
+    spec = importlib.util.spec_from_file_location(
+        "make_fixtures",
+        os.path.join(os.path.dirname(__file__), "..", "scripts", "make_fixtures.py"),
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    flac = module.make_silence_70min(tmp_path)
+    scratch = tmp_path / "work" / "8a6f0c2e-2a8b-4f3e-9d61-2b1f4c9e7a10"
+    scratch.mkdir(parents=True)
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-y",
+            "-i",
+            str(flac),
+            "-ac",
+            "2",
+            "-ar",
+            "44100",
+            "-c:a",
+            "pcm_f32le",
+            str(scratch / "mixture.wav"),
+        ],
+        check=True,
+    )
+    worker = Worker(WorkerConfig(models_dir=tmp_path, fake={}))
+    try:
+        report = worker.separate(
+            scratch / "mixture.wav",
+            scratch / "voice.wav",
+            scratch,
+            lambda: False,
+            lambda d, t: None,
+            preset="fast",
+            device="cpu",
+        )
+        with open(f"/proc/{worker.process.pid}/status") as f:
+            peak_kb = next(int(line.split()[1]) for line in f if line.startswith("VmHWM"))
+    finally:
+        worker.stop()
+    assert report.chunks == 75
+    assert sf.info(str(scratch / "voice.wav")).frames == 4200 * 44100
+    assert peak_kb * 1024 < 1.5 * 1024**3
+    assert np.isfinite(peak_kb)
