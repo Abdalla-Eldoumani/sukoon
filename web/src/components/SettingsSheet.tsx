@@ -48,17 +48,19 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
   const [clearing, setClearing] = useState(false)
   const [openError, setOpenError] = useState<string | null>(null)
   const sheet = useRef<HTMLDialogElement>(null)
+  // Kept from the first run only: a second run (StrictMode) would find focus already inside.
+  const opener = useRef<HTMLElement | null>(null)
 
   // A modal dialog keeps focus inside and makes the page behind it inert.
   useEffect(() => {
     const dialog = sheet.current
-    const opener = document.activeElement as HTMLElement | null
+    opener.current ??= document.activeElement as HTMLElement | null
     if (dialog && !dialog.open) {
       if (typeof dialog.showModal === 'function') dialog.showModal()
       else dialog.setAttribute('open', '')
     }
     dialog?.querySelector<HTMLElement>('[role=radio][tabindex="0"]')?.focus()
-    return () => opener?.focus()
+    return () => opener.current?.focus()
   }, [])
 
   const openFolder = () => {
