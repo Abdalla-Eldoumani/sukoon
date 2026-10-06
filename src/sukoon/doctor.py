@@ -6,14 +6,16 @@ from sukoon.settings import GB, Settings
 
 
 def run(settings: Settings, out: Callable[[str], None] = print) -> int:
-    """Prints one line per check and the command that fixes anything missing."""
+    """Prints one line per check and the command that fixes anything missing; 1 if any failed."""
     failed = False
 
     def line(ok: bool | None, name: str, detail: str, fix: str | None = None) -> None:
+        nonlocal failed
+        failed |= ok is False
         mark = {True: "ok  ", False: "FAIL", None: "--  "}[ok]
         out(f"{mark} {name:<10} {detail}")
         if ok is not True and fix:
-            out(f"     {'':<10} fix: {fix}")
+            out(f"     {'':<10} {'fix' if ok is False else 'note'}: {fix}")
 
     ffmpeg = tools.ffmpeg_path()
     ffprobe = tools.ffprobe_path()
@@ -25,7 +27,6 @@ def run(settings: Settings, out: Callable[[str], None] = print) -> int:
         install,
     )
     line(ffprobe is not None, "ffprobe", str(ffprobe) if ffprobe else "not found on PATH", install)
-    failed |= ffmpeg is None or ffprobe is None
 
     if ffmpeg:
         have = tools.available_encoders()
