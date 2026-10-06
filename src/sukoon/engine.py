@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import tempfile
@@ -75,6 +76,7 @@ class AudioSeparatorEngine:
         if self.model is None:
             raise RuntimeError("prepare() must run before separate()")
         sep = Separator(
+            log_level=logging.WARNING,
             output_dir=str(self.scratch),
             model_file_dir=str(self.models_dir),
             output_format="WAV",
