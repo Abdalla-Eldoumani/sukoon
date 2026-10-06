@@ -1,3 +1,4 @@
+import errno
 import multiprocessing as mp
 import queue
 import threading
@@ -12,7 +13,7 @@ from typing import Any
 from sukoon.chunk import ChunkReport, separate_chunked
 from sukoon.device import DevicePreference
 from sukoon.engine import AudioSeparatorEngine, Engine, FakeEngine
-from sukoon.errors import Canceled, JobError
+from sukoon.errors import DISK_FULL, Canceled, JobError
 from sukoon.models import MODEL_FILES, ModelChecksumError, ModelFile, Preset
 
 CRASHED = "The separation engine stopped unexpectedly."
@@ -63,6 +64,9 @@ def worker_main(config: WorkerConfig, inbox: Any, outbox: Any, cancel: Event) ->
         except ModelChecksumError as exc:
             prepared = None
             outbox.put(("error", job_id, str(exc)))
+        except OSError as exc:
+            message = DISK_FULL if exc.errno == errno.ENOSPC else f"The separation failed: {exc}"
+            outbox.put(("error", job_id, message))
         except Exception as exc:
             outbox.put(("error", job_id, f"The separation failed: {exc}"))
 
