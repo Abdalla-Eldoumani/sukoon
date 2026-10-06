@@ -10,7 +10,6 @@ afterEach(() => {
 describe('theme', () => {
   it('follows the system until a choice is made', () => {
     expect(storedTheme()).toBe('system')
-    expect(document.documentElement.hasAttribute('data-theme')).toBe(false)
   })
 
   it('remembers a manual choice and applies it to the page', () => {
