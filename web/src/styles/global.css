@@ -259,7 +259,6 @@ input {
   border: 1px solid var(--rule);
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: border-color var(--d-hover) var(--ease-out);
 }
 
 .select:hover {
