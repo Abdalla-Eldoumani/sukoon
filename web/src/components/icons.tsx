@@ -85,21 +85,3 @@ export const FolderIcon = () => (
     <path d="M2.75 5.25h5l1.5 1.75h8v8.75H2.75z" />
   </Icon>
 )
-
-export const ChevronIcon = () => (
-  <Icon>
-    <path d="M7.5 5l5 5-5 5" />
-  </Icon>
-)
-
-export const CheckIcon = () => (
-  <Icon>
-    <path d="M4.5 10.5l3.5 3.5 7.5-8" />
-  </Icon>
-)
-
-export const WarningIcon = () => (
-  <Icon>
-    <path d="M10 3.25l7.25 12.75H2.75z M10 8.25v3.5 M10 13.9v.1" />
-  </Icon>
-)
