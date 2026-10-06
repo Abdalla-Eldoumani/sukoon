@@ -12,6 +12,10 @@ class FfmpegError(Exception):
     pass
 
 
+class FfmpegTimeout(FfmpegError):
+    pass
+
+
 def run(
     args: Sequence[str],
     duration: float,
@@ -65,7 +69,7 @@ def run(
     if killed == "cancel":
         raise Canceled
     if killed == "timeout":
-        raise FfmpegError(f"ffmpeg took longer than {limit:.0f} s and was stopped")
+        raise FfmpegTimeout(f"ffmpeg took longer than {limit:.0f} s and was stopped")
     if proc.returncode != 0:
         message = "".join(errors).strip()
         if "No space left on device" in message:
