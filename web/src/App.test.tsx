@@ -31,13 +31,13 @@ describe('App', () => {
 
   it('frames the window while files are dragged over it', () => {
     serveHealth('CPU')
-    const { container } = render(<App />)
+    render(<App />)
     const enter = new Event('dragenter', { cancelable: true }) as DragEvent
     Object.defineProperty(enter, 'dataTransfer', { value: { types: ['Files'], files: [] } })
     window.dispatchEvent(enter)
     return vi.waitFor(() => {
       expect(screen.getByText('Release to add')).toBeInTheDocument()
-      expect(container.ownerDocument.querySelector('[aria-hidden="true"][class*="frame"]')).not.toBeNull()
+      expect(screen.getByTestId('drag-frame')).toBeInTheDocument()
     })
   })
 })
