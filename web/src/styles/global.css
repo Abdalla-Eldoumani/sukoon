@@ -265,6 +265,7 @@ input {
 }
 
 .btn-icon {
+  flex-shrink: 0;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -276,7 +277,7 @@ input {
 }
 
 .select {
-  height: 36px;
+  height: 40px;
   max-width: 100%;
   padding: 0 var(--s3);
   background: var(--band);
@@ -310,4 +311,11 @@ input {
 
 .input-small {
   height: 40px;
+}
+
+/* The review panel's open and close cross-fade, where the browser has view transitions. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--d-panel);
+  animation-timing-function: var(--ease-out);
 }
