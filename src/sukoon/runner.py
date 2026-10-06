@@ -180,7 +180,8 @@ class Runner:
             nonlocal current_stage, shown, chunk_started, per_chunk
             now = time.monotonic()
             if stage != current_stage:
-                self.store.transition(job_id, stage, stage=stage, progress=fraction)
+                # The estimate covers separation; encoding is short and has none.
+                self.store.transition(job_id, stage, stage=stage, progress=fraction, eta=None)
                 current_stage, shown, chunk_started = stage, fraction, now
             elif stage == "separating" and done:
                 # Smoothed seconds per chunk; the estimate shows from the first finished chunk.
