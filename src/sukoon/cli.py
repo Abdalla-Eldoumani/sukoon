@@ -112,10 +112,9 @@ def clean(
         job = str(uuid.uuid4())
         work, staging = settings.job_path("work", job), settings.job_path("outputs", job)
 
-        def progress(
-            stage: str, fraction: float, done: int, total: int, name: str = path.name
-        ) -> None:
-            sys.stderr.write(f"\r{name}  {stage.capitalize():<10} {fraction * 100:5.1f}%")
+        def progress(stage: str, fraction: float, eta: float | None, name: str = path.name) -> None:
+            left = f"  {int(eta) // 60}:{int(eta) % 60:02d} left" if eta is not None else ""
+            sys.stderr.write(f"\r{name}  {stage.capitalize():<10} {fraction * 100:5.1f}%{left}   ")
             sys.stderr.flush()
 
         try:
