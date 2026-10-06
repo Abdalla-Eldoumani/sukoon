@@ -42,7 +42,7 @@
 .track {
   height: 4px;
   background: var(--rule);
-  border-radius: 2px;
+  border-radius: var(--r-sm);
   overflow: hidden;
 }
 
