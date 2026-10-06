@@ -28,7 +28,7 @@ from sukoon.download import Downloads
 from sukoon.encode import AUDIO_FORMATS
 from sukoon.errors import Canceled, JobError
 from sukoon.naming import SUFFIX, content_disposition, download_name
-from sukoon.pipeline import Options, extension, output_format
+from sukoon.pipeline import Options, extension, output_format, through
 from sukoon.probe import MEDIA_EXTS, NO_SOUND, Probe, Rejected, probe
 from sukoon.runner import Runner, RunnerError, source_path
 from sukoon.settings import GB, Settings
@@ -195,6 +195,7 @@ def public(job: Job, missing: Callable[[str], str | None] = lambda f: None) -> d
         "confirm": confirm,
         "output_name": download_name(job["name"], extension(fmt), suffix) if fmt else None,
         "link": job.get("link"),
+        "through": through(job["state"], job["progress"], bool(job["options"].get("keep_music"))),
     }
 
 
