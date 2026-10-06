@@ -5,6 +5,8 @@ export interface ServerState {
   jobs: Job[]
   models: ModelState[]
   connected: boolean
+  /** Jobs that were already there when the page first connected. */
+  initial: ReadonlySet<string> | null
 }
 
 function byCreated(a: Job, b: Job) {
@@ -13,7 +15,7 @@ function byCreated(a: Job, b: Job) {
 
 /** Jobs and model downloads as the server reports them, kept current by the event stream. */
 export function useServerState(): ServerState {
-  const [state, setState] = useState<ServerState>({ jobs: [], models: [], connected: false })
+  const [state, setState] = useState<ServerState>({ jobs: [], models: [], connected: false, initial: null })
 
   useEffect(() => {
     let source: EventSource | null = null
@@ -26,7 +28,12 @@ export function useServerState(): ServerState {
       source.addEventListener('snapshot', (e) => {
         const data = JSON.parse((e as MessageEvent).data) as { jobs: Job[]; models: ModelState[] }
         retry = 1000
-        setState({ jobs: data.jobs.sort(byCreated), models: data.models, connected: true })
+        setState((s) => ({
+          jobs: data.jobs.sort(byCreated),
+          models: data.models,
+          connected: true,
+          initial: s.initial ?? new Set(data.jobs.map((j) => j.id)),
+        }))
       })
       source.addEventListener('job', (e) => {
         const job = JSON.parse((e as MessageEvent).data) as Job
