@@ -1,20 +1,23 @@
 .group {
   display: inline-flex;
-  padding: 2px;
-  background: var(--raised);
+  border: 1px solid var(--edge);
   border-radius: var(--r-sm);
+  overflow: hidden;
 }
 
 .segment {
-  height: 32px;
+  height: 36px;
   padding: 0 var(--s4);
   background: transparent;
   color: var(--text-2);
   border: 0;
   border-bottom: 2px solid transparent;
-  border-radius: var(--r-sm);
   cursor: pointer;
   transition: color var(--d-hover) var(--ease-out);
+}
+
+.segment + .segment {
+  border-left: 1px solid var(--rule);
 }
 
 .segment:hover {
@@ -22,7 +25,7 @@
 }
 
 .segment[aria-checked='true'] {
-  background: var(--surface);
+  background: var(--ground);
   color: var(--text);
-  border-bottom-color: var(--voice);
+  border-bottom-color: var(--ink);
 }
