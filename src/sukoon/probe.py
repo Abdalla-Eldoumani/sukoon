@@ -50,6 +50,8 @@ class Probe:
     streams: list[Stream] = field(default_factory=list)
     chapters: int = 0
     tags: dict[str, str] = field(default_factory=dict)
+    # ffprobe guessed the duration from the bitrate (raw AAC, for one), so it is approximate.
+    estimated: bool = False
 
     @property
     def audio(self) -> list[Stream]:
@@ -106,7 +108,7 @@ def _int(value: Any, default: int = 0) -> int:
         return default
 
 
-def parse(raw: dict[str, Any]) -> Probe:
+def parse(raw: dict[str, Any], estimated: bool = False) -> Probe:
     fmt = raw.get("format", {})
     streams = []
     for s in raw.get("streams", []):
@@ -143,10 +145,12 @@ def parse(raw: dict[str, Any]) -> Probe:
         streams=streams,
         chapters=len(raw.get("chapters", [])),
         tags={str(k): str(v) for k, v in fmt.get("tags", {}).items()},
+        estimated=estimated,
     )
 
 
-def run_ffprobe(path: Path, timeout: float = 60) -> dict[str, Any]:
+def run_ffprobe(path: Path, timeout: float = 60) -> tuple[dict[str, Any], bool]:
+    """The parsed JSON, and whether the duration in it is a guess from the bitrate."""
     exe = tools.ffprobe_path()
     if exe is None:
         raise RuntimeError("ffprobe was not found")
@@ -154,7 +158,7 @@ def run_ffprobe(path: Path, timeout: float = 60) -> dict[str, Any]:
         [
             exe,
             "-v",
-            "error",
+            "warning",
             "-protocol_whitelist",
             "file,pipe",
             "-print_format",
@@ -175,7 +179,7 @@ def run_ffprobe(path: Path, timeout: float = 60) -> dict[str, Any]:
         data: dict[str, Any] = json.loads(out.stdout)
     except ValueError as exc:
         raise Rejected(UNREADABLE) from exc
-    return data
+    return data, b"Estimating duration from bitrate" in out.stderr
 
 
 def is_denied(format_name: str) -> bool:
@@ -191,7 +195,7 @@ def probe(path: Path, max_duration: float | None = None) -> Probe:
         head = f.read(64).lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(PLAYLIST_MAGIC):
         raise Rejected(PLAYLIST)
-    result = parse(run_ffprobe(path))
+    result = parse(*run_ffprobe(path))
     if is_denied(result.format_name):
         raise Rejected(PLAYLIST)
     if not result.audio:
