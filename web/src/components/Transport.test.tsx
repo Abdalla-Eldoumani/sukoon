@@ -64,4 +64,28 @@ describe('Transport', () => {
     expect(props.onHold).toHaveBeenLastCalledWith(false)
     expect(props.onToggle).not.toHaveBeenCalled()
   })
+
+  it('ignores a right click and still answers the keyboard after a canceled press', async () => {
+    const props = setup()
+    const sw = screen.getByRole('switch')
+    fireEvent.pointerDown(sw, { button: 2 })
+    fireEvent.pointerUp(sw, { button: 2 })
+    expect(props.onToggle).not.toHaveBeenCalled()
+    fireEvent.pointerDown(sw, { button: 0 })
+    fireEvent.pointerCancel(sw)
+    sw.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(props.onToggle).toHaveBeenCalledOnce()
+  })
+
+  it('flips once when Enter is held down', () => {
+    const props = setup()
+    const sw = screen.getByRole('switch')
+    fireEvent.keyDown(sw, { key: 'Enter' })
+    sw.click()
+    const repeat = fireEvent.keyDown(sw, { key: 'Enter', repeat: true })
+    // false: the repeat's default action, another click, was prevented.
+    expect(repeat).toBe(false)
+    expect(props.onToggle).toHaveBeenCalledOnce()
+  })
 })
