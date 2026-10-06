@@ -1,6 +1,7 @@
 import errno
 import functools
 import json
+import shutil
 import subprocess
 
 import pytest
@@ -94,6 +95,10 @@ def test_format_matrix(corpus, tmp_path, fmt, codec, rate, check):
     assert check(stream)
 
 
+@pytest.mark.skipif(
+    shutil.which("espeak-ng") is None,
+    reason="without espeak-ng the fixture is a tone pattern, which V0 encodes at a low bitrate",
+)
 def test_mp3_is_vbr_v0(corpus, tmp_path):
     _, out, _ = clean(corpus, tmp_path, "song-with-cover.mp3")
     # V0 averages well above 200 kbps on full-band material.
