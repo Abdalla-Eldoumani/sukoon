@@ -39,6 +39,9 @@ build-backend = "hatchling.build"
 packages = ["src/sukoon"]
 artifacts = ["src/sukoon/web_dist/**"]
 
+[tool.hatch.build.hooks.custom]
+path = "scripts/hatch_build.py"
+
 [tool.uv]
 conflicts = [[{ extra = "cpu" }, { extra = "cuda" }]]
 environments = [
