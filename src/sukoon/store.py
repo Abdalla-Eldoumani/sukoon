@@ -203,17 +203,13 @@ class Store:
             rows = self.db.execute("SELECT key, value FROM settings").fetchall()
         return {**DEFAULT_SETTINGS, **{r["key"]: json.loads(r["value"]) for r in rows}}
 
-    def save_settings(self, values: dict[str, Any]) -> dict[str, Any]:
-        unknown = set(values) - set(DEFAULT_SETTINGS)
-        if unknown:
-            raise ValueError(f"unknown settings: {unknown}")
+    def save_settings(self, values: dict[str, Any]) -> None:
         with self.lock:
             self.db.executemany(
                 "INSERT INTO settings (key, value) VALUES (?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 [(k, json.dumps(v)) for k, v in values.items()],
             )
-        return self.settings()
 
     def count(self, *states: str) -> int:
         marks = ", ".join("?" for _ in states)
