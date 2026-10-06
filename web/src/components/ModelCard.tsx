@@ -16,10 +16,10 @@ export function ModelCard({ best, fast, onDownload, problem = null }: Props) {
   return (
     <section className={styles.card} aria-label="Model download">
       <div className={styles.text}>
-        <span className="body-strong">The separation model downloads once</span>
+        <h2 className="title">The separation model downloads once</h2>
         <span className={`small ${styles.detail}`}>
-          Best is the Mel-Band RoFormer vocal model, {megabytes(best.size)}. Fast is MDX-Net Voc FT,{' '}
-          {megabytes(fast.size)}, quicker and slightly less clean.
+          Best, {megabytes(best.size)}, is the cleaner, and the faster one on a graphics card. Fast,{' '}
+          {megabytes(fast.size)}, always runs on the processor, for computers without one.
         </span>
         {error && <span className={`small ${styles.error}`}>{error}</span>}
       </div>
@@ -30,7 +30,7 @@ export function ModelCard({ best, fast, onDownload, problem = null }: Props) {
           </div>
           <span className="readout" role="status">
             {megabytes(busy.done)} of {megabytes(busy.size)}
-            {busy.rate > 0 ? ` · ${(busy.rate / 1e6).toFixed(1)} MB/s` : ''}
+            {busy.rate > 0 ? ` at ${(busy.rate / 1e6).toFixed(1)} MB/s` : ''}
           </span>
         </div>
       ) : (
