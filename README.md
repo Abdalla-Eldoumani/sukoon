@@ -24,7 +24,7 @@ It does not edit, trim, transcribe, or separate one voice from another. You're r
 
 ### Windows
 
-In Git Bash or Command Prompt:
+In Git Bash:
 
 ```bash
 winget install astral-sh.uv
