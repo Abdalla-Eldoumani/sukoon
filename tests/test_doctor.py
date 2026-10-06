@@ -8,7 +8,9 @@ def run(settings):
     return code, "\n".join(lines)
 
 
-def test_reports_every_check(settings):
+def test_reports_every_check(settings, monkeypatch):
+    monkeypatch.setattr("sukoon.device.detect", lambda *a: DeviceInfo("cpu", "CPU", "2.14.1+cpu"))
+    monkeypatch.setattr("sukoon.device.nvidia_gpu_present", lambda: False)
     code, text = run(settings)
     assert code == 0
     for name in ("ffmpeg", "ffprobe", "encoders", "torch", "disk", "model best", "model fast"):
@@ -47,3 +49,10 @@ def test_cuda_device_is_reported(settings, monkeypatch):
     monkeypatch.setattr("sukoon.device.nvidia_gpu_present", lambda: True)
     _, text = run(settings)
     assert "ok   torch      2.14.1+cu126, device CUDA · RTX 3060 Laptop" in text
+
+
+def test_missing_torch_fails_with_install_command(settings, monkeypatch):
+    monkeypatch.setattr("sukoon.device.detect", lambda *a: DeviceInfo("cpu", "CPU", None))
+    code, text = run(settings)
+    assert code == 1
+    assert "fix: uv sync --extra cpu" in text
