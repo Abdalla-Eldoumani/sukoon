@@ -220,7 +220,9 @@ def fake_fetch(url, folder, outbox, max_seconds, max_bytes):
                 ["ffmpeg", "-v", "error", "-y", "-i", source, "-c", "copy", *args], check=True
             )
     else:
-        name = {"audio": "speech-over-music-30s.wav"}.get(what, "offset-0.5s.mp4")
+        name = {"audio": "speech-over-music-30s.wav", "silent": "video-no-audio.mp4"}.get(
+            what, "offset-0.5s.mp4"
+        )
         shutil.copy(GENERATED / name, folder / f"part0{Path(name).suffix}")
     outbox.put(("progress", (500, 1000)))
     outbox.put(("progress", (1000, 1000)))
@@ -310,6 +312,12 @@ def test_a_failed_fetch_says_why_and_can_be_retried(links_client, settings):
     assert wait(links_client, job["id"])["error"] == PRIVATE
 
 
+def test_a_video_sent_without_sound_says_which_site_held_it_back(links_client):
+    job = wait(links_client, link(links_client, "silent")["id"])
+    assert job["state"] == "failed"
+    assert job["error"].startswith("YouTube sent this video without its sound")
+
+
 def test_a_downloaded_playlist_is_refused_like_an_upload(links_client, settings):
     job = wait(links_client, link(links_client, "playlist")["id"])
     assert job["state"] == "failed"
@@ -396,3 +404,61 @@ def test_doctor_notes_an_old_yt_dlp_with_the_update_command(settings):
     text = "\n".join(lines)
     assert "--   yt-dlp     2026.8.19, 135 days old" in text
     assert "uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync" in text
+
+
+# Short public videos, each under 20 seconds, taken from yt-dlp's own extractor tests.
+LIVE_LINKS = [
+    ("https://www.youtube.com/watch?v=jNQXAC9IVRw", "mp4"),
+    ("https://x.com/historyinmemes/status/1790637656616943991", "mp4"),
+    pytest.param(
+        "https://www.instagram.com/p/aye83DjauH/",
+        "mp4",
+        marks=pytest.mark.xfail(reason="Instagram sends signed-out requests the picture only"),
+    ),
+    pytest.param(
+        "https://www.tiktok.com/@pokemonlife22/video/7059698374567611694",
+        "mp4",
+        marks=pytest.mark.xfail(reason="TikTok turns away requests from outside a browser"),
+    ),
+    ("https://www.facebook.com/reel/1195289147628387", "mp4"),
+    ("https://www.reddit.com/r/videos/comments/6rrwyj/that_small_heart_attack/", "mp4"),
+    pytest.param(
+        "https://vimeo.com/33951933",
+        "mp4",
+        marks=pytest.mark.xfail(reason="Vimeo's web client now needs a signed-in user"),
+    ),
+    ("https://soundcloud.com/jaimemf/youtube-dl-test-video-a-y-baw/s-8Pjrp", "m4a"),
+]
+
+
+@pytest.mark.network
+@pytest.mark.skipif(
+    os.environ.get("SUKOON_TEST_NETWORK") != "1", reason="set SUKOON_TEST_NETWORK=1 to fetch"
+)
+@pytest.mark.parametrize(("url", "ext"), LIVE_LINKS)
+def test_a_real_link_becomes_a_playable_file(settings, web_dist, tmp_path, url, ext):
+    with TestClient(fake_app(settings, web_dist=web_dist), base_url=BASE) as c:
+        job = c.post("/api/links", json={"url": url}).json()
+        job = wait(c, job["id"], timeout=300)
+        assert job["state"] == "done", job["error"]
+        out = tmp_path / f"out.{ext}"
+        out.write_bytes(c.get(f"/api/jobs/{job['id']}/output").content)
+        found = json.loads(
+            subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-of",
+                    "json",
+                    "-show_format",
+                    "-show_streams",
+                    str(out),
+                ],
+                capture_output=True,
+                check=True,
+            ).stdout
+        )
+        assert "mp4" in found["format"]["format_name"]
+        assert "audio" in [s["codec_type"] for s in found["streams"]]
+        assert c.delete(f"/api/jobs/{job['id']}").status_code == 204
