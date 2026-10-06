@@ -48,6 +48,13 @@ TRANSITIONS: dict[str, set[str]] = {
 }
 
 JSON_FIELDS = ("options", "probe", "result")
+# None for a format means "the same kind as the input".
+DEFAULT_SETTINGS: dict[str, Any] = {
+    "preset": "best",
+    "device": "auto",
+    "audio_format": None,
+    "video_format": None,
+}
 FIELDS = (
     "name",
     "kind",
@@ -99,6 +106,7 @@ class Store:
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute(SCHEMA)
+        self.db.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
         self.lock = threading.RLock()
         self.listeners: list[Listener] = []
 
@@ -188,6 +196,24 @@ class Store:
                 "SELECT * FROM jobs WHERE state = 'queued' ORDER BY created, rowid LIMIT 1"
             ).fetchone()
         return self._row(row) if row else None
+
+    def settings(self) -> dict[str, Any]:
+        """Saved choices merged over the defaults."""
+        with self.lock:
+            rows = self.db.execute("SELECT key, value FROM settings").fetchall()
+        return {**DEFAULT_SETTINGS, **{r["key"]: json.loads(r["value"]) for r in rows}}
+
+    def save_settings(self, values: dict[str, Any]) -> dict[str, Any]:
+        unknown = set(values) - set(DEFAULT_SETTINGS)
+        if unknown:
+            raise ValueError(f"unknown settings: {unknown}")
+        with self.lock:
+            self.db.executemany(
+                "INSERT INTO settings (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                [(k, json.dumps(v)) for k, v in values.items()],
+            )
+        return self.settings()
 
     def count(self, *states: str) -> int:
         marks = ", ".join("?" for _ in states)
