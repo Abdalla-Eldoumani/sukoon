@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import errno
 import json
 import shutil
 from collections.abc import AsyncIterator, Callable
@@ -10,6 +11,7 @@ from typing import Any
 import anyio
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from python_multipart.exceptions import MultipartParseError
 from python_multipart.multipart import MultipartParser, parse_options_header
 from starlette.requests import ClientDisconnect
 
@@ -212,10 +214,8 @@ async def receive_upload(
         "field": b"",
         "value": b"",
         "job": None,
-        "file": None,
         "size": 0,
         "done": False,
-        "buffer": bytearray(),
     }
     pending: list[bytes] = []
 
@@ -274,7 +274,8 @@ async def receive_upload(
                     raise _TooBig
                 await anyio.to_thread.run_sync(handle.write, data)
         parser.finalize()
-    except (ClientDisconnect, _TooBig, OSError) as exc:
+    except BaseException as exc:
+        # Whatever stopped the upload, nothing it started may outlive it.
         if handle is not None:
             handle.close()
         if job is not None:
@@ -285,8 +286,10 @@ async def receive_upload(
             raise HTTPException(
                 413, TOO_BIG.format(limit=settings.max_upload_bytes // GB)
             ) from None
-        if isinstance(exc, OSError):
+        if isinstance(exc, OSError) and exc.errno == errno.ENOSPC:
             raise HTTPException(507, NO_SPACE) from None
+        if isinstance(exc, MultipartParseError):
+            raise HTTPException(400, "The upload was malformed.") from None
         raise
     if job is None or folder is None or handle is None:
         return None
@@ -304,6 +307,10 @@ class _TooBig(Exception):
 def check_upload(services: Services, job_id: str, source: Path, size: int) -> Job:
     """Probes a finished upload; rejected files are deleted and their job says why."""
     settings, store = services.settings, services.store
+    if store.get(job_id)["state"] != "checking":
+        # Cancelled while it was still uploading.
+        shutil.rmtree(source.parent, ignore_errors=True)
+        return store.get(job_id)
     try:
         result = probe(source, settings.max_duration_s)
     except Rejected as exc:
