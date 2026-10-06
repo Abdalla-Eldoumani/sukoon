@@ -8,6 +8,15 @@
   margin-top: var(--s4);
 }
 
+.queueBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  color: var(--text-2);
+}
+
 .queue {
   display: flex;
   flex-direction: column;
