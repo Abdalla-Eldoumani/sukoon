@@ -153,10 +153,7 @@ def clean(
 
 
 def missing_libraries(name: str | None) -> str:
-    return (
-        f"The separation libraries are not installed ({name}). "
-        "Run: uv sync --extra cpu (or --extra cuda)"
-    )
+    return f"The separation libraries are not installed ({name}). Run: uv sync"
 
 
 def ready_to_separate(models_dir: Path, preset: "Preset") -> bool:
