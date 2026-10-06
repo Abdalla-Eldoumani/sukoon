@@ -97,3 +97,37 @@ def test_state_survives_reopening(tmp_path):
     again = Store(tmp_path / "jobs.db")
     assert again.get(job["id"])["state"] == "queued"
     again.close()
+
+
+def test_link_jobs_fetch_before_they_are_checked(store):
+    job = store.create("youtube.com/watch?v=x", {}, state="fetching", link={"url": "u"})
+    assert job["link"] == {"url": "u"}
+    for state in ("checking", "queued", "encoding", "done"):
+        job = store.transition(job["id"], state)
+    stopped = store.create("youtube.com/watch?v=y", {}, state="fetching")
+    store.transition(stopped["id"], "interrupted")
+    assert store.transition(stopped["id"], "fetching")["state"] == "fetching"
+
+
+def test_a_database_from_the_first_release_takes_link_jobs(tmp_path):
+    # The 0.1.0 table: no fetching state in its CHECK and no link column.
+    db = sqlite3.connect(tmp_path / "jobs.db")
+    db.execute(
+        "CREATE TABLE jobs (id TEXT PRIMARY KEY, created REAL NOT NULL, name TEXT NOT NULL, "
+        "kind TEXT, state TEXT NOT NULL CHECK (state IN ('checking', 'awaiting_track', "
+        "'awaiting_confirm', 'queued', 'waiting_model', 'decoding', 'separating', 'encoding', "
+        "'done', 'failed', 'canceled', 'interrupted')), stage TEXT, "
+        "progress REAL NOT NULL DEFAULT 0, eta REAL, options TEXT NOT NULL DEFAULT '{}', "
+        "probe TEXT, result TEXT, error TEXT, retryable INTEGER NOT NULL DEFAULT 1)"
+    )
+    db.execute(
+        "INSERT INTO jobs (id, created, name, state, result) "
+        "VALUES ('a', 1.0, 'old.mp3', 'done', '{\"notes\": []}')"
+    )
+    db.commit()
+    db.close()
+    s = Store(tmp_path / "jobs.db")
+    assert s.get("a")["name"] == "old.mp3"
+    assert s.get("a")["result"] == {"notes": []}
+    assert s.create("x.com/u/status/1", {}, state="fetching")["state"] == "fetching"
+    s.close()
