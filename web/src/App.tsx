@@ -69,10 +69,17 @@ export function App() {
   }, [])
   const dragging = useWindowDrag(addFiles)
 
+  const [settingsError, setSettingsError] = useState<string | null>(null)
   const checkHealth = useCallback(() => {
     setChecking(true)
     getJson<Health>('/api/health')
-      .then(setHealth, () => setHealth(null))
+      .then((h) => {
+        setHealth(h)
+        // The encoders are only known once ffmpeg is there, so the format lists change too.
+        if (h.ffmpeg.ok) getJson<Settings>('/api/settings').then(setSettings, () => {})
+      })
+      // A failed check keeps whatever was known; it must not drop the setup screen.
+      .catch(() => {})
       .finally(() => setChecking(false))
   }, [])
   useEffect(() => {
@@ -80,11 +87,21 @@ export function App() {
     getJson<Settings>('/api/settings').then(setSettings, () => setSettings(null))
   }, [])
 
+  // Shown at once, put back if the server refuses, so the controls never lag the keys.
   const changeSettings = (values: Partial<Settings>) => {
-    putJson<Settings>('/api/settings', values).then((saved) => {
-      setSettings(saved)
-      if ('device' in values) checkHealth()
-    })
+    const before = settings
+    setSettingsError(null)
+    setSettings((s) => (s ? { ...s, ...values } : s))
+    putJson<Settings>('/api/settings', values).then(
+      (saved) => {
+        setSettings(saved)
+        if ('device' in values) checkHealth()
+      },
+      (e: Error) => {
+        setSettings(before)
+        setSettingsError(e.message)
+      },
+    )
   }
   // The sheet slides with a view transition where the browser has one.
   const toggleSheet = (open: boolean) => {
@@ -152,7 +169,11 @@ export function App() {
 
   return (
     <>
-      <TopBar device={health?.device ?? null} library={library?.jobs ?? null} onSettings={() => toggleSheet(true)} />
+      <TopBar
+        device={health?.device ?? null}
+        library={library?.jobs ?? null}
+        onSettings={settings ? () => toggleSheet(true) : null}
+      />
       <main className={styles.main}>
         <DropWell compact={rows.length > 0} dragging={dragging} onFiles={addFiles} />
         {rows.length === 0 && (
@@ -211,6 +232,7 @@ export function App() {
         <SettingsSheet
           settings={settings}
           library={library}
+          error={settingsError}
           onChange={changeSettings}
           onClearFinished={clearFinished}
           onClose={closeSheet}
