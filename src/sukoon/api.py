@@ -29,7 +29,7 @@ from sukoon.encode import AUDIO_FORMATS
 from sukoon.errors import Canceled, JobError
 from sukoon.naming import SUFFIX, content_disposition, download_name
 from sukoon.pipeline import Options, extension, output_format
-from sukoon.probe import NO_SOUND, Probe, Rejected, probe
+from sukoon.probe import MEDIA_EXTS, NO_SOUND, Probe, Rejected, probe
 from sukoon.runner import Runner, RunnerError, source_path
 from sukoon.settings import GB, Settings
 from sukoon.store import Job, Store, TransitionError
@@ -37,31 +37,6 @@ from sukoon.store import Job, Store, TransitionError
 log = logging.getLogger("sukoon")
 
 KEEPALIVE_S = 15.0
-# Kept on disk only for these, so ffmpeg never sees a playlist extension it might act on.
-MEDIA_EXTS = {
-    ".mp3",
-    ".m4a",
-    ".aac",
-    ".wav",
-    ".flac",
-    ".ogg",
-    ".oga",
-    ".opus",
-    ".webm",
-    ".mp4",
-    ".m4v",
-    ".mov",
-    ".mkv",
-    ".mka",
-    ".avi",
-    ".wma",
-    ".wmv",
-    ".aif",
-    ".aiff",
-    ".ts",
-    ".mpg",
-    ".mpeg",
-}
 VIDEO_TYPES = {
     ".mp4": "video/mp4",
     ".m4v": "video/mp4",
