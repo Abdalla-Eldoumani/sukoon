@@ -6,9 +6,10 @@ interface Props {
   device: string | null
   /** Bytes held by jobs, which Clear finished frees. */
   library: number | null
+  onSettings: () => void
 }
 
-export function TopBar({ device, library }: Props) {
+export function TopBar({ device, library, onSettings }: Props) {
   return (
     <header className={styles.bar}>
       <div className={styles.inner}>
@@ -29,7 +30,7 @@ export function TopBar({ device, library }: Props) {
             className="btn-quiet btn-icon"
             aria-label="Settings"
             title="Settings"
-            disabled
+            onClick={onSettings}
           >
             <SettingsIcon />
           </button>
