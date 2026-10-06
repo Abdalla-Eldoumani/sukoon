@@ -1,5 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { clock } from '../format'
+import { reducedMotion } from '../motion'
 import styles from './Strip.module.css'
 
 export interface Peaks {
@@ -23,12 +24,15 @@ function css(el: Element, name: string): string {
   return getComputedStyle(el).getPropertyValue(name).trim()
 }
 
-function reducedMotion(): boolean {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+function loudestOf(peaks: Peaks): number {
+  let loudest = 1e-6
+  for (const v of peaks.voice) loudest = Math.max(loudest, Math.abs(v))
+  for (const v of peaks.removed) loudest = Math.max(loudest, Math.abs(v))
+  return loudest
 }
 
 /** Draws both lanes and the ruler, up to `reveal` (0..1) of the width. */
-function draw(canvas: HTMLCanvasElement, peaks: Peaks, reveal: number) {
+function draw(canvas: HTMLCanvasElement, peaks: Peaks, reveal: number, loudest: number) {
   const ratio = window.devicePixelRatio || 1
   const width = canvas.clientWidth
   const height = RULER + LANE * 2 + 1
@@ -62,8 +66,6 @@ function draw(canvas: HTMLCanvasElement, peaks: Peaks, reveal: number) {
 
   const buckets = peaks.voice.length / 2
   const shown = Math.floor(buckets * reveal)
-  // Both lanes share one scale, set by the louder of the two, so their sizes compare honestly.
-  const loudest = Math.max(1e-6, ...peaks.voice.map(Math.abs), ...peaks.removed.map(Math.abs))
   const lane = (values: number[], color: string, center: number, direction: 1 | -1) => {
     ctx.fillStyle = color
     for (let i = 0; i < shown; i++) {
@@ -87,21 +89,27 @@ export function Strip({ peaks, current, onSeek }: Props) {
   useEffect(() => {
     const el = canvas.current
     if (!el) return
+    // Both lanes share one scale, set by the louder of the two, so their sizes compare honestly.
+    const loudest = loudestOf(peaks)
     let frame = 0
+    let reveal = 1
     // The one flourish: the strip draws in once, left to right.
     if (!drawn.current && !reducedMotion() && typeof requestAnimationFrame === 'function') {
+      reveal = 0
       const start = performance.now()
       const step = (now: number) => {
         const t = Math.min(1, (now - start) / DRAW_IN_MS)
-        draw(el, peaks, 1 - (1 - t) ** 3)
+        reveal = 1 - (1 - t) ** 3
+        draw(el, peaks, reveal, loudest)
         if (t < 1) frame = requestAnimationFrame(step)
       }
       frame = requestAnimationFrame(step)
     } else {
-      draw(el, peaks, 1)
+      draw(el, peaks, 1, loudest)
     }
     drawn.current = true
-    const redraw = () => draw(el, peaks, 1)
+    // Resizes and theme changes redraw only as much as has been revealed so far.
+    const redraw = () => draw(el, peaks, reveal, loudest)
     const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(redraw) : null
     resize?.observe(el)
     const themes = new MutationObserver(redraw)
