@@ -1,7 +1,10 @@
 import errno
 import json
 import shutil
+import threading
+import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -67,7 +70,9 @@ class Result:
         return asdict(self)
 
 
-Progress = Callable[[Stage, float, int, int], None]
+# stage, overall fraction, seconds left (known only while separating)
+Progress = Callable[[Stage, float, float | None], None]
+ETA_SMOOTHING = 0.5
 
 
 @dataclass(frozen=True)
@@ -113,31 +118,32 @@ def analyse(
     return energy, {"seconds": info.frames / info.samplerate, **lanes}
 
 
-def write_previews(
-    mixture: Path, voice: Path, out_dir: Path, cancelled: Callable[[], bool]
-) -> None:
-    """Small Opus copies of the input and the voice, the same length, for the review player."""
-    for name, wav in (("preview-original.webm", mixture), ("preview-clean.webm", voice)):
-        partial = out_dir / f".{name}.part"
-        ffmpeg.run(
-            [
-                "-protocol_whitelist",
-                "file,pipe",
-                "-i",
-                str(wav),
-                "-c:a",
-                "libopus",
-                "-b:a",
-                "128k",
-                "-f",
-                "webm",
-                "-y",
-                str(partial),
-            ],
-            float(sf.info(str(wav)).duration),
-            cancelled=cancelled,
-        )
-        partial.replace(out_dir / name)
+def encode_preview(wav: Path, target: Path, cancelled: Callable[[], bool]) -> float:
+    """A small Opus copy for the review player; returns how long the encode took."""
+    started = time.monotonic()
+    partial = target.with_name(f".{target.name}.part")
+    ffmpeg.run(
+        [
+            "-protocol_whitelist",
+            "file,pipe",
+            "-i",
+            str(wav),
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "128k",
+            "-compression_level",
+            "5",
+            "-f",
+            "webm",
+            "-y",
+            str(partial),
+        ],
+        float(sf.info(str(wav)).duration),
+        cancelled=cancelled,
+    )
+    partial.replace(target)
+    return time.monotonic() - started
 
 
 def output_format(probe: Probe, options: Options, source_name: str) -> str:
@@ -178,9 +184,12 @@ def run(
     if video_plan and video_plan.reencode and not options.reencode_ok:
         raise JobError(video_plan.confirm_message or "The picture needs re-encoding.")
 
-    def report(stage: Stage, fraction: float, done: int = 0, total: int = 0) -> None:
+    def report(stage: Stage, fraction: float, eta: float | None = None) -> None:
         lo, hi = WEIGHTS[stage]
-        progress(stage, lo + (hi - lo) * fraction, done, total)
+        progress(stage, lo + (hi - lo) * fraction, eta)
+
+    stop = threading.Event()
+    pool = ThreadPoolExecutor(max_workers=1)
 
     notes: list[str] = []
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -188,7 +197,16 @@ def run(
     try:
         mixture, voice = work_dir / "mixture.wav", work_dir / "voice.wav"
         report("decoding", 0.0)
+        started = time.monotonic()
         decoded = decode(source, probe, track, mixture, lambda f: report("decoding", f), cancelled)
+        decode_s = time.monotonic() - started
+        # The original's preview needs only the decoded input, so it runs during separation.
+        original_preview = pool.submit(
+            encode_preview,
+            mixture,
+            out_dir / "preview-original.webm",
+            lambda: cancelled() or stop.is_set(),
+        )
         if probe.audio[track].channels > 2:
             notes.append(NOTE_SURROUND)
         if decoded.partial:
@@ -196,16 +214,31 @@ def run(
                 f"The source file is damaged after {mmss(decoded.seconds)}; the output stops there."
             )
         report("separating", 0.0)
-        chunks = separate(
-            mixture,
-            voice,
-            work_dir,
-            cancelled,
-            lambda d, t: report("separating", d / t, d, t),
-        )
+        chunk_started, per_chunk = time.monotonic(), 0.0
+
+        def on_chunk(done: int, total: int) -> None:
+            nonlocal chunk_started, per_chunk
+            now = time.monotonic()
+            took, chunk_started = now - chunk_started, now
+            per_chunk = (
+                took if not per_chunk else (ETA_SMOOTHING * took + (1 - ETA_SMOOTHING) * per_chunk)
+            )
+            # What follows separation: the voice's preview (timed off the original's, or
+            # guessed from the decode until that is done), the analysis, and the encode.
+            preview_s = (
+                original_preview.result()
+                if original_preview.done() and original_preview.exception() is None
+                else 4 * decode_s
+            )
+            report(
+                "separating", done / total, (total - done) * per_chunk + preview_s + 2 * decode_s
+            )
+
+        chunks = separate(mixture, voice, work_dir, cancelled, on_chunk)
+        original_preview.result()
         energy, peaks = analyse(mixture, voice)
         (out_dir / "peaks.json").write_text(json.dumps(peaks), encoding="utf-8")
-        write_previews(mixture, voice, out_dir, cancelled)
+        encode_preview(voice, out_dir / "preview-clean.webm", cancelled)
         if energy.mixture > 0 and energy.removed < 0.01 * energy.mixture:
             notes.append(NOTE_NO_MUSIC)
         if energy.voice_rms < 10 ** (-50 / 20):
@@ -231,9 +264,15 @@ def run(
                 voice, source, probe, track, fmt, out, lambda f: report("encoding", f), cancelled
             )
         return Result(output=out.name, format=fmt, notes=notes, seconds=decoded.seconds)
-    except OSError as exc:
-        if exc.errno == errno.ENOSPC:
+    except BaseException as exc:
+        # The output folder is this job's alone; nothing half made may stay in it.
+        stop.set()
+        pool.shutdown(wait=True)
+        shutil.rmtree(out_dir, ignore_errors=True)
+        if isinstance(exc, OSError) and exc.errno == errno.ENOSPC:
             raise JobError(DISK_FULL) from exc
         raise
     finally:
+        stop.set()
+        pool.shutdown(wait=True)
         shutil.rmtree(work_dir, ignore_errors=True)
