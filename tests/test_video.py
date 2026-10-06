@@ -374,6 +374,7 @@ def test_the_encode_shows_time_left_and_the_bar_fills_when_it_is_done(tmp_path):
     )
     finished = time.monotonic()
     encoding = [s for s in seen if s[1] == "encoding"]
-    assert any(eta is not None for *_, eta in encoding)
+    # A real estimate while the bar still moves, not only the zero at the end.
+    assert any(eta for _, _, fraction, eta in encoding if fraction < 1.0)
     full = next(t for t, _, fraction, _ in encoding if fraction == 1.0)
     assert finished - full < 0.3 * (full - encoding[0][0])
