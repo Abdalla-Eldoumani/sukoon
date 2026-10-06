@@ -139,4 +139,53 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: /Download Best/ }))
     expect(await screen.findByText('A download is already running.')).toBeInTheDocument()
   })
+
+  it('starts a link job when a link is pasted anywhere but a text field', async () => {
+    const sent: string[] = []
+    serveLinks(sent, () => new Response(JSON.stringify(job({ state: 'fetching' })), { status: 201 }))
+    render(<App />)
+    paste(document.body, 'https://youtu.be/jNQXAC9IVRw')
+    await waitFor(() => expect(sent).toEqual(['https://youtu.be/jNQXAC9IVRw']))
+  })
+
+  it('leaves a paste into a text field to the field', async () => {
+    const sent: string[] = []
+    serveLinks(sent, () => new Response('{}', { status: 201 }))
+    render(<App />)
+    paste(screen.getByRole('textbox', { name: 'Link to a video' }), 'https://youtu.be/jNQXAC9IVRw')
+    paste(document.body, 'just some words')
+    await new Promise((r) => setTimeout(r, 50))
+    expect(sent).toEqual([])
+  })
+
+  it('says why a pasted link was refused', async () => {
+    const reason = 'sukoon takes links from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud.'
+    serveLinks([], () => new Response(JSON.stringify({ error: reason }), { status: 400 }))
+    render(<App />)
+    paste(document.body, 'https://example.com/video')
+    expect(await screen.findByText(reason)).toBeInTheDocument()
+  })
 })
+
+function paste(target: Element, text: string) {
+  const event = new Event('paste', { bubbles: true, cancelable: true })
+  Object.defineProperty(event, 'clipboardData', { value: { getData: () => text } })
+  target.dispatchEvent(event)
+}
+
+/** Health and settings as usual; each link the page sends is recorded and answered. */
+function serveLinks(sent: string[], answer: () => Response) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/links') {
+        sent.push((JSON.parse(String(init?.body)) as { url: string }).url)
+        return answer()
+      }
+      const body = url.endsWith('/api/health')
+        ? { status: 'ok', version: '0.1.0', device: 'CPU', ffmpeg: { ok: true, install: '' } }
+        : { jobs: 0, models: 0 }
+      return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
+    }),
+  )
+}
