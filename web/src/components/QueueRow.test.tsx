@@ -58,10 +58,17 @@ describe('QueueRow', () => {
     expect(screen.getByText('Waiting for model')).toBeInTheDocument()
   })
 
-  it('keeps the full name in the title when it is cut', () => {
+  it('names a long file in full, so what is seen is what is said', () => {
+    // WCAG 2.5.3: a voice user says what they see, so the visible name must be in the accessible one.
     const name = `${'very long episode title '.repeat(4)}12.mkv`
-    row({ name, kind: 'video' })
-    expect(screen.getByTitle(name).textContent).toContain('…')
+    render(
+      <ul>
+        <QueueRow job={job({ name, kind: 'video', state: 'done', output_name: 'x.mkv' })} actions={{ cancel: vi.fn(), retry: vi.fn(), remove: vi.fn() }} onSelect={vi.fn()} />
+      </ul>,
+    )
+    const review = screen.getByRole('button', { name: `Review ${name}` })
+    expect(`Review ${name}`).toContain(review.textContent)
+    expect(review).toHaveAttribute('title', name)
   })
 
   it('shows the time left once the server has an estimate', () => {
