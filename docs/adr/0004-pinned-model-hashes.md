@@ -1,0 +1,3 @@
+# 4. Model files are downloaded by sukoon and checked against pinned hashes
+
+audio-separator can download models itself, but it does not verify what it downloads: the MD5 it takes over the last 10 MB of a file is used to look up the model's settings, not to check the file. Model checkpoints are pickle files, which can run code when loaded through older loading paths. sukoon downloads each model from its published GitHub release address itself, resumes interrupted downloads, and refuses to load any file whose SHA-256 differs from the value pinned in the code. Adding a model means adding its hash. The hashes were taken on 2026-10-05 from the files the release addresses served that day.
