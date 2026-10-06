@@ -22,7 +22,7 @@ interface Props {
 
 /** The choices a job takes before it runs: which audio track, which format, and re-encode consent. */
 export function JobChoices({ job }: Props) {
-  const defaultTrack = job.options.track ?? 0
+  const defaultTrack = job.options.track ?? Math.max(0, job.tracks.findIndex((t) => t.default))
   const [track, setTrack] = useState(defaultTrack)
   const [error, setError] = useState<string | null>(null)
   if (!CHOOSABLE.has(job.state)) return null
