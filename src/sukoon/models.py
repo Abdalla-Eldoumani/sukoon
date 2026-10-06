@@ -50,8 +50,6 @@ PRIMARY: dict[Preset, str] = {
     "fast": "UVR-MDX-NET-Voc_FT.onnx",
 }
 
-LABELS: dict[Preset, str] = {"best": "Best", "fast": "Fast"}
-
 
 def files_for(preset: Preset) -> tuple[ModelFile, ...]:
     return tuple(f for f in MODEL_FILES if f.preset == preset)
