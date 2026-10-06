@@ -1,6 +1,7 @@
 import functools
 import json
 import subprocess
+import time
 
 import numpy as np
 import pytest
@@ -294,3 +295,47 @@ def test_late_starting_clock_is_rebased_and_stays_in_sync(corpus, tmp_path, fmt)
     assert first_video_time(out) < 0.1
     lag = speech_lag(src, out, tmp_path)
     assert abs(lag) <= 0.0015, f"lag {lag * 1000:.2f} ms"
+
+
+def test_the_encode_shows_time_left_and_the_bar_fills_when_it_is_done(tmp_path):
+    # Half a minute, so a second full pass after the bar filled would be plain to see.
+    src = tmp_path / "talk.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=s=160x90:r=10:d=30",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=f=300:d=30",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-c:a",
+            "aac",
+            str(src),
+        ],
+        check=True,
+    )
+    seen = []
+    pipeline.run(
+        src,
+        probe(src),
+        Options(),
+        functools.partial(separate_chunked, FakeEngine()),
+        lambda: False,
+        lambda stage, fraction, eta: seen.append((time.monotonic(), stage, fraction, eta)),
+        tmp_path / "work",
+        tmp_path / "out",
+    )
+    finished = time.monotonic()
+    encoding = [s for s in seen if s[1] == "encoding"]
+    assert any(eta is not None for *_, eta in encoding)
+    full = next(t for t, _, fraction, _ in encoding if fraction == 1.0)
+    assert finished - full < 0.3 * (full - encoding[0][0])
