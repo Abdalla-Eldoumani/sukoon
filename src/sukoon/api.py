@@ -26,7 +26,7 @@ from sukoon.errors import JobError
 from sukoon.naming import content_disposition, download_name
 from sukoon.pipeline import Options, extension, output_format
 from sukoon.probe import Probe, Rejected, probe
-from sukoon.runner import Runner, RunnerError
+from sukoon.runner import Runner, RunnerError, source_path
 from sukoon.settings import GB, Settings
 from sukoon.store import Job, Store, TransitionError
 
@@ -55,6 +55,13 @@ MEDIA_EXTS = {
     ".ts",
     ".mpg",
     ".mpeg",
+}
+VIDEO_TYPES = {
+    ".mp4": "video/mp4",
+    ".m4v": "video/mp4",
+    ".mov": "video/quicktime",
+    ".webm": "video/webm",
+    ".mkv": "video/x-matroska",
 }
 SCRATCH_PER_HOUR = 2.6 * GB
 HEADROOM = 1 * GB
@@ -113,11 +120,15 @@ def public(job: Job) -> dict[str, Any]:
     result = job.get("result") or {}
     choices: list[dict[str, Any]] = []
     confirm = None
+    offset = 0.0
     if p:
         probe_ = Probe.from_json(p)
         options = Options(**job["options"])
         track = options.track if options.track is not None else probe_.default_audio()
         choices = format_choices(probe_, track)
+        if probe_.video:
+            # Where the previews' time zero sits on the video's timeline.
+            offset = probe_.audio[track].start_time - probe_.video[0].start_time
         if job["state"] == "awaiting_confirm" and options.format in compat.VIDEO_CONTAINERS:
             confirm = compat.plan(probe_, track, options.format).confirm_message
     tracks = [
@@ -146,6 +157,7 @@ def public(job: Job) -> dict[str, Any]:
         "tracks": tracks,
         "notes": result.get("notes", []),
         "formats": choices,
+        "offset": round(offset, 6),
         "confirm": confirm,
         "output_name": download_name(job["name"], extension(fmt)) if fmt else None,
     }
@@ -243,6 +255,34 @@ def build_router(services: Services) -> APIRouter:
             raise HTTPException(404, "The output file is missing.")
         name = public(job)["output_name"]
         return FileResponse(path, headers={"content-disposition": content_disposition(name)})
+
+    def finished_file(job_id: str, name: str, media_type: str) -> FileResponse:
+        job = job_or_404(job_id)
+        if job["state"] != "done":
+            raise HTTPException(404, "This job has not finished.")
+        path = settings.job_path("outputs", job_id) / name
+        if not path.is_file():
+            raise HTTPException(404, "There is no preview for this job.")
+        return FileResponse(path, media_type=media_type)
+
+    @router.get("/jobs/{job_id}/peaks")
+    def peaks(job_id: str) -> FileResponse:
+        return finished_file(job_id, "peaks.json", "application/json")
+
+    @router.get("/jobs/{job_id}/preview/{which}")
+    def preview(job_id: str, which: str) -> FileResponse:
+        if which not in ("original", "clean"):
+            raise HTTPException(404, "No such preview.")
+        return finished_file(job_id, f"preview-{which}.webm", "audio/webm")
+
+    @router.get("/jobs/{job_id}/source")
+    def source(job_id: str) -> FileResponse:
+        """The uploaded video, for the review player; served in ranges so it can seek."""
+        job = job_or_404(job_id)
+        path = source_path(settings, job_id)
+        if job["state"] != "done" or job["kind"] != "video" or path is None:
+            raise HTTPException(404, "There is no video to preview.")
+        return FileResponse(path, media_type=VIDEO_TYPES.get(path.suffix, "video/mp4"))
 
     @router.post("/jobs/{job_id}/cancel")
     def cancel(job_id: str) -> dict[str, Any]:
