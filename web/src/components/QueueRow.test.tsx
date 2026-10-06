@@ -15,12 +15,23 @@ function row(fields: Parameters<typeof job>[0], problem: string | null = null) {
 }
 
 describe('QueueRow', () => {
-  it('shows the stage and percentage while separating', () => {
+  it('shows the stage and how far into the recording it has got', () => {
     row({ state: 'separating', progress: 0.42 })
     expect(screen.getByText('Separating')).toBeInTheDocument()
-    expect(screen.getByText('42%')).toBeInTheDocument()
-    expect(screen.getByText('2:05')).toBeInTheDocument()
+    expect(screen.getByText('0:53 of 2:05')).toBeInTheDocument()
     expect(screen.getByRole('listitem', { name: 'lecture.mp3' })).toHaveAttribute('aria-description', 'Separating, 42%')
+  })
+
+  it('says a file is still uploading, and how much has gone', () => {
+    row({ state: 'uploading', progress: 0.37, duration: null })
+    expect(screen.getByText('Uploading')).toBeInTheDocument()
+    expect(screen.getByText('37%')).toBeInTheDocument()
+  })
+
+  it('counts what has arrived when a site keeps the size back', () => {
+    const link = { url: 'https://soundcloud.com/a/b', site: 'soundcloud.com', done: 1_048_576, total: null }
+    row({ state: 'fetching', kind: null, name: 'soundcloud.com/a/b', duration: null, link })
+    expect(screen.getByText('1 MB so far')).toBeInTheDocument()
   })
 
   it('offers the download when done, under the output name', () => {
@@ -55,7 +66,7 @@ describe('QueueRow', () => {
 
   it('shows the time left once the server has an estimate', () => {
     row({ state: 'separating', progress: 0.3, eta: 134 })
-    expect(screen.getByTitle('Time left')).toHaveTextContent('2:14')
+    expect(screen.getByText('2:14 left')).toBeInTheDocument()
   })
 
   it('cancels a running job', async () => {
@@ -106,7 +117,8 @@ describe('QueueRow', () => {
   it('says where a link comes from and how much has arrived', () => {
     row({ state: 'fetching', kind: null, progress: 0.3, name: 'youtu.be/jNQXAC9IVRw', link: { url: 'https://youtu.be/jNQXAC9IVRw', site: 'youtu.be', done: 12_000_000, total: 40_000_000 } })
     expect(screen.getByText('Fetching')).toBeInTheDocument()
-    expect(screen.getByText('from youtu.be · 12 MB of 40 MB')).toBeInTheDocument()
+    expect(screen.getByText('Fetching').parentElement).toHaveTextContent('Fetching, from youtu.be')
+    expect(screen.getByText('12 of 40 MB')).toBeInTheDocument()
   })
 
   it('has no review for a download-only job, since nothing was removed', () => {
@@ -121,7 +133,7 @@ describe('QueueRow', () => {
       </ul>,
     )
     expect(screen.queryByRole('button', { name: /Review/ })).toBeNull()
-    expect(screen.getByText('from youtu.be · checked as real audio · download only')).toBeInTheDocument()
+    expect(screen.getByText('Done').parentElement).toHaveTextContent('Done, from youtu.be, checked as real audio, download only, MP4')
     expect(screen.getByRole('link', { name: 'Download Talk.mp4' })).toBeInTheDocument()
   })
 })
