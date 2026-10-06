@@ -29,7 +29,7 @@ from sukoon.encode import AUDIO_FORMATS
 from sukoon.errors import Canceled, JobError
 from sukoon.naming import SUFFIX, content_disposition, download_name
 from sukoon.pipeline import Options, extension, output_format
-from sukoon.probe import Probe, Rejected, probe
+from sukoon.probe import NO_SOUND, Probe, Rejected, probe
 from sukoon.runner import Runner, RunnerError, source_path
 from sukoon.settings import GB, Settings
 from sukoon.store import Job, Store, TransitionError
@@ -635,7 +635,10 @@ def check_upload(services: Services, job_id: str, source: Path, size: int) -> Jo
         result = probe(source, settings.max_duration_s)
     except Rejected as exc:
         shutil.rmtree(source.parent, ignore_errors=True)
-        return store.transition(job_id, "failed", error=exc.message, retryable=False)
+        message, link = exc.message, store.get(job_id)["link"]
+        if link and message == NO_SOUND:
+            message = links.SILENT.format(name=links.NAMES[links.SITES[link["site"]]])
+        return store.transition(job_id, "failed", error=message, retryable=False)
     if free_bytes(settings) < disk_need(result.duration, size):
         shutil.rmtree(source.parent, ignore_errors=True)
         return store.transition(job_id, "failed", error=NO_SPACE, retryable=False)
