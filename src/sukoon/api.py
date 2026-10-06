@@ -180,9 +180,14 @@ def build_router(services: Services) -> APIRouter:
         return [services.downloads.state(p) for p in models.PRESETS]
 
     @router.post("/models/{preset}/download")
-    def download(preset: str) -> dict[str, object]:
+    def download(preset: str, switch: bool = False) -> dict[str, object]:
+        """Starts a download; with switch, jobs waiting for another model move to this one."""
         if preset not in models.PRESETS:
             raise HTTPException(404, "No such preset.")
+        if switch:
+            for job in store.list():
+                if job["state"] == "waiting_model":
+                    store.update(job["id"], options={**job["options"], "preset": preset})
         services.downloads.start(preset)
         return services.downloads.state(preset)
 
