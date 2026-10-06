@@ -8,7 +8,7 @@ license-files = ["LICENSE"]
 requires-python = "==3.12.*"
 dependencies = [
     "audio-separator[cpu]==0.47.0",
-    "audioread==3.1.0",
+    "audioread==3.1.0",  # audio-separator imports it without declaring it
     "fastapi==0.142.2",
     "uvicorn==0.54.0",
     "python-multipart==0.0.32",
