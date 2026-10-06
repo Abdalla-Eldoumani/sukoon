@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from sukoon.cli import bind_first_free, clean
+from sukoon.cli import bind_first_free, clean, main
 from sukoon.engine import FakeEngine
 from sukoon.pipeline import Options
 
@@ -219,3 +219,14 @@ def test_clean_refuses_a_reencode_unless_allowed(corpus, settings, tmp_path):
         )
         == 0
     )
+
+
+def test_clean_accepts_every_output_format(capsys):
+    from sukoon.compat import VIDEO_CONTAINERS
+    from sukoon.encode import AUDIO_FORMATS
+
+    with pytest.raises(SystemExit):
+        main(["clean", "--help"])
+    shown = capsys.readouterr().out
+    for fmt in [*AUDIO_FORMATS, *VIDEO_CONTAINERS]:
+        assert fmt in shown
