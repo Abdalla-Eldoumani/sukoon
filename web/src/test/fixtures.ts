@@ -15,6 +15,8 @@ export function job(fields: Partial<Job> = {}): Job {
     duration: 125,
     tracks: [],
     notes: [],
+    formats: [],
+    confirm: null,
     output_name: null,
     ...fields,
   }
