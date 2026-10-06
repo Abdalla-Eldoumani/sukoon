@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from sukoon import __version__
+from sukoon import __version__, tools
 from sukoon.api import Services, build_router
 from sukoon.device import detect_cached
 from sukoon.download import Downloads
@@ -79,6 +79,7 @@ def create_app(
     ready = model_ready or (lambda preset: bool(downloads.state(preset)["ready"]))
     runner = Runner(settings, store, Worker(config), ready)
     services = Services(settings, store, runner, downloads)
+    services.available_encoders()  # Once at startup, so the format menus know what works.
     downloads.on_change = services.model_changed
     downloads.on_ready = runner.models_changed
 
@@ -104,11 +105,17 @@ def create_app(
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:
+        """Checked on every call, so the setup screen's Check again sees a fresh install."""
+        cpu = store.settings()["device"] == "cpu"
         return {
             "status": "ok",
             "app": "sukoon",
             "version": __version__,
-            "device": detect_cached().label,
+            "ffmpeg": {
+                "ok": tools.ffmpeg_path() is not None and tools.ffprobe_path() is not None,
+                "install": tools.ffmpeg_install_command(),
+            },
+            "device": detect_cached("cpu" if cpu else "auto").label,
         }
 
     @app.get("/{path:path}", include_in_schema=False)
