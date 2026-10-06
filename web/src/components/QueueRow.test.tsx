@@ -83,6 +83,7 @@ describe('QueueRow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }))
     expect(actions.remove).not.toHaveBeenCalled()
     expect(screen.getByText('Delete this job and its cleaned file?')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveFocus()
     await userEvent.click(screen.getByRole('button', { name: 'Keep' }))
     expect(screen.queryByText('Delete this job and its cleaned file?')).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }))
