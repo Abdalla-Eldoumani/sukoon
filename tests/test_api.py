@@ -382,3 +382,12 @@ def test_choosing_after_the_job_ran_is_refused(client, corpus):
 def test_audio_file_offers_audio_formats_only(client, corpus):
     job = upload(client, corpus / "short-2s.wav").json()
     assert [f["value"] for f in job["formats"]] == ["mp3", "m4a", "wav", "flac", "opus", "ogg"]
+
+
+def test_format_change_keeps_the_track_question_open(client, corpus):
+    job = upload(client, corpus / "two-tracks.mkv").json()
+    r = client.post(f"/api/jobs/{job['id']}/choose", json={"format": "webm"})
+    assert r.json()["state"] == "awaiting_track"
+    r = client.post(f"/api/jobs/{job['id']}/choose", json={"track": 1})
+    assert r.json()["state"] == "awaiting_confirm"
+    assert r.json()["options"]["format"] == "webm"
