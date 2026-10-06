@@ -103,10 +103,10 @@ describe('JobChoices', () => {
     expect(posted).toEqual([{ url: '/api/jobs/a1/choose', body: { keep_music: true } }])
   })
 
-  it('names download only once music removal is off', () => {
+  it('keeps the switch named for what it controls when it is off', () => {
     render(<JobChoices job={job({ state: 'queued', options: { preset: 'best', format: 'mp4', track: null, keep_music: true }, link: { url: 'https://youtu.be/jNQXAC9IVRw', site: 'youtu.be', done: 12_000_000, total: 40_000_000 } })} />)
     expect(screen.getByRole('switch', { name: /Remove music/ })).not.toBeChecked()
-    expect(screen.getByText('Download only')).toBeInTheDocument()
+    expect(screen.getByText('Remove music')).toBeInTheDocument()
   })
 
   it('offers no music switch for a dropped file', () => {
