@@ -26,6 +26,8 @@ export interface FormatChoice {
   value: string
   video: boolean
   reencode: boolean
+  /** The ffmpeg encoder this format needs and lacks, if any. */
+  missing: string | null
 }
 
 export interface Job {
