@@ -1,22 +1,37 @@
+import { useState } from 'react'
 import { clock, middle } from '../format'
 import { ACTIVE, STATE_LABEL } from '../labels'
 import type { Job } from '../types'
-import { AudioFileIcon, DownloadIcon, VideoFileIcon } from './icons'
+import { AudioFileIcon, CancelIcon, DeleteIcon, DownloadIcon, RetryIcon, VideoFileIcon } from './icons'
 import { JobChoices } from './JobChoices'
 import styles from './QueueRow.module.css'
 
+const CANCELABLE = new Set(['checking', 'awaiting_track', 'awaiting_confirm', 'queued', 'waiting_model', 'decoding', 'separating', 'encoding'])
+const STOPPED = new Set(['failed', 'canceled', 'interrupted'])
+
+export interface RowActions {
+  cancel: (job: Job) => void
+  retry: (job: Job) => void
+  remove: (job: Job) => void
+}
+
 interface Props {
   job: Job
+  actions: RowActions
+  /** A failed action on this row, shown under the name. */
+  problem?: string | null
   /** Rows added after the page loaded slide in; the ones already there do not. */
   arriving?: boolean
 }
 
-export function QueueRow({ job, arriving = false }: Props) {
+export function QueueRow({ job, actions, problem = null, arriving = false }: Props) {
+  const [confirming, setConfirming] = useState(false)
   const active = ACTIVE.has(job.state)
   const failed = job.state === 'failed'
   const percent = Math.round(job.progress * 100)
   const label = STATE_LABEL[job.state]
   const description = active ? `${label}, ${percent}%` : label
+  const local = job.state === 'uploading'
   return (
     <li className={arriving ? `${styles.row} ${styles.arriving}` : styles.row} aria-label={job.name} aria-description={description}>
       <span className={styles.glyph}>{job.kind === 'video' ? <VideoFileIcon /> : <AudioFileIcon />}</span>
@@ -26,30 +41,66 @@ export function QueueRow({ job, arriving = false }: Props) {
         </bdi>
         {failed && job.error && <span className={`small ${styles.error}`}>{job.error}</span>}
         {!failed && job.notes.length > 0 && <span className={`small ${styles.note}`}>{job.notes.join(' ')}</span>}
+        {problem && <span className={`small ${styles.error}`}>{problem}</span>}
+        {confirming && <span className={`small ${styles.note}`}>Delete this job and its cleaned file?</span>}
         <JobChoices job={job} />
       </div>
       <span className={`readout ${styles.duration}`}>{job.duration != null ? clock(job.duration) : ''}</span>
       <div className={styles.stage}>
         <span className={failed ? `label ${styles.faultLabel}` : 'label'}>{label}</span>
         <div className={styles.track} aria-hidden="true">
-          <div
-            className={styles.fill}
-            style={{ transform: `scaleX(${job.state === 'done' ? 1 : active ? job.progress : 0})` }}
-          />
+          <div className={styles.fill} style={{ transform: `scaleX(${job.state === 'done' ? 1 : active ? job.progress : 0})` }} />
         </div>
       </div>
-      <span className={`readout ${styles.percent}`}>{active ? `${percent}%` : ''}</span>
+      <span className={`readout ${styles.percent}`}>
+        {active && <span>{percent}%</span>}
+        {active && job.eta != null && <span title="Time left">{clock(job.eta)}</span>}
+      </span>
       <div className={styles.actions}>
-        {job.state === 'done' && job.output_name && (
-          <a
-            className="btn-quiet btn-icon"
-            href={`/api/jobs/${job.id}/output`}
-            download={job.output_name}
-            aria-label={`Download ${job.output_name}`}
-            title="Download"
-          >
-            <DownloadIcon />
-          </a>
+        {confirming ? (
+          <>
+            <button type="button" className="btn-quiet" onClick={() => actions.remove(job)}>
+              Delete
+            </button>
+            <button type="button" className="btn-quiet" onClick={() => setConfirming(false)}>
+              Keep
+            </button>
+          </>
+        ) : (
+          <>
+            {job.state === 'done' && job.output_name && (
+              <a
+                className="btn-quiet btn-icon"
+                href={`/api/jobs/${job.id}/output`}
+                download={job.output_name}
+                aria-label={`Download ${job.output_name}`}
+                title="Download"
+              >
+                <DownloadIcon />
+              </a>
+            )}
+            {STOPPED.has(job.state) && job.retryable && (
+              <button type="button" className="btn-quiet btn-icon" aria-label={`Retry ${job.name}`} title="Retry" onClick={() => actions.retry(job)}>
+                <RetryIcon />
+              </button>
+            )}
+            {CANCELABLE.has(job.state) && (
+              <button type="button" className="btn-quiet btn-icon" aria-label={`Cancel ${job.name}`} title="Cancel" onClick={() => actions.cancel(job)}>
+                <CancelIcon />
+              </button>
+            )}
+            {(job.state === 'done' || STOPPED.has(job.state)) && (
+              <button
+                type="button"
+                className="btn-quiet btn-icon"
+                aria-label={`Delete ${job.name}`}
+                title="Delete"
+                onClick={() => (job.state === 'done' && !local ? setConfirming(true) : actions.remove(job))}
+              >
+                <DeleteIcon />
+              </button>
+            )}
+          </>
         )}
       </div>
     </li>
