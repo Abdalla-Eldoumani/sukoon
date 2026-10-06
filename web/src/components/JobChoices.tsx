@@ -29,7 +29,7 @@ export function JobChoices({ job }: Props) {
 
   const send = (body: Record<string, unknown>) => {
     setError(null)
-    postJson(`/api/jobs/${job.id}/choose`, body).catch((e: Error) => setError(e.message.replace(/^\d+ /, '')))
+    postJson(`/api/jobs/${job.id}/choose`, body).catch((e: Error) => setError(e.message))
   }
   const fromVideo = job.kind === 'video'
   return (
