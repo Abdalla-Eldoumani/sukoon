@@ -1,3 +1,4 @@
+import errno
 import logging
 import os
 import shutil
@@ -24,7 +25,7 @@ class Engine(Protocol):
     def separate(self, mixture_wav: Path, voice_wav: Path, *, on_cpu: bool = False) -> None: ...
 
 
-Failure = Literal["raise", "oom", "hang", "exit"]
+Failure = Literal["raise", "oom", "hang", "exit", "disk_full"]
 
 
 @dataclass
@@ -53,6 +54,8 @@ class FakeEngine:
                 time.sleep(3600)
             if self.fail == "exit":
                 os._exit(1)
+            if self.fail == "disk_full":
+                raise OSError(errno.ENOSPC, "No space left on device")
         if self.delay:
             time.sleep(self.delay)
         data, rate = sf.read(mixture_wav, dtype="float32", always_2d=True)
