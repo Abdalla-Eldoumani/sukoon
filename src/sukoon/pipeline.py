@@ -1,4 +1,5 @@
 import errno
+import json
 import shutil
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
@@ -8,7 +9,7 @@ from typing import Any, Literal, Protocol
 import numpy as np
 import soundfile as sf
 
-from sukoon import compat
+from sukoon import compat, ffmpeg
 from sukoon.chunk import ChunkReport
 from sukoon.decode import decode, mmss
 from sukoon.device import DevicePreference
@@ -76,23 +77,67 @@ class Energy:
     voice_rms: float
 
 
-def measure(mixture: Path, voice: Path, block: int = 1 << 20) -> Energy:
-    """Energy of the input, of what was removed, and the voice's RMS, read in blocks."""
+PEAK_BUCKETS = 2000
+
+
+def analyse(
+    mixture: Path, voice: Path, buckets: int = PEAK_BUCKETS
+) -> tuple[Energy, dict[str, Any]]:
+    """One pass over both WAVs: the energies behind the notes, and the strip's peaks.
+
+    Peaks are the min and max of each of `buckets` equal slices, for the voice and for what
+    was removed (input minus voice), flattened as [min, max, min, max, ...].
+    """
+    info = sf.info(str(mixture))
+    edges = np.linspace(0, info.frames, buckets + 1).round().astype(int)
     total = removed = voice_sq = 0.0
     count = 0
+    lanes: dict[str, list[float]] = {"voice": [], "removed": []}
     with sf.SoundFile(str(mixture)) as m, sf.SoundFile(str(voice)) as v:
-        while True:
-            a = m.read(block, dtype="float64", always_2d=True)
-            b = v.read(block, dtype="float64", always_2d=True)
+        for size in np.diff(edges):
+            a = m.read(max(int(size), 1), dtype="float64", always_2d=True)
+            b = v.read(max(int(size), 1), dtype="float64", always_2d=True)
             n = min(len(a), len(b))
             if n == 0:
-                break
+                for lane in lanes.values():
+                    lane.extend([0.0, 0.0])
+                continue
             a, b = a[:n], b[:n]
             total += float(np.sum(a * a))
             removed += float(np.sum((a - b) ** 2))
             voice_sq += float(np.sum(b * b))
             count += b.size
-    return Energy(total, removed, float(np.sqrt(voice_sq / max(count, 1))))
+            for name, signal in (("voice", b.mean(axis=1)), ("removed", (a - b).mean(axis=1))):
+                lanes[name] += [round(float(signal.min()), 4), round(float(signal.max()), 4)]
+    energy = Energy(total, removed, float(np.sqrt(voice_sq / max(count, 1))))
+    return energy, {"seconds": info.frames / info.samplerate, **lanes}
+
+
+def write_previews(
+    mixture: Path, voice: Path, out_dir: Path, cancelled: Callable[[], bool]
+) -> None:
+    """Small Opus copies of the input and the voice, the same length, for the review player."""
+    for name, wav in (("preview-original.webm", mixture), ("preview-clean.webm", voice)):
+        partial = out_dir / f".{name}.part"
+        ffmpeg.run(
+            [
+                "-protocol_whitelist",
+                "file,pipe",
+                "-i",
+                str(wav),
+                "-c:a",
+                "libopus",
+                "-b:a",
+                "128k",
+                "-f",
+                "webm",
+                "-y",
+                str(partial),
+            ],
+            float(sf.info(str(wav)).duration),
+            cancelled=cancelled,
+        )
+        partial.replace(out_dir / name)
 
 
 def output_format(probe: Probe, options: Options, source_name: str) -> str:
@@ -158,7 +203,9 @@ def run(
             cancelled,
             lambda d, t: report("separating", d / t, d, t),
         )
-        energy = measure(mixture, voice)
+        energy, peaks = analyse(mixture, voice)
+        (out_dir / "peaks.json").write_text(json.dumps(peaks), encoding="utf-8")
+        write_previews(mixture, voice, out_dir, cancelled)
         if energy.mixture > 0 and energy.removed < 0.01 * energy.mixture:
             notes.append(NOTE_NO_MUSIC)
         if energy.voice_rms < 10 ** (-50 / 20):
