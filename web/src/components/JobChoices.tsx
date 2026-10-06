@@ -64,7 +64,7 @@ export function JobChoices({ job }: Props) {
                 </option>
               ))}
             </select>
-            <button type="button" className="btn-quiet" onClick={() => send({ track })}>
+            <button type="button" className="btn-quiet btn-small" onClick={() => send({ track })}>
               Continue
             </button>
           </>
@@ -90,7 +90,7 @@ export function JobChoices({ job }: Props) {
           </select>
         )}
         {job.state === 'awaiting_confirm' && (
-          <button type="button" className="btn-quiet" onClick={() => send({ confirm: true })}>
+          <button type="button" className="btn-quiet btn-small" onClick={() => send({ confirm: true })}>
             Re-encode
           </button>
         )}
