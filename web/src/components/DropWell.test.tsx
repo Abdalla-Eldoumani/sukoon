@@ -8,13 +8,14 @@ const noLink = async () => true
 describe('DropWell', () => {
   it('invites a drop and offers a button for people who do not drag', () => {
     render(<DropWell compact={false} dragging={false} onFiles={() => {}} onLink={noLink} />)
-    expect(screen.getByText('Drop audio or video here')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Drop a recording anywhere on this window.' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Choose files' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Link to a video' })).toBeInTheDocument()
   })
 
   it('says release while files are over the window', () => {
     render(<DropWell compact={false} dragging onFiles={() => {}} onLink={noLink} />)
-    expect(screen.getByText('Release to add')).toBeInTheDocument()
+    expect(screen.getByText('Release to add.')).toBeInTheDocument()
   })
 
   it('hands chosen files over', async () => {
