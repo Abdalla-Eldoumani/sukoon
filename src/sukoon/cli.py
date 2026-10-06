@@ -1,13 +1,22 @@
 import argparse
+import functools
 import json
+import shutil
 import socket
 import sys
 import urllib.request
+import uuid
 import webbrowser
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from sukoon import doctor
 from sukoon.settings import Settings
+
+if TYPE_CHECKING:
+    from sukoon.engine import Engine
+    from sukoon.pipeline import Options
 
 
 def is_sukoon(port: int) -> bool:
@@ -66,6 +75,104 @@ def serve(settings: Settings, open_browser: bool) -> int:
     return 0
 
 
+def free_name(folder: Path, name: str) -> Path:
+    path = folder / name
+    stem, dot, ext = name.rpartition(".")
+    n = 2
+    while path.exists():
+        path = folder / f"{stem} ({n}){dot}{ext}"
+        n += 1
+    return path
+
+
+def clean(
+    files: Sequence[Path],
+    out_dir: Path | None,
+    options: "Options",
+    engine: "Engine",
+    settings: Settings,
+    out: Callable[[str], None] = print,
+) -> int:
+    """The browser's pipeline, run from the terminal one file at a time. 1 if any file failed."""
+    from sukoon import pipeline
+    from sukoon.chunk import separate_chunked
+    from sukoon.encode import AUDIO_FORMATS
+    from sukoon.errors import JobError
+    from sukoon.naming import download_name
+    from sukoon.probe import Rejected, probe
+
+    settings.ensure_dirs()
+    engine.prepare(options.preset, options.device)
+    failed = 0
+    for path in files:
+        job = str(uuid.uuid4())
+        work, staging = settings.job_path("work", job), settings.job_path("outputs", job)
+
+        def progress(
+            stage: str, fraction: float, done: int, total: int, name: str = path.name
+        ) -> None:
+            sys.stderr.write(f"\r{name}  {stage.capitalize():<10} {fraction * 100:5.1f}%")
+            sys.stderr.flush()
+
+        try:
+            result = pipeline.run(
+                path,
+                probe(path, settings.max_duration_s),
+                options,
+                functools.partial(separate_chunked, engine),
+                lambda: False,
+                progress,
+                work,
+                staging,
+            )
+            target = free_name(
+                out_dir or path.parent, download_name(path.name, AUDIO_FORMATS[result.format].ext)
+            )
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(staging / result.output, target)
+            sys.stderr.write("\n")
+            out(str(target))
+            for note in result.notes:
+                out(f"  {note}")
+        except (Rejected, JobError, OSError) as exc:
+            sys.stderr.write("\n")
+            out(f"{path.name}: {getattr(exc, 'message', None) or exc}")
+            failed += 1
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
+    return 1 if failed else 0
+
+
+def run_clean(args: argparse.Namespace, settings: Settings) -> int:
+    from sukoon import models
+    from sukoon.download import download_preset
+    from sukoon.engine import AudioSeparatorEngine
+    from sukoon.pipeline import Options
+
+    models_dir = settings.area("models")
+    if not models.is_ready(models_dir, args.preset):
+        print(f"Downloading the {args.preset} model once...", file=sys.stderr)
+
+        def shown(done: int, total: int, rate: float) -> None:
+            sys.stderr.write(f"\r{done / 1e6:7.1f} of {total / 1e6:.0f} MB  {rate / 1e6:5.1f} MB/s")
+
+        download_preset(models_dir, args.preset, shown)
+        sys.stderr.write("\n")
+    options = Options(
+        preset=args.preset,
+        device=args.device,
+        format=args.format,
+        track=None if args.track is None else args.track - 1,
+    )
+    return clean(
+        [Path(f) for f in args.files],
+        args.out and Path(args.out),
+        options,
+        AudioSeparatorEngine(models_dir),
+        settings,
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     browser = argparse.ArgumentParser(add_help=False)
     # SUPPRESS keeps the subcommand's copy from resetting a flag given before it.
@@ -83,12 +190,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub.add_parser("doctor", help="check ffmpeg, torch, disk space, and models")
     clean_p = sub.add_parser("clean", help="remove the music from files in the terminal")
     clean_p.add_argument("files", nargs="+")
+    clean_p.add_argument("--preset", choices=["best", "fast"], default="best")
+    clean_p.add_argument("--device", choices=["auto", "cpu"], default="auto")
+    clean_p.add_argument(
+        "--format",
+        choices=["mp3", "m4a", "wav", "flac", "opus", "ogg"],
+        help="output format (default: the same as the input)",
+    )
+    clean_p.add_argument(
+        "--track", type=int, help="audio track number, from 1 (default: the track marked default)"
+    )
+    clean_p.add_argument("--out", help="folder for the results (default: next to each input)")
     args = parser.parse_args(argv)
 
     settings = Settings()
     if args.command == "doctor":
         return doctor.run(settings)
     if args.command == "clean":
-        print("clean is not implemented yet.", file=sys.stderr)
-        return 2
+        return run_clean(args, settings)
     return serve(settings, open_browser=not getattr(args, "no_browser", False))
