@@ -148,3 +148,33 @@ def test_clean_format_option(corpus, settings, tmp_path):
         out=printed.append,
     )
     assert printed == [str(tmp_path / "short-2s (no music).flac")]
+
+
+def test_clean_reports_a_tampered_model_instead_of_crashing(corpus, settings, tmp_path):
+    import hashlib
+
+    from sukoon.engine import AudioSeparatorEngine
+    from sukoon.models import CHECKSUM_MESSAGE, ModelFile
+
+    body = b"weights" * 100
+    files = (
+        ModelFile(
+            "fast",
+            "UVR-MDX-NET-Voc_FT.onnx",
+            "https://example.invalid/m",
+            len(body),
+            hashlib.sha256(body).hexdigest(),
+        ),
+    )
+    (settings.area("models") / "UVR-MDX-NET-Voc_FT.onnx").write_bytes(body[:-1] + b"!")
+    printed = []
+    code = clean(
+        [corpus / "short-2s.wav"],
+        tmp_path,
+        Options(preset="fast"),
+        AudioSeparatorEngine(settings.area("models"), files),
+        settings,
+        out=printed.append,
+    )
+    assert code == 1
+    assert printed == [CHECKSUM_MESSAGE]
