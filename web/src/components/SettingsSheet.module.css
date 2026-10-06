@@ -1,0 +1,97 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+}
+
+.sheet {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 100%;
+  overflow-y: auto;
+  padding: var(--s6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  background: var(--surface);
+  border-radius: var(--r-lg) 0 0 var(--r-lg);
+  box-shadow: var(--sheet-shadow);
+  view-transition-name: settings-sheet;
+}
+
+::view-transition-new(settings-sheet) {
+  animation: sheet-in var(--d-panel) var(--ease-out);
+}
+
+::view-transition-old(settings-sheet) {
+  animation: sheet-out var(--d-panel) var(--ease-in);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes sheet-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.head h2 {
+  margin: 0;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s2);
+}
+
+.group h3 {
+  margin: 0;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.formatRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  width: 100%;
+}
+
+.path {
+  margin: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+@media (max-width: 599px) {
+  .sheet {
+    width: 100%;
+    border-radius: 0;
+  }
+}
