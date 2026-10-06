@@ -68,7 +68,7 @@ def test_audio_fixture_round_trip(corpus, tmp_path, name, fmt, rate, channels):
     assert result.format == fmt
     assert out.suffix == f".{fmt}"
     info = ffprobe(out)
-    audio = [s for s in info["streams"] if s["codec_type"] == "audio"][0]
+    audio = next(s for s in info["streams"] if s["codec_type"] == "audio")
     assert int(audio["sample_rate"]) == rate
     assert audio["channels"] == channels
     assert abs(float(info["format"]["duration"]) - seconds) <= 0.001
@@ -86,7 +86,7 @@ def test_audio_fixture_round_trip(corpus, tmp_path, name, fmt, rate, channels):
     ],
 )
 def test_format_matrix(corpus, tmp_path, fmt, codec, rate, check):
-    result, out, _ = clean(corpus, tmp_path, "speech-over-music-30s.wav", format=fmt)
+    _, out, _ = clean(corpus, tmp_path, "speech-over-music-30s.wav", format=fmt)
     stream = ffprobe(out)["streams"][0]
     assert stream["codec_name"] == codec
     assert int(stream["sample_rate"]) == rate
@@ -177,7 +177,7 @@ def test_disk_full_fails_cleanly(corpus, tmp_path):
         def separate(self, mixture_wav, voice_wav, *, on_cpu=False):
             raise OSError(errno.ENOSPC, "No space left on device")
 
-    with pytest.raises(JobError, match="The disk is full."):
+    with pytest.raises(JobError, match=r"The disk is full\."):
         clean(corpus, tmp_path, "short-2s.wav", engine=Full())
     assert list((tmp_path / "out").iterdir()) == []
     assert not (tmp_path / "work").exists()
