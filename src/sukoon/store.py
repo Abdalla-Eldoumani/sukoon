@@ -89,7 +89,10 @@ class TransitionError(Exception):
 
 
 class Store:
-    """The jobs table. Every state change goes through transition(), which checks the from-state."""
+    """The jobs table. Every state change goes through transition(), which checks the from-state.
+
+    One connection is shared by the request threads and the runner, so every use holds the lock.
+    """
 
     def __init__(self, path: Path) -> None:
         self.db = sqlite3.connect(str(path), check_same_thread=False, isolation_level=None)
@@ -100,7 +103,8 @@ class Store:
         self.listeners: list[Listener] = []
 
     def close(self) -> None:
-        self.db.close()
+        with self.lock:
+            self.db.close()
 
     def subscribe(self, listener: Listener) -> Callable[[], None]:
         self.listeners.append(listener)
@@ -130,13 +134,15 @@ class Store:
         return job
 
     def get(self, job_id: str) -> Job:
-        row = self.db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        with self.lock:
+            row = self.db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
         if row is None:
             raise KeyError(job_id)
         return self._row(row)
 
     def list(self) -> list[Job]:
-        rows = self.db.execute("SELECT * FROM jobs ORDER BY created, rowid").fetchall()
+        with self.lock:
+            rows = self.db.execute("SELECT * FROM jobs ORDER BY created, rowid").fetchall()
         return [self._row(r) for r in rows]
 
     def _write(self, job_id: str, fields: dict[str, Any]) -> None:
@@ -176,12 +182,14 @@ class Store:
         self._emit("deleted", job)
 
     def next_queued(self) -> Job | None:
-        row = self.db.execute(
-            "SELECT * FROM jobs WHERE state = 'queued' ORDER BY created, rowid LIMIT 1"
-        ).fetchone()
+        with self.lock:
+            row = self.db.execute(
+                "SELECT * FROM jobs WHERE state = 'queued' ORDER BY created, rowid LIMIT 1"
+            ).fetchone()
         return self._row(row) if row else None
 
     def count(self, *states: str) -> int:
         marks = ", ".join("?" for _ in states)
         sql = f"SELECT COUNT(*) FROM jobs WHERE state IN ({marks})"  # noqa: S608
-        return int(self.db.execute(sql, states).fetchone()[0])
+        with self.lock:
+            return int(self.db.execute(sql, states).fetchone()[0])
