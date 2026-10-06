@@ -35,6 +35,7 @@ function localJob(id: string, file: File): Job {
     offset: 0,
     confirm: null,
     output_name: null,
+    link: null,
   }
 }
 
@@ -73,6 +74,31 @@ export function App() {
     }
   }, [])
   const dragging = useWindowDrag(addFiles)
+
+  const [linkError, setLinkError] = useState<string | null>(null)
+  const addLink = useCallback(async (url: string) => {
+    setLinkError(null)
+    try {
+      await postJson('/api/links', { url })
+      return true
+    } catch (e) {
+      setLinkError((e as Error).message)
+      return false
+    }
+  }, [])
+  // A link pasted anywhere but a text field starts a job, so Ctrl+V is all it takes.
+  useEffect(() => {
+    const paste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return
+      const text = e.clipboardData?.getData('text/plain').trim() ?? ''
+      if (!/^https?:\/\/\S+$/i.test(text)) return
+      e.preventDefault()
+      void addLink(text)
+    }
+    window.addEventListener('paste', paste)
+    return () => window.removeEventListener('paste', paste)
+  }, [addLink])
 
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const checkHealth = useCallback(() => {
@@ -194,11 +220,17 @@ export function App() {
         onSettings={settings ? () => toggleSheet(true) : null}
       />
       <main className={styles.main}>
-        <DropWell compact={rows.length > 0} dragging={dragging} onFiles={addFiles} />
+        <DropWell
+          compact={rows.length > 0}
+          dragging={dragging}
+          onFiles={addFiles}
+          onLink={addLink}
+          linkError={linkError}
+        />
         {rows.length === 0 && (
           <p className={styles.note}>
-            Voices stay. Instruments, and most other non-voice sounds, are removed. Everything happens on this
-            computer.
+            Voices stay. Instruments, and most other non-voice sounds, are removed. Your files never leave this
+            computer; a link is fetched from its site, then cleaned here.
           </p>
         )}
         {needsModel && best && fast && <ModelCard best={best} fast={fast} onDownload={download} problem={downloadError} />}
