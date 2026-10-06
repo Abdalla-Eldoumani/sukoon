@@ -1,10 +1,12 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { getJson, postJson, request, type Health } from './api'
+import { getJson, postJson, putJson, request, type Health, type Settings } from './api'
 import styles from './App.module.css'
 import { DropWell } from './components/DropWell'
 import { LiveRegion } from './components/LiveRegion'
 import { ReviewPanel } from './components/ReviewPanel'
+import { SettingsSheet } from './components/SettingsSheet'
+import { SetupScreen } from './components/SetupScreen'
 import { ModelCard } from './components/ModelCard'
 import { QueueRow, type RowActions } from './components/QueueRow'
 import { TopBar } from './components/TopBar'
@@ -42,7 +44,10 @@ export function App() {
   const queue = useRef(Promise.resolve())
   const counter = useRef(0)
   const [problems, setProblems] = useState<Record<string, string>>({})
-  const [library, setLibrary] = useState<number | null>(null)
+  const [library, setLibrary] = useState<{ jobs: number; models: number } | null>(null)
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [checking, setChecking] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState<string | null>(null)
@@ -63,9 +68,31 @@ export function App() {
   }, [])
   const dragging = useWindowDrag(addFiles)
 
+  const checkHealth = useCallback(() => {
+    setChecking(true)
+    getJson<Health>('/api/health')
+      .then(setHealth, () => setHealth(null))
+      .finally(() => setChecking(false))
+  }, [])
   useEffect(() => {
     getJson<Health>('/api/health').then(setHealth, () => setHealth(null))
+    getJson<Settings>('/api/settings').then(setSettings, () => setSettings(null))
   }, [])
+
+  const changeSettings = (values: Partial<Settings>) => {
+    putJson<Settings>('/api/settings', values).then((saved) => {
+      setSettings(saved)
+      if ('device' in values) checkHealth()
+    })
+  }
+  // The sheet slides with a view transition where the browser has one.
+  const toggleSheet = (open: boolean) => {
+    const change = () => setSheetOpen(open)
+    const quiet = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (document.startViewTransition && !quiet) document.startViewTransition(() => flushSync(change))
+    else change()
+  }
+  const closeSheet = useCallback(() => toggleSheet(false), [])
 
   // The library only changes size when a job finishes or goes away.
   const settled = server.jobs
@@ -74,7 +101,7 @@ export function App() {
     .join()
   useEffect(() => {
     if (!server.connected) return
-    getJson<{ jobs: number }>('/api/library').then((l) => setLibrary(l.jobs), () => setLibrary(null))
+    getJson<{ jobs: number; models: number }>('/api/library').then(setLibrary, () => setLibrary(null))
   }, [server.connected, settled, server.jobs.length])
 
   const attempt = (job: Job, request: Promise<unknown>) => {
@@ -109,6 +136,8 @@ export function App() {
 
   const download = (preset: Preset, switchJobs: boolean) => {
     void fetch(`/api/models/${preset}/download${switchJobs ? '?switch=1' : ''}`, { method: 'POST' })
+    // Choosing Fast on the card makes it the default for files added later too.
+    if (switchJobs) changeSettings({ preset })
   }
 
   const uploadingNames = new Set(uploads.filter((u) => u.state === 'uploading').map((u) => u.name))
@@ -118,9 +147,13 @@ export function App() {
   const needsModel =
     server.jobs.some((j) => j.state === 'waiting_model') || server.models.some((m) => m.downloading || m.error)
 
+  if (health && !health.ffmpeg.ok) {
+    return <SetupScreen install={health.ffmpeg.install} checking={checking} onCheck={checkHealth} />
+  }
+
   return (
     <>
-      <TopBar device={health?.device ?? null} library={library} />
+      <TopBar device={health?.device ?? null} library={library?.jobs ?? null} onSettings={() => toggleSheet(true)} />
       <main className={styles.main}>
         <DropWell compact={rows.length > 0} dragging={dragging} onFiles={addFiles} />
         {rows.length === 0 && (
@@ -175,6 +208,15 @@ export function App() {
         )}
       </main>
       <LiveRegion jobs={rows} />
+      {sheetOpen && settings && (
+        <SettingsSheet
+          settings={settings}
+          library={library}
+          onChange={changeSettings}
+          onClearFinished={clearFinished}
+          onClose={closeSheet}
+        />
+      )}
       {dragging && <div className={styles.frame} aria-hidden="true" data-testid="drag-frame" />}
     </>
   )
