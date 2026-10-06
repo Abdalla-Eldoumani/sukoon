@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { job } from '../test/fixtures'
@@ -71,6 +71,14 @@ describe('QueueRow', () => {
     expect(actions.retry).toHaveBeenCalledWith(expect.objectContaining({ name: 'lecture.mp3' }))
     await userEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }))
     expect(actions.remove).toHaveBeenCalledWith(expect.objectContaining({ name: 'lecture.mp3' }))
+  })
+
+  it('does not delete on the second click of a double click', () => {
+    // A queued job stops at once, so Delete is under the pointer before a double click on Cancel ends.
+    const actions = row({ state: 'canceled' })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete lecture.mp3' }), { detail: 2 })
+    expect(actions.remove).not.toHaveBeenCalled()
+    expect(screen.getByRole('listitem', { name: 'lecture.mp3' })).toBeInTheDocument()
   })
 
   it('does not offer retry for a file that was rejected', () => {
