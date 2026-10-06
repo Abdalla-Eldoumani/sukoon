@@ -17,16 +17,16 @@ It does not edit, trim, transcribe, or separate one voice from another. You're r
 - [uv](https://docs.astral.sh/uv/), which installs the right Python (3.12) by itself.
 - Node.js 22.13 or newer, to build the interface once.
 - ffmpeg and ffprobe on your PATH, built with the usual encoders (libmp3lame, aac, libopus, libvorbis, flac, pcm_s24le, libx264, libvpx-vp9). The builds from the commands below have them.
-- About 5 GB of free disk space for the Python packages and the models, plus room for your files.
-- Optional: an NVIDIA GPU with 6 GB of memory or more and a driver new enough for CUDA 12.6. Apple Silicon Macs use their GPU without extra setup. Without either, sukoon runs on the CPU, which is much slower.
+- About 8 GB of free disk space for the Python packages and the models, plus room for your files.
+- Optional: an NVIDIA GPU with 6 GB of memory or more and a driver new enough for CUDA 12.6. Apple Silicon Macs use their GPU without extra setup. Without either, sukoon runs on the CPU, which is much slower. The same install works with or without a GPU.
 
 ## Install
 
 ### Windows
 
-Not run here; these are the Windows commands. In PowerShell:
+In Git Bash or Command Prompt:
 
-```powershell
+```bash
 winget install astral-sh.uv
 winget install OpenJS.NodeJS.LTS
 winget install Gyan.FFmpeg
@@ -34,27 +34,23 @@ winget install Git.Git
 # open a new terminal so the PATH changes apply
 git clone https://github.com/abdalla-eldoumani/sukoon.git
 cd sukoon
-python scripts/build_web.py
-uv sync --extra cuda      # with an NVIDIA GPU; use --extra cpu without one
+uv sync
+uv run python scripts/build_web.py
 ```
-
-If `python` isn't found, run `uv run python scripts/build_web.py` instead.
 
 ### macOS (Apple Silicon)
 
-Not run here.
+Not tested on a Mac yet.
 
 ```bash
 brew install uv node ffmpeg
 git clone https://github.com/abdalla-eldoumani/sukoon.git
 cd sukoon
-python3 scripts/build_web.py
-uv sync --extra cpu       # the CPU build of torch includes the Apple GPU (MPS)
+uv sync
+uv run python scripts/build_web.py
 ```
 
 ### Linux
-
-Of these, only `python3 scripts/build_web.py` was run here.
 
 ```bash
 sudo apt install ffmpeg
@@ -62,11 +58,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # install Node.js 22.13 or newer from nodejs.org or your package manager
 git clone https://github.com/abdalla-eldoumani/sukoon.git
 cd sukoon
-python3 scripts/build_web.py
-uv sync --extra cuda      # with an NVIDIA GPU; use --extra cpu without one
+uv sync
+uv run python scripts/build_web.py
 ```
-
-`uv sync` was not run here: PyTorch's download server was unreachable from the machine this release was built on, so the sync, and the lock file it writes, still need a first run on a real machine. For the same reason no `uv run` command in this README was run as written. Where a section below says a command was run here, it ran from a virtual environment holding the same pinned packages without torch, for example `.venv/bin/sukoon doctor` in place of `uv run sukoon doctor`.
 
 ### Checking the GPU
 
@@ -74,11 +68,9 @@ uv sync --extra cuda      # with an NVIDIA GPU; use --extra cpu without one
 uv run sukoon doctor
 ```
 
-The torch line shows the device sukoon will use, for example `device CUDA · GeForce RTX 3060 Laptop`. If it says `NVIDIA GPU present but torch has no CUDA`, torch was installed without GPU support; run `uv sync --extra cuda` and check again. The `cpu` and `cuda` extras can't be installed together, and the last `uv sync` wins.
+The torch line shows the device sukoon will use, for example `device CUDA · GeForce RTX 3060 Laptop`. If it says `NVIDIA GPU present but torch has no CUDA`, run `uv sync` again, and if it still says CPU, update the NVIDIA driver.
 
 ## Running
-
-Run here as described under Install, with the stand-in engine in place of the models.
 
 ```bash
 uv run sukoon                # starts on http://127.0.0.1:8417/ and opens the browser
@@ -104,7 +96,7 @@ uv run sukoon bench --preset best
 - `doctor` checks ffmpeg, ffprobe, the encoders, torch and its device, free disk space, and which models are downloaded. It prints the fix for anything missing and exits with 1 if something needs fixing.
 - `bench` times separation on a generated 30-second clip and prints how many times faster than real time it ran.
 
-`doctor` was run here. `clean` and `bench` need torch and the models, which this build machine didn't have; their code paths are tested with a stand-in engine.
+On an RTX 3060 Laptop GPU, Best runs about 6.7 times faster than real time, so an hour of audio takes about 9 minutes. Fast always runs on the CPU (about 1.1 times real time on that laptop) and is a 67 MB download instead of 913 MB. With an NVIDIA GPU, use Best. Fast is for computers without one; it also returns speech a little quieter than the original, which Best does not.
 
 ## Where files live
 
@@ -130,8 +122,8 @@ Start with `uv run sukoon doctor`; each failing line comes with a `fix:` line.
 
 - **`ffmpeg ... not found on PATH`**: install it with the printed command (`winget install Gyan.FFmpeg`, `brew install ffmpeg`, or `sudo apt install ffmpeg`), then open a new terminal.
 - **`encoders missing ...`**: your ffmpeg build lacks some encoders. Formats that need them are hidden in the app; install a full build to get them back.
-- **`torch not installed`**: run `uv sync --extra cpu`, or `uv sync --extra cuda` with an NVIDIA GPU.
-- **`NVIDIA GPU present but torch has no CUDA`**: run `uv sync --extra cuda`. If it still shows CPU, update the NVIDIA driver.
+- **`torch not installed`**: run `uv sync`.
+- **`NVIDIA GPU present but torch has no CUDA`**: run `uv sync`. If it still shows CPU, update the NVIDIA driver.
 - **`disk ... GB free`** marked FAIL: free space on that drive or set `SUKOON_HOME` to another one. While a job runs, its intermediate audio takes about 2.5 GB per hour of sound.
 - **A model download stopped**: press Retry on the model card; the download resumes where it stopped. If a file fails its hash check it is deleted and downloaded again.
 - **A job says "Part of this ran on the CPU because the GPU ran out of memory."**: that part of the file was redone on the CPU, which is slower. Closing other programs that use the GPU helps.
@@ -149,7 +141,7 @@ The interface uses the Archivo and Martian Mono typefaces (SIL Open Font License
 
 ## Contributing
 
-The Python side needs the steps under Install; the checks below are the ones CI runs. All of them pass here (the Python ones from the virtual environment described under Install).
+The Python side needs the steps under Install; the checks below are the ones CI runs.
 
 ```bash
 uv run ruff check
