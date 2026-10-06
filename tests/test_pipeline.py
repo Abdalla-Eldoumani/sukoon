@@ -82,7 +82,7 @@ def test_audio_fixture_round_trip(corpus, tmp_path, name, fmt, rate, channels):
         ("wav", "pcm_s24le", 44100, lambda s: True),
         ("flac", "flac", 44100, lambda s: s["bits_per_raw_sample"] == "24"),
         ("opus", "opus", 48000, lambda s: True),
-        ("ogg", "vorbis", 44100, lambda s: True),
+        ("ogg", "vorbis", 44100, lambda s: 150_000 <= int(s["bit_rate"]) <= 260_000),
     ],
 )
 def test_format_matrix(corpus, tmp_path, fmt, codec, rate, check):
@@ -186,3 +186,31 @@ def test_disk_full_fails_cleanly(corpus, tmp_path):
 def test_cpu_fallback_is_noted(corpus, tmp_path):
     result, _, _ = clean(corpus, tmp_path, "short-2s.wav", engine=FakeEngine(fail="oom"))
     assert pipeline.NOTE_CPU in result.notes
+
+
+def test_opus_is_160k(corpus, tmp_path):
+    """libopus runs above its target on these synthetic signals, so compare with references."""
+    _, out, _ = clean(corpus, tmp_path, "speech-over-music-30s.wav", format="opus")
+
+    def reference(kbps):
+        path = tmp_path / f"ref{kbps}.opus"
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-i",
+                str(out),
+                "-c:a",
+                "libopus",
+                "-b:a",
+                f"{kbps}k",
+                str(path),
+            ],
+            check=True,
+        )
+        return int(ffprobe(path)["format"]["bit_rate"])
+
+    rate = int(ffprobe(out)["format"]["bit_rate"])
+    assert reference(96) < rate < reference(320)
