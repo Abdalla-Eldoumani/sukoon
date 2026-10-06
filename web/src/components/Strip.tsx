@@ -49,25 +49,28 @@ function draw(canvas: HTMLCanvasElement, peaks: Peaks, reveal: number) {
   ctx.fillStyle = css(canvas, '--rule')
   ctx.fillRect(0, RULER + LANE, width, 1)
 
-  // Ten ticks across the ruler, labelled with the time under each.
+  // Up to ten ticks, one label per 80px so they never run into each other on a narrow window.
+  const ticks = Math.min(10, Math.max(2, Math.floor(width / 80)))
   ctx.fillStyle = css(canvas, '--text-3')
   ctx.font = `450 11px ${css(canvas, '--font-mono')}`
   ctx.textBaseline = 'top'
-  for (let i = 0; i < 10; i++) {
-    const x = Math.round((i / 10) * width)
+  for (let i = 0; i < ticks; i++) {
+    const x = Math.round((i / ticks) * width)
     ctx.fillRect(x, RULER - 6, 1, 6)
-    if (i > 0) ctx.fillText(clock((i / 10) * peaks.seconds), x + 3, 2)
+    if (i > 0) ctx.fillText(clock((i / ticks) * peaks.seconds), x + 3, 2)
   }
 
   const buckets = peaks.voice.length / 2
   const shown = Math.floor(buckets * reveal)
+  // Both lanes share one scale, set by the louder of the two, so their sizes compare honestly.
+  const loudest = Math.max(1e-6, ...peaks.voice.map(Math.abs), ...peaks.removed.map(Math.abs))
   const lane = (values: number[], color: string, center: number, direction: 1 | -1) => {
     ctx.fillStyle = color
     for (let i = 0; i < shown; i++) {
       const x = (i / buckets) * width
       const w = Math.max(1, width / buckets)
       // Each slice's loudest swing, so a lane reads as a level meter.
-      const level = Math.min(1, Math.max(Math.abs(values[2 * i]), Math.abs(values[2 * i + 1])))
+      const level = Math.min(1, Math.max(Math.abs(values[2 * i]), Math.abs(values[2 * i + 1])) / loudest)
       const h = Math.max(level * (LANE - 4), level > 0 ? 1 : 0)
       ctx.fillRect(x, direction === 1 ? center - h : center, w, h)
     }
