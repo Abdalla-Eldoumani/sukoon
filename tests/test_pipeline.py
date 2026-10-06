@@ -4,6 +4,7 @@ import json
 import subprocess
 
 import pytest
+import soundfile as sf
 
 from sukoon import pipeline
 from sukoon.chunk import separate_chunked
@@ -225,8 +226,6 @@ def test_peaks_describe_voice_and_removed_lanes(corpus, tmp_path):
     assert peaks["voice"] == peaks["removed"]
     mins, maxs = peaks["voice"][0::2], peaks["voice"][1::2]
     assert all(lo <= hi for lo, hi in zip(mins, maxs, strict=True))
-    import soundfile as sf
-
     mono = sf.read(corpus / "speech-over-music-30s.wav")[0].mean(axis=1)
     assert abs(max(maxs) - mono.max() / 2) < 1e-3
     assert abs(min(mins) - mono.min() / 2) < 1e-3
