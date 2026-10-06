@@ -42,9 +42,9 @@ TRANSITIONS: dict[str, set[str]] = {
     "separating": {"encoding", "failed", "canceled", "interrupted"},
     "encoding": {"done", "failed", "canceled", "interrupted"},
     "done": set(),
-    "failed": {"queued"},
-    "canceled": {"queued"},
-    "interrupted": {"queued"},
+    "failed": {"queued", "awaiting_track", "awaiting_confirm"},
+    "canceled": {"queued", "awaiting_track", "awaiting_confirm"},
+    "interrupted": {"queued", "awaiting_track", "awaiting_confirm"},
 }
 
 JSON_FIELDS = ("options", "probe", "result")
