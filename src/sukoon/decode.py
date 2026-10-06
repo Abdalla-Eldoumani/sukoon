@@ -45,6 +45,7 @@ def decode(
     try:
         ffmpeg.run(
             [
+                "-copyts",
                 "-protocol_whitelist",
                 "file,pipe",
                 "-i",
@@ -54,8 +55,10 @@ def decode(
                 "-vn",
                 "-ac",
                 "2",
-                "-ar",
-                str(RATE),
+                # Sample 0 of the WAV is the track's start time on the source's own clock,
+                # whatever the codec does with priming; the mux relies on that.
+                "-af",
+                f"aresample={RATE}:async=1:first_pts={round(stream.start_time * RATE)}",
                 "-c:a",
                 "pcm_f32le",
                 "-rf64",
