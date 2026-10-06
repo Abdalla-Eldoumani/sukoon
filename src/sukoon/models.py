@@ -59,9 +59,9 @@ def preset_size(preset: Preset) -> int:
     return sum(f.size for f in files_for(preset))
 
 
-def is_ready(models_dir: Path, preset: Preset) -> bool:
+def is_ready(models_dir: Path, preset: Preset, files: tuple[ModelFile, ...] = MODEL_FILES) -> bool:
     """Every file is in place at its pinned size; the hash is checked before loading."""
-    for f in files_for(preset):
+    for f in (f for f in files if f.preset == preset):
         path = models_dir / f.name
         if not path.is_file() or path.stat().st_size != f.size:
             return False
