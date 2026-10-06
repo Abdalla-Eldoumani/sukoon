@@ -1,10 +1,11 @@
 import os
 import stat
+import sys
+from types import SimpleNamespace
 
 import pytest
 
 from sukoon import doctor
-from sukoon.device import DeviceInfo
 
 ALL_ENCODERS = "libmp3lame aac libopus libvorbis flac pcm_s24le libx264 libvpx-vp9"
 
@@ -38,10 +39,18 @@ esac
     fake_tool(folder, "ffprobe", "exit 0\n")
 
 
+def fake_torch(version, gpu=None):
+    """Stands in for torch, the boundary here: a version and, optionally, a CUDA GPU's name."""
+    return SimpleNamespace(
+        __version__=version,
+        cuda=SimpleNamespace(is_available=lambda: gpu is not None, get_device_name=lambda i: gpu),
+        backends=SimpleNamespace(mps=SimpleNamespace(is_available=lambda: False)),
+    )
+
+
 @pytest.fixture
 def cpu_torch(monkeypatch):
-    # Stands in for torch itself, which is the boundary here.
-    monkeypatch.setattr("sukoon.device.detect", lambda *a: DeviceInfo("cpu", "CPU", "2.14.1+cpu"))
+    monkeypatch.setitem(sys.modules, "torch", fake_torch("2.14.1+cpu"))
 
 
 def run(settings):
@@ -89,17 +98,16 @@ def test_nvidia_gpu_without_cuda_torch_prints_cuda_install(settings, fake_path, 
 def test_cuda_device_is_reported(settings, fake_path, monkeypatch):
     with_ffmpeg(fake_path)
     fake_tool(fake_path, "nvidia-smi", "exit 0\n")
-    monkeypatch.setattr(
-        "sukoon.device.detect",
-        lambda *a: DeviceInfo("cuda", "CUDA · RTX 3060 Laptop", "2.14.1+cu126"),
-    )
+    gpu = fake_torch("2.14.1+cu126", gpu="NVIDIA GeForce RTX 3060 Laptop GPU")
+    monkeypatch.setitem(sys.modules, "torch", gpu)
     _, text = run(settings)
-    assert "ok   torch      2.14.1+cu126, device CUDA · RTX 3060 Laptop" in text
+    assert "ok   torch      2.14.1+cu126, device CUDA · GeForce RTX 3060 Laptop" in text
 
 
 def test_missing_torch_fails_with_install_command(settings, fake_path, monkeypatch):
     with_ffmpeg(fake_path)
-    monkeypatch.setattr("sukoon.device.detect", lambda *a: DeviceInfo("cpu", "CPU", None))
+    # How Python sees a package that isn't installed.
+    monkeypatch.setitem(sys.modules, "torch", None)
     code, text = run(settings)
     assert code == 1
     assert "fix: uv sync --extra cpu" in text
