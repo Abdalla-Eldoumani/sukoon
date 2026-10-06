@@ -71,12 +71,13 @@
 
 .bar .link {
   flex: 1 1 280px;
+  flex-wrap: nowrap;
   max-width: 480px;
 }
 
 .bar .link input {
   flex: 1 1 auto;
-  width: 360px;
+  width: 100%;
   min-width: 0;
 }
 
