@@ -59,4 +59,9 @@
   .key {
     display: none;
   }
+
+  /* Settings shows it too; on a phone the device needs the room. */
+  .library {
+    display: none;
+  }
 }
