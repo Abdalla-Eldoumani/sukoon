@@ -19,6 +19,7 @@ export interface Track {
   language: string | null
   title: string | null
   channels: number | null
+  default: boolean
 }
 
 export interface FormatChoice {
