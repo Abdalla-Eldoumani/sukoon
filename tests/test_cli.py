@@ -178,3 +178,44 @@ def test_clean_reports_a_tampered_model_instead_of_crashing(corpus, settings, tm
     )
     assert code == 1
     assert printed == [CHECKSUM_MESSAGE]
+
+
+def test_clean_video_keeps_the_container_and_track_option(corpus, settings, tmp_path):
+    printed = []
+    code = clean(
+        [corpus / "two-tracks.mkv"],
+        tmp_path,
+        Options(track=1),
+        FakeEngine(),
+        settings,
+        out=printed.append,
+    )
+    assert code == 0
+    assert printed == [str(tmp_path / "two-tracks (no music).mkv")]
+
+
+def test_clean_refuses_a_reencode_unless_allowed(corpus, settings, tmp_path):
+    printed = []
+    assert (
+        clean(
+            [corpus / "vp9-opus.webm"],
+            tmp_path,
+            Options(format="mov"),
+            FakeEngine(),
+            settings,
+            out=printed.append,
+        )
+        == 1
+    )
+    assert "re-encoded to H.264" in printed[0]
+    assert (
+        clean(
+            [corpus / "vp9-opus.webm"],
+            tmp_path,
+            Options(format="mov", reencode_ok=True),
+            FakeEngine(),
+            settings,
+            out=lambda s: None,
+        )
+        == 0
+    )
