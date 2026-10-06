@@ -14,7 +14,7 @@ export function TopBar({ device, library, onSettings }: Props) {
   return (
     <header className={styles.bar}>
       <div className={styles.inner}>
-        <span className={styles.wordmark}>sukoon</span>
+        <h1 className={styles.wordmark}>sukoon</h1>
         <div className={styles.status}>
           {device && (
             <span className="readout" title="Device used for separation">
