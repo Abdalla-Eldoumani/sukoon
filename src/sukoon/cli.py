@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sukoon import doctor
+from sukoon.compat import VIDEO_CONTAINERS
+from sukoon.encode import AUDIO_FORMATS
 from sukoon.settings import Settings
 
 if TYPE_CHECKING:
@@ -224,7 +226,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     clean_p.add_argument("--device", choices=["auto", "cpu"], default="auto")
     clean_p.add_argument(
         "--format",
-        choices=["mp3", "m4a", "wav", "flac", "opus", "ogg"],
+        choices=[*AUDIO_FORMATS, *VIDEO_CONTAINERS],
         help="output format (default: the same as the input)",
     )
     clean_p.add_argument(
