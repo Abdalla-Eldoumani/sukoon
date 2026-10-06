@@ -6,7 +6,8 @@ interface Props {
   device: string | null
   /** Bytes held by jobs, which Clear finished frees. */
   library: number | null
-  onSettings: () => void
+  /** Null until the settings have loaded, which leaves the button disabled. */
+  onSettings: (() => void) | null
 }
 
 export function TopBar({ device, library, onSettings }: Props) {
@@ -30,7 +31,8 @@ export function TopBar({ device, library, onSettings }: Props) {
             className="btn-quiet btn-icon"
             aria-label="Settings"
             title="Settings"
-            onClick={onSettings}
+            onClick={onSettings ?? undefined}
+            disabled={!onSettings}
           >
             <SettingsIcon />
           </button>
