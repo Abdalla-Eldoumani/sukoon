@@ -25,6 +25,8 @@ function localJob(id: string, file: File): Job {
     duration: null,
     tracks: [],
     notes: [],
+    formats: [],
+    confirm: null,
     output_name: null,
   }
 }
