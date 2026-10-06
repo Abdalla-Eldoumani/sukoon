@@ -1,9 +1,8 @@
 .strip {
   position: relative;
-  height: 133px; /* 20px ruler, two 56px lanes, 1px centre line */
+  height: 221px; /* a 20px ruler, two 100px lanes, the 1px line between them */
   cursor: pointer;
   touch-action: none;
-  border-radius: var(--r-sm);
 }
 
 .canvas {
@@ -15,17 +14,20 @@
 .voiceLabel,
 .removedLabel {
   position: absolute;
-  left: var(--s2);
-  color: var(--text-2);
+  left: 6px;
+  padding: 0 var(--s2) 0 var(--s1);
+  background: var(--band);
   pointer-events: none;
 }
 
 .voiceLabel {
-  top: calc(20px + var(--s1));
+  top: 24px;
+  color: var(--voice-text);
 }
 
 .removedLabel {
   bottom: var(--s1);
+  color: var(--removed);
 }
 
 .playhead {
@@ -40,9 +42,10 @@
 .playhead::before {
   content: '';
   position: absolute;
-  top: 7px;
+  top: 13px;
   left: -3px;
   width: 6px;
   height: 6px;
+  border-radius: var(--r-xs);
   background: var(--text);
 }
