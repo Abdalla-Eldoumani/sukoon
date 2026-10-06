@@ -1,4 +1,4 @@
-import importlib.util
+import runpy
 from pathlib import Path
 from typing import Any
 
@@ -11,11 +11,6 @@ class CopyWebHook(BuildHookInterface):  # type: ignore[type-arg]
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         if self.target_name != "wheel" or version == "editable":
             return
-        path = Path(self.root) / "scripts" / "build_web.py"
-        spec = importlib.util.spec_from_file_location("build_web", path)
-        if spec is None or spec.loader is None:
-            return
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        if (module.DIST / "index.html").is_file():
-            module.copy_dist()
+        build_web = runpy.run_path(str(Path(self.root) / "scripts" / "build_web.py"))
+        if (build_web["DIST"] / "index.html").is_file():
+            build_web["copy_dist"]()
