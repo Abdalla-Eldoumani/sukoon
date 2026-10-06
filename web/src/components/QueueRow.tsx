@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { clock, middle } from '../format'
+import { clock, megabytes, middle } from '../format'
 import { ACTIVE, STATE_LABEL } from '../labels'
 import type { Job } from '../types'
 import { AudioFileIcon, CancelIcon, DeleteIcon, DownloadIcon, RetryIcon, VideoFileIcon } from './icons'
 import { JobChoices } from './JobChoices'
 import styles from './QueueRow.module.css'
 
-const CANCELABLE = new Set(['checking', 'awaiting_track', 'awaiting_confirm', 'queued', 'waiting_model', 'decoding', 'separating', 'encoding'])
+const CANCELABLE = new Set(['fetching', 'checking', 'awaiting_track', 'awaiting_confirm', 'queued', 'waiting_model', 'decoding', 'separating', 'encoding'])
 const STOPPED = new Set(['failed', 'canceled', 'interrupted'])
 
 export interface RowActions {
@@ -34,6 +34,9 @@ export function QueueRow({ job, actions, problem = null, arriving = false, selec
   const percent = Math.round(job.progress * 100)
   const label = STATE_LABEL[job.state]
   const description = active ? `${label}, ${percent}%` : label
+  // Download only has nothing to compare, so it has no review panel.
+  const reviewable = job.state === 'done' && !job.options.keep_music
+  const fetched = job.link && job.state === 'fetching' && job.link.done > 0
   return (
     <li
       className={[styles.row, arriving && styles.arriving, selected && styles.selected].filter(Boolean).join(' ')}
@@ -42,7 +45,7 @@ export function QueueRow({ job, actions, problem = null, arriving = false, selec
     >
       <span className={styles.glyph}>{job.kind === 'video' ? <VideoFileIcon /> : <AudioFileIcon />}</span>
       <div className={styles.name}>
-        {job.state === 'done' && onSelect ? (
+        {reviewable && onSelect ? (
           <button
             type="button"
             className={styles.nameButton}
@@ -59,6 +62,12 @@ export function QueueRow({ job, actions, problem = null, arriving = false, selec
           <bdi className="body-strong" title={job.name} dir="auto">
             {middle(job.name)}
           </bdi>
+        )}
+        {job.link && (
+          <span className={`small ${styles.note}`}>
+            from {job.link.site}
+            {fetched && job.link && ` · ${megabytes(job.link.done)}${job.link.total ? ` of ${megabytes(job.link.total)}` : ''}`}
+          </span>
         )}
         {failed && job.error && <span className={`small ${styles.error}`}>{job.error}</span>}
         {!failed && job.notes.length > 0 && <span className={`small ${styles.note}`}>{job.notes.join(' ')}</span>}
