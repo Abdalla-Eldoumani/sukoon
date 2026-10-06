@@ -35,7 +35,8 @@ This is a single-user desktop tool, so the usual sessions-per-second arithmetic 
 - Typical input: 3 to 30 minutes. Worst accepted input: 6 hours, 8 GB.
 - Decoded working audio is 32-bit float stereo at 44.1 kHz: 21.2 MB per minute, 1.27 GB per hour. A job holds two copies on disk at peak (mixture and voice), so a six-hour file needs about 15 GB of scratch space before its upload and output are counted.
 - Throughput measured on 2026-10-05 in a two-core x86 sandbox, 30-second clip, torch 2.14.1 CPU: Fast (MDX-Net Voc FT) took 67 s, 0.45 times real time; Best (Mel-Band RoFormer) took 151 to 199 s, about 0.2 times real time. Model load: 5 s and 5 to 14 s.
-- Target on the RTX 3060 Laptop GPU: Best at 10 times real time or better. Not measured yet; `sukoon bench` on that laptop records it.
+- Measured on 2026-10-06 on the RTX 3060 Laptop GPU (6 GB, driver 617.14) with `sukoon bench`: Best 6.7 times real time (median of three 30-second runs). Fast 1.1 times real time, because Fast runs on onnxruntime's CPU build (see the pre-mortem). The target was 10 times; 6.7 is enough for the single-user case, an hour of audio in about 9 minutes.
+- Quality measured on 2026-10-06 on 90 seconds of LibriVox speech mixed with an instrumental hip-hop beat at equal loudness: SI-SDR against the clean speech went from 0.3 dB to 18.1 dB with Best and 16.1 dB with Fast. Chunked and whole-file separation of a three-minute mix differ by 0.6 dB. On speech with no music, Best keeps the level (gain 0.998) and Fast lowers it by about 7 dB.
 
 ## Capacity and spike plan
 
@@ -108,7 +109,7 @@ No personal data is collected and nothing is transmitted, so no privacy law is t
 
 ## Pre-mortem
 
-1. **The GPU path does not work on Windows** because torch was installed from PyPI (CPU only on Windows) instead of the PyTorch CUDA index. Design change: the `cuda` extra pins the PyTorch index, and `sukoon doctor` prints the device torch actually sees.
+1. **The GPU path does not work on Windows** because torch was installed from PyPI (CPU only on Windows) instead of the PyTorch CUDA index. This happened: with `cpu` and `cuda` extras, a plain `uv run` re-synced to PyPI's torch and dropped CUDA. Design change: torch and torchvision are ordinary dependencies taken from the CUDA 12.6 index on Windows and Linux (the build also runs without a GPU) and from the CPU index on macOS, so `uv sync` and `uv run` always agree, and `sukoon doctor` prints the device torch actually sees. onnxruntime stays on its CPU build, because the GPU build on PyPI targets CUDA 13; Fast therefore runs on the CPU everywhere.
 2. **torch and torchvision come from different indexes** and the MDX model fails to load with `operator torchvision::nms does not exist`. This happened during the 2026-10-05 spike. Design change: both are pinned to the same index in `pyproject.toml`.
 3. **Audio drifts against video** after muxing because the audio stream started at a non-zero time or the encoder added priming samples. Design change: the voice is decoded on the source track's own clock (`-copyts` with `aresample` filling from the track's first timestamp), the mux puts it back at that start with `-itsoffset`, and MP4 and MOV outputs get one measured trim for the AAC encoder's priming. Files whose clock starts late, such as MPEG-TS, are rebased so the earliest stream starts at zero. Tests compare the speech in source and output by cross-correlation on their absolute timelines, relative to where the picture moved, across ten container and track combinations plus two late-clock cases, to within 1 ms (1.5 ms for the late-clock cases). One known limit: MP4 to MKV can land about 1 ms off, because Matroska stores whole milliseconds.
 4. **Chunk seams are audible.** Design change: 4-second overlaps with a linear crossfade, and a test that compares chunked output with whole-file output on the same clip.
@@ -127,7 +128,7 @@ No personal data is collected and nothing is transmitted, so no privacy law is t
 
 - Automated suite: pipeline tests on the generated fixture corpus with a fake separator, API tests, interface component tests, and real-model tests (opt-in, CPU) with SDR thresholds.
 - `sukoon doctor` output on the target machine.
-- `sukoon bench --preset best|fast --device auto|cpu` separates a generated 30-second clip three times and prints the median real-time factor. GPU numbers have not been taken yet; they are recorded on the target laptop before release.
+- `sukoon bench --preset best|fast --device auto|cpu` separates a generated 30-second clip three times and prints the median real-time factor. The RTX 3060 numbers are in the load model above.
 
 ## End-of-life dates
 
