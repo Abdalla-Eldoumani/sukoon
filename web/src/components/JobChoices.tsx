@@ -48,7 +48,7 @@ export function JobChoices({ job }: Props) {
               checked={!job.options.keep_music}
               onChange={(e) => send({ keep_music: !e.target.checked })}
             />
-            {job.options.keep_music ? 'Download only' : 'Remove music'}
+            Remove music
           </label>
         )}
         {job.state === 'awaiting_track' && (
