@@ -193,7 +193,14 @@ def test_restart_interrupts_running_jobs_and_sweeps_leftovers(settings, web_dist
     for state in ("queued", "decoding", "separating"):
         store.transition(job["id"], state)
     lost = store.create("half.wav", {"preset": "best"})  # checking, upload never finished
+    unprobed = store.create("whole.wav", {"preset": "best"})  # uploaded, never checked
+    (settings.home / "uploads" / unprobed["id"]).mkdir(parents=True)
+    (settings.home / "uploads" / unprobed["id"] / "source.wav").write_bytes(b"x" * 10)
     store.close()
+    stale_output = settings.home / "outputs" / job["id"] / ".output.wav.part"
+    stale_output.parent.mkdir(parents=True)
+    stale_output.write_bytes(b"x")
+    os.utime(stale_output, (time.time() - 7200, time.time() - 7200))
     scratch = settings.home / "work" / job["id"]
     scratch.mkdir(parents=True)
     (scratch / "mixture.wav").write_bytes(b"x" * 100)
@@ -212,6 +219,11 @@ def test_restart_interrupts_running_jobs_and_sweeps_leftovers(settings, web_dist
         assert fresh_part.exists()
         assert half["state"] == "failed"
         assert half["retryable"] is False
+        never_checked = client.get(f"/api/jobs/{unprobed['id']}").json()
+        assert never_checked["state"] == "failed"
+        assert never_checked["retryable"] is False
+        assert not (settings.home / "uploads" / unprobed["id"]).exists()
+        assert not stale_output.exists()
         client.post(f"/api/jobs/{job['id']}/retry")
         assert wait(client, job["id"], END)["state"] == "done"
 
