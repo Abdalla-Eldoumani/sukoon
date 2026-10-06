@@ -8,9 +8,11 @@ interface Props {
   onDownload: (preset: Preset, switchJobs: boolean) => void
   /** The server refused to start a download. */
   problem?: string | null
+  /** False while another primary action is on screen, so there is only ever one. */
+  primary?: boolean
 }
 
-export function ModelCard({ best, fast, onDownload, problem = null }: Props) {
+export function ModelCard({ best, fast, onDownload, problem = null, primary = true }: Props) {
   const busy = best.downloading ? best : fast.downloading ? fast : null
   const error = problem ?? best.error ?? fast.error
   return (
@@ -37,7 +39,7 @@ export function ModelCard({ best, fast, onDownload, problem = null }: Props) {
         <div className={styles.actions}>
           <button
             type="button"
-            className="btn-primary"
+            className={primary ? 'btn-primary' : 'btn-quiet'}
             onClick={() => (fast.error && !best.error ? onDownload('fast', true) : onDownload('best', false))}
           >
             {error ? 'Retry' : `Download Best (${megabytes(best.size)})`}
