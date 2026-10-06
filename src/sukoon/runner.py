@@ -78,7 +78,8 @@ class Runner:
                 if part.stat().st_mtime < cutoff:
                     part.unlink(missing_ok=True)
 
-    def retry(self, job_id: str) -> None:
+    def retry(self, job_id: str, target: str = "queued") -> None:
+        """Back to the queue, or to the question that was still open when it stopped."""
         with self.lock:
             job = self.store.get(job_id)
             if job["state"] not in STOPPED:
@@ -87,7 +88,7 @@ class Runner:
                 raise RunnerError("This file can't be retried; add it again.")
             shutil.rmtree(self.settings.job_path("outputs", job_id), ignore_errors=True)
             self.store.transition(
-                job_id, "queued", progress=0.0, eta=None, error=None, result=None, stage=None
+                job_id, target, progress=0.0, eta=None, error=None, result=None, stage=None
             )
         self.wake.set()
 
