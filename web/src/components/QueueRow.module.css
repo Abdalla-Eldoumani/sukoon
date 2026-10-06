@@ -1,0 +1,110 @@
+.row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 64px 160px 48px auto;
+  grid-template-areas: 'glyph name duration stage percent actions';
+  align-items: center;
+  column-gap: var(--s3);
+  min-height: 64px;
+  padding: var(--s2) var(--s4);
+  background: var(--surface);
+  border-radius: var(--r-md);
+  animation: arrive var(--d-hover) var(--ease-out);
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.glyph {
+  grid-area: glyph;
+  display: flex;
+  color: var(--text-2);
+}
+
+.name {
+  grid-area: name;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name > bdi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error {
+  color: var(--fault);
+}
+
+.note {
+  color: var(--text-2);
+}
+
+.duration {
+  grid-area: duration;
+  color: var(--text-2);
+  text-align: right;
+}
+
+.stage {
+  grid-area: stage;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.faultLabel {
+  color: var(--fault);
+}
+
+.track {
+  height: 4px;
+  background: var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--voice);
+  transform-origin: left;
+  transition: transform var(--d-panel) linear;
+}
+
+.percent {
+  grid-area: percent;
+  color: var(--text-2);
+  text-align: right;
+}
+
+.actions {
+  grid-area: actions;
+  display: flex;
+  gap: var(--s2);
+  justify-content: flex-end;
+  min-width: 36px;
+}
+
+.actions a {
+  text-decoration: none;
+}
+
+@media (max-width: 599px) {
+  .row {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'glyph name actions'
+      'stage stage percent';
+    row-gap: var(--s2);
+    padding: var(--s3) var(--s4);
+  }
+
+  .duration {
+    display: none;
+  }
+}
