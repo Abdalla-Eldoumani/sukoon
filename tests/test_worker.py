@@ -126,3 +126,18 @@ def test_tampered_model_fails_the_job_with_the_checksum_message(job, tmp_path):
     finally:
         worker.stop()
     assert not (models / "UVR-MDX-NET-Voc_FT.onnx").exists()
+
+
+def test_a_chunk_that_never_finishes_fails_the_job_and_frees_the_worker(job, tmp_path):
+    from sukoon.worker import STALLED
+
+    scratch, _ = job
+    worker = Worker(WorkerConfig(models_dir=tmp_path, fake={"fail": "hang"}), stall_s=2)
+    try:
+        started = time.monotonic()
+        with pytest.raises(JobError, match=STALLED):
+            run(worker, scratch)
+        assert time.monotonic() - started < 10
+        assert worker.process is None
+    finally:
+        worker.stop()
