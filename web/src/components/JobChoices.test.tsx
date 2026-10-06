@@ -33,8 +33,8 @@ describe('JobChoices', () => {
           state: 'awaiting_track',
           kind: 'video',
           tracks: [
-            { language: 'eng', title: 'Main', channels: 2 },
-            { language: 'ara', title: 'Commentary', channels: 6 },
+            { language: 'eng', title: 'Main', channels: 2, default: true },
+            { language: 'ara', title: 'Commentary', channels: 6, default: false },
           ],
         })}
       />,
@@ -44,6 +44,21 @@ describe('JobChoices', () => {
     await userEvent.selectOptions(select, 'Track 2 · ara · Commentary · 6 channels')
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(posted).toEqual([{ url: '/api/jobs/a1/choose', body: { track: 1 } }])
+  })
+
+  it('preselects the track marked default', () => {
+    render(
+      <JobChoices
+        job={job({
+          state: 'awaiting_track',
+          tracks: [
+            { language: 'eng', title: 'Commentary', channels: 2, default: false },
+            { language: 'ara', title: 'Main', channels: 2, default: true },
+          ],
+        })}
+      />,
+    )
+    expect(screen.getByRole('combobox', { name: /Audio track/ })).toHaveDisplayValue('Track 2 · ara · Main · stereo')
   })
 
   it('says a re-encode is coming and waits for consent', async () => {
