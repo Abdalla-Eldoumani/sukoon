@@ -16,6 +16,7 @@ export function job(fields: Partial<Job> = {}): Job {
     tracks: [],
     notes: [],
     formats: [],
+    offset: 0,
     confirm: null,
     output_name: null,
     ...fields,
