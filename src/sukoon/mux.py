@@ -8,6 +8,9 @@ from sukoon.compat import AUDIO_ENCODER, MUXER, REENCODE, Plan
 from sukoon.encode import MAX_RATE
 from sukoon.probe import Probe
 
+# Far longer than the two seconds of packets the priming check reads.
+TRIAL_S = 30.0
+
 
 def first_time(path: Path, selector: str, entry: str) -> float | None:
     """Time of the first decoded audio frame (entry "frame") or first packet ("packet")."""
@@ -58,6 +61,7 @@ def _args(
     offset: float,
     trim: float,
     partial: Path,
+    limit: float | None = None,
 ) -> list[str]:
     chosen = probe.audio[track]
     args = ["-copyts", "-protocol_whitelist", "file,pipe", "-i", str(source)]
@@ -122,6 +126,7 @@ def _args(
         "0",
         "-map_chapters",
         "0",
+        *(["-t", f"{limit:g}"] if limit else []),
         "-f",
         MUXER[plan.container],
         "-y",
@@ -144,36 +149,35 @@ def mux_video(
 
     The voice WAV starts at the source track's start time, and both are muxed on the source's
     own clock, so the speech lands where it was. AAC's priming can still show up in front of
-    it when the track starts late, which moves the track's start time. That is measured once
-    and, if present, cut from the front of the voice and muxed again; a cut under -copyts
-    keeps every remaining sample at its original time.
+    it when the track starts late, which moves the track's start time. That is measured on a
+    short trial mux and, if present, cut from the front of the voice before the full mux; a
+    cut under -copyts keeps every remaining sample at its original time.
     """
     partial = out_path.with_name(f".{out_path.name}.part")
     start = probe.audio[track].start_time
     timeout = None if plan.reencode is None else 600 + probe.duration * 20
     try:
+        priming = None
+        # Only AAC shows its priming as an earlier start. Matroska reports an Opus track's first
+        # frame after taking off its codec delay, so that time is not the speech's time.
+        # ceiling: a re-encoded picture gets no trial, since that would encode it too; its
+        # audio may start up to one priming length early. Revisit if that is noticed.
+        if AUDIO_ENCODER[plan.container][0] == "aac" and not plan.reencode:
+            # The first seconds show the priming as the whole file would, for a fraction of
+            # a full pass, so the bar never sits full while a second pass runs.
+            ffmpeg.run(
+                _args(voice_wav, source, probe, track, plan, start, 0.0, partial, TRIAL_S),
+                min(probe.duration, TRIAL_S),
+                cancelled=cancelled,
+            )
+            priming = _visible_priming(source, partial, track, start)
         ffmpeg.run(
-            _args(voice_wav, source, probe, track, plan, start, 0.0, partial),
+            _args(voice_wav, source, probe, track, plan, start, priming or 0.0, partial),
             probe.duration,
             on_progress,
             cancelled,
             timeout=timeout,
         )
-        # Only AAC shows its priming as an earlier start. Matroska reports an Opus track's first
-        # frame after taking off its codec delay, so that time is not the speech's time.
-        # ceiling: a re-encoded picture is not muxed twice, since that would encode it again;
-        # its audio may start up to one priming length early. Revisit if that is noticed.
-        aac = AUDIO_ENCODER[plan.container][0] == "aac"
-        priming = (
-            _visible_priming(source, partial, track, start) if aac and not plan.reencode else None
-        )
-        if priming is not None:
-            ffmpeg.run(
-                _args(voice_wav, source, probe, track, plan, start, priming, partial),
-                probe.duration,
-                lambda _f: None,
-                cancelled,
-            )
         os.replace(partial, out_path)
     finally:
         partial.unlink(missing_ok=True)
