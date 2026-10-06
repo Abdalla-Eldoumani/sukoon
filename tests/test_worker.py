@@ -7,7 +7,7 @@ import soundfile as sf
 
 from sukoon.errors import Canceled, JobError
 from sukoon.models import CHECKSUM_MESSAGE, ModelFile
-from sukoon.worker import CRASHED, Worker, WorkerConfig
+from sukoon.worker import CRASHED, STALLED, Worker, WorkerConfig
 
 SR = 44100
 
@@ -128,16 +128,16 @@ def test_tampered_model_fails_the_job_with_the_checksum_message(job, tmp_path):
     assert not (models / "UVR-MDX-NET-Voc_FT.onnx").exists()
 
 
-def test_a_chunk_that_never_finishes_fails_the_job_and_frees_the_worker(job, tmp_path):
-    from sukoon.worker import STALLED
-
+def test_a_chunk_that_never_finishes_fails_the_job_and_the_next_job_succeeds(job, tmp_path):
     scratch, _ = job
-    worker = Worker(WorkerConfig(models_dir=tmp_path, fake={"fail": "hang"}), stall_s=2)
+    config = WorkerConfig(models_dir=tmp_path, fake={"fail": "hang", "fail_on": 3})
+    worker = Worker(config, stall_s=2)
     try:
+        run(worker, scratch)  # calls 1 and 2
         started = time.monotonic()
         with pytest.raises(JobError, match=STALLED):
-            run(worker, scratch)
+            run(worker, scratch)  # call 3 never returns
         assert time.monotonic() - started < 10
-        assert worker.process is None
+        assert run(worker, scratch).chunks == 2
     finally:
         worker.stop()
