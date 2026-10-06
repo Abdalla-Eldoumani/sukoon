@@ -1,11 +1,40 @@
+import importlib.metadata
+import re
 import shutil
 from collections.abc import Callable
+from datetime import date
 
 from sukoon import device, models, tools
 from sukoon.settings import GB, Settings
 
+UPDATE = "uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync"
+# Sites change often enough that a yt-dlp this old starts to fail on some of them.
+STALE_DAYS = 60
+NODE_MAJOR = 22
 
-def run(settings: Settings, out: Callable[[str], None] = print) -> int:
+
+def age_in_days(version: str, today: date) -> int | None:
+    """yt-dlp versions are release dates, such as 2026.8.19."""
+    try:
+        year, month, day = (int(part) for part in version.split(".")[:3])
+        return (today - date(year, month, day)).days
+    except ValueError:
+        return None
+
+
+def node_major(version: str) -> int | None:
+    match = re.match(r"v?(\d+)\.", version.strip())
+    return int(match.group(1)) if match else None
+
+
+def installed(package: str) -> str | None:
+    try:
+        return importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def run(settings: Settings, out: Callable[[str], None] = print, today: date | None = None) -> int:
     """Prints one line per check and the command that fixes anything missing; 1 if any failed."""
     failed = False
 
@@ -58,6 +87,25 @@ def run(settings: Settings, out: Callable[[str], None] = print) -> int:
         "disk",
         f"{free / GB:.1f} GB free in {settings.home}",
         "free some space on this drive or set SUKOON_HOME to another drive",
+    )
+
+    ytdlp = installed("yt-dlp")
+    if ytdlp is None:
+        line(False, "yt-dlp", "not installed", "uv sync")
+    else:
+        age = age_in_days(ytdlp, today or date.today())
+        fresh = age is not None and age < STALE_DAYS
+        detail = f"{ytdlp}, {age} days old" if age is not None else ytdlp
+        line(fresh or None, "yt-dlp", detail, f"links may fail as sites change; update: {UPDATE}")
+    ejs = installed("yt-dlp-ejs")
+    line(ejs is not None, "yt-dlp-ejs", ejs or "not installed", "uv sync")
+    node = tools.node_version()
+    major = node_major(node or "")
+    line(
+        major is not None and major >= NODE_MAJOR,
+        "node",
+        f"{node}" if node else "not found on PATH",
+        f"YouTube links need Node.js {NODE_MAJOR} or newer: {tools.node_install_command()}",
     )
 
     ready = models.ready_presets(settings.area("models"))
