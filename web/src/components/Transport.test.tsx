@@ -103,4 +103,15 @@ describe('Transport', () => {
     expect(switchEl()).toHaveAttribute('aria-checked', 'true')
   })
 
+  it('starts no hold after the panel closes mid-press', () => {
+    vi.useFakeTimers()
+    const onHold = vi.fn()
+    const { unmount } = render(
+      <Transport playing={false} current={0} duration={10} original={false} onPlay={() => {}} onPause={() => {}} onToggle={() => {}} onHold={onHold} />,
+    )
+    fireEvent.pointerDown(switchEl())
+    unmount()
+    act(() => vi.advanceTimersByTime(400))
+    expect(onHold).not.toHaveBeenCalled()
+  })
 })
