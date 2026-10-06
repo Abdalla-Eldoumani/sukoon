@@ -22,9 +22,12 @@ interface Props {
   problem?: string | null
   /** Rows added after the page loaded slide in; the ones already there do not. */
   arriving?: boolean
+  /** A finished row opens its review panel. */
+  selected?: boolean
+  onSelect?: (job: Job) => void
 }
 
-export function QueueRow({ job, actions, problem = null, arriving = false }: Props) {
+export function QueueRow({ job, actions, problem = null, arriving = false, selected = false, onSelect }: Props) {
   const [confirming, setConfirming] = useState(false)
   const active = ACTIVE.has(job.state)
   const failed = job.state === 'failed'
@@ -33,12 +36,31 @@ export function QueueRow({ job, actions, problem = null, arriving = false }: Pro
   const description = active ? `${label}, ${percent}%` : label
   const local = job.state === 'uploading'
   return (
-    <li className={arriving ? `${styles.row} ${styles.arriving}` : styles.row} aria-label={job.name} aria-description={description}>
+    <li
+      className={[styles.row, arriving && styles.arriving, selected && styles.selected].filter(Boolean).join(' ')}
+      aria-label={job.name}
+      aria-description={description}
+    >
       <span className={styles.glyph}>{job.kind === 'video' ? <VideoFileIcon /> : <AudioFileIcon />}</span>
       <div className={styles.name}>
-        <bdi className="body-strong" title={job.name} dir="auto">
-          {middle(job.name)}
-        </bdi>
+        {job.state === 'done' && onSelect ? (
+          <button
+            type="button"
+            className={styles.nameButton}
+            aria-expanded={selected}
+            aria-label={`Review ${job.name}`}
+            title={job.name}
+            onClick={() => onSelect(job)}
+          >
+            <bdi className="body-strong" dir="auto">
+              {middle(job.name)}
+            </bdi>
+          </button>
+        ) : (
+          <bdi className="body-strong" title={job.name} dir="auto">
+            {middle(job.name)}
+          </bdi>
+        )}
         {failed && job.error && <span className={`small ${styles.error}`}>{job.error}</span>}
         {!failed && job.notes.length > 0 && <span className={`small ${styles.note}`}>{job.notes.join(' ')}</span>}
         {problem && <span className={`small ${styles.error}`}>{problem}</span>}
