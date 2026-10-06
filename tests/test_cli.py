@@ -138,6 +138,21 @@ def test_clean_reports_a_rejected_file_and_carries_on(corpus, settings, tmp_path
     assert printed[1].endswith("short-2s (no music).wav")
 
 
+def test_clean_reports_an_engine_failure_and_carries_on(corpus, settings, tmp_path):
+    printed = []
+    code = clean(
+        [corpus / "short-2s.wav", corpus / "mono-22k.wav"],
+        tmp_path,
+        Options(),
+        FakeEngine(fail="raise", fail_on=1),
+        settings,
+        out=printed.append,
+    )
+    assert code == 1
+    assert printed[0] == "short-2s.wav: fake engine failure"
+    assert printed[1].endswith("mono-22k (no music).wav")
+
+
 def test_clean_format_option(corpus, settings, tmp_path):
     printed = []
     clean(
