@@ -17,8 +17,9 @@ dependencies = [
     "soundfile==0.14.0",
     "torch==2.14.1",
     "torchvision==0.29.1",
-    "yt-dlp[default]==2026.8.19",
-    "yt-dlp-ejs==0.8.0",  # the YouTube challenge solver, so yt-dlp never fetches one
+    # A floor, not ==, so the update command in doctor can move them; uv.lock holds the exact version.
+    "yt-dlp[default]>=2026.8.19",
+    "yt-dlp-ejs>=0.8.0",  # the YouTube challenge solver, so yt-dlp never fetches one
 ]
 
 [project.scripts]

@@ -1322,8 +1322,8 @@ requires-dist = [
     { name = "torchvision", marker = "sys_platform != 'darwin'", specifier = "==0.29.1", index = "https://download.pytorch.org/whl/cu126" },
     { name = "torchvision", marker = "sys_platform == 'darwin'", specifier = "==0.29.1", index = "https://download.pytorch.org/whl/cpu" },
     { name = "uvicorn", specifier = "==0.54.0" },
-    { name = "yt-dlp", extras = ["default"], specifier = "==2026.8.19" },
-    { name = "yt-dlp-ejs", specifier = "==0.8.0" },
+    { name = "yt-dlp", extras = ["default"], specifier = ">=2026.8.19" },
+    { name = "yt-dlp-ejs", specifier = ">=0.8.0" },
 ]
 
 [package.metadata.requires-dev]
