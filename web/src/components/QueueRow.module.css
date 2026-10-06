@@ -1,7 +1,7 @@
 .row {
   --row-bg: var(--ground);
   display: grid;
-  grid-template-columns: 20px minmax(0, 340px) minmax(120px, 1fr) 140px 84px;
+  grid-template-columns: 20px minmax(0, 340px) minmax(120px, 1fr) 184px 84px;
   grid-template-areas: 'glyph name lane time actions';
   align-items: center;
   column-gap: var(--s5);
@@ -44,7 +44,6 @@
   grid-area: name;
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
 }
 
@@ -147,7 +146,7 @@
 
 @media (max-width: 1023px) {
   .row {
-    grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) 132px 84px;
+    grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) 176px 84px;
   }
 }
 
