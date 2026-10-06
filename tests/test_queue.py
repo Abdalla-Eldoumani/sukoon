@@ -6,10 +6,12 @@ import time
 
 import httpx
 import pytest
+import soundfile as sf
 from fastapi.testclient import TestClient
 
 from sukoon.store import Store
-from tests.conftest import BASE, fake_app
+from sukoon.worker import Worker, WorkerConfig
+from tests.conftest import BASE, fake_app, fixture_script
 from tests.test_api import upload, wait
 
 RUNNING = {"decoding", "separating", "encoding"}
@@ -362,24 +364,18 @@ def test_data_folder_with_arabic_letters_and_spaces(tmp_path, corpus, web_dist):
     assert job["output_name"] == "أغنية مع غلاف (no music).mp3"
 
 
+# Measured at 144 MB (interpreter, numpy, soundfile, one chunk); the whole file is 1.4 GB.
+PEAK_LIMIT = 400 * 1024**2
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(not os.path.exists("/proc/self/status"), reason="reads peak memory from /proc")
 def test_seventy_minutes_runs_in_constant_memory(tmp_path):
-    """75 chunks for 4,200 s, and the worker's peak memory stays far below the whole file."""
-    import importlib.util
+    """75 chunks for 4,200 s, and the worker's peak memory stays far below the whole file.
 
-    import numpy as np
-    import soundfile as sf
-
-    from sukoon.worker import Worker, WorkerConfig
-
-    spec = importlib.util.spec_from_file_location(
-        "make_fixtures",
-        os.path.join(os.path.dirname(__file__), "..", "scripts", "make_fixtures.py"),
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    flac = module.make_silence_70min(tmp_path)
+    The whole file as 32-bit float stereo is 1.4 GB; one chunk and its overlap are about 25 MB.
+    """
+    flac = fixture_script().make_silence_70min(tmp_path)
     scratch = tmp_path / "work" / "8a6f0c2e-2a8b-4f3e-9d61-2b1f4c9e7a10"
     scratch.mkdir(parents=True)
     subprocess.run(
@@ -417,5 +413,4 @@ def test_seventy_minutes_runs_in_constant_memory(tmp_path):
         worker.stop()
     assert report.chunks == 75
     assert sf.info(str(scratch / "voice.wav")).frames == 4200 * 44100
-    assert peak_kb * 1024 < 1.5 * 1024**3
-    assert np.isfinite(peak_kb)
+    assert peak_kb * 1024 < PEAK_LIMIT
