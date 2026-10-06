@@ -77,7 +77,8 @@ class Result:
 Progress = Callable[[Stage, float, float | None], None]
 ETA_SMOOTHING = 0.5
 # Each output encoder's time next to the Opus preview's, on 20 minutes of speech on the
-# RTX 3060 laptop. ceiling: one machine's ratios; revisit if the time left often runs over.
+# RTX 3060 laptop. ceiling: one machine's ratios, and a confirmed picture re-encode is left
+# out until encoding starts and measures itself; revisit if the time left often runs over.
 ENCODE_COST = {
     "aac": 7.7,
     "libopus": 1.7,
@@ -319,7 +320,7 @@ def run(
                 if original_preview.done() and original_preview.exception() is None
                 else 4 * decode_s
             )
-            after = preview_s * (1 + ENCODE_COST.get(encoder, 1.0)) + 2 * decode_s
+            after = preview_s * (1 + ENCODE_COST[encoder]) + 2 * decode_s
             report("separating", done / total, (total - done) * per_chunk + after)
 
         chunks = separate(mixture, voice, work_dir, cancelled, on_chunk)
