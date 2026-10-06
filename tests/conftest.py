@@ -1,8 +1,14 @@
+import socket
+import threading
+import time
+
 import pytest
+import uvicorn
 from fastapi.testclient import TestClient
 
 from sukoon.app import create_app
 from sukoon.settings import Settings
+from sukoon.worker import WorkerConfig
 
 PORT = 8417
 BASE = f"http://127.0.0.1:{PORT}"
@@ -25,10 +31,56 @@ def web_dist(tmp_path):
     return d
 
 
+def fake_app(settings, port=PORT, web_dist=None, fake=None, **kwargs):
+    """The real app with the fake engine in its worker; models count as ready unless told."""
+    kwargs.setdefault("model_ready", lambda preset: True)
+    config = WorkerConfig(
+        models_dir=settings.area("models"), fake=fake or {}, **kwargs.pop("worker", {})
+    )
+    extra = {"web_dist": web_dist} if web_dist else {}
+    return create_app(settings, port, worker_config=config, **extra, **kwargs)
+
+
 @pytest.fixture
 def client(settings, web_dist):
-    with TestClient(create_app(settings, PORT, web_dist=web_dist), base_url=BASE) as c:
+    with TestClient(fake_app(settings, web_dist=web_dist), base_url=BASE) as c:
         yield c
+
+
+class LiveServer:
+    """The app on a real loopback port, for streams the test client cannot hold open."""
+
+    def __init__(self, app_factory):
+        sock = socket.socket()
+        sock.bind(("127.0.0.1", 0))
+        self.port = sock.getsockname()[1]
+        self.url = f"http://127.0.0.1:{self.port}"
+        self.server = uvicorn.Server(uvicorn.Config(app_factory(self.port), log_level="warning"))
+        self.thread = threading.Thread(
+            target=self.server.run, kwargs={"sockets": [sock]}, daemon=True
+        )
+        self.thread.start()
+        deadline = time.monotonic() + 10
+        while not self.server.started and time.monotonic() < deadline:
+            time.sleep(0.05)
+
+    def stop(self):
+        self.server.should_exit = True
+        self.thread.join(timeout=30)
+
+
+@pytest.fixture
+def live(settings):
+    servers = []
+
+    def start(**kwargs):
+        server = LiveServer(lambda port: fake_app(settings, port=port, **kwargs))
+        servers.append(server)
+        return server
+
+    yield start
+    for server in servers:
+        server.stop()
 
 
 @pytest.fixture(scope="session")
