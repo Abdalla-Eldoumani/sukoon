@@ -245,6 +245,10 @@ def build_router(services: Services) -> APIRouter:
                 reencode_ok=body.confirm or (old.reencode_ok and fmt == old.format),
             )
             target = next_state(p, options)
+            if job["state"] == "awaiting_track" and body.track is None:
+                target = (
+                    "awaiting_track"  # A format change alone does not answer the track question.
+                )
             if target == job["state"]:
                 job = store.update(job_id, options=options.to_json())
             else:
