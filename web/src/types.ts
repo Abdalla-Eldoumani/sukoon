@@ -43,6 +43,8 @@ export interface Job {
   tracks: Track[]
   notes: string[]
   formats: FormatChoice[]
+  /** Where the audio previews start on the video's timeline, in seconds. */
+  offset: number
   confirm: string | null
   output_name: string | null
 }
