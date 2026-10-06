@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { FakeEventSource, job, model } from './test/fixtures'
 
+beforeEach(() => vi.stubGlobal('EventSource', FakeEventSource))
 afterEach(() => vi.unstubAllGlobals())
 
 function serveHealth(device: string) {
@@ -39,5 +41,29 @@ describe('App', () => {
       expect(screen.getByText('Release to add')).toBeInTheDocument()
       expect(screen.getByTestId('drag-frame')).toBeInTheDocument()
     })
+  })
+
+  it('lists jobs from the event stream and follows their changes', async () => {
+    serveHealth('CPU')
+    render(<App />)
+    act(() => FakeEventSource.last!.emit('snapshot', { jobs: [job({ state: 'queued' })], models: [] }))
+    expect(screen.getByText('Queued')).toBeInTheDocument()
+    act(() => FakeEventSource.last!.emit('job', job({ state: 'separating', progress: 0.5 })))
+    expect(screen.getByText('Separating')).toBeInTheDocument()
+    expect(screen.getByText('50%')).toBeInTheDocument()
+    act(() => FakeEventSource.last!.emit('deleted', { id: 'a1' }))
+    expect(screen.queryByRole('list', { name: 'Queue' })).toBeNull()
+  })
+
+  it('shows the model card while a job waits for its model', () => {
+    serveHealth('CPU')
+    render(<App />)
+    act(() =>
+      FakeEventSource.last!.emit('snapshot', {
+        jobs: [job({ state: 'waiting_model' })],
+        models: [model(), model({ preset: 'fast', size: 66_762_490 })],
+      }),
+    )
+    expect(screen.getByRole('button', { name: 'Download Best (913 MB)' })).toBeInTheDocument()
   })
 })
