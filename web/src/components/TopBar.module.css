@@ -15,6 +15,7 @@
 }
 
 .wordmark {
+  margin: 0;
   font-size: 18px;
   line-height: 1;
   letter-spacing: 0.02em;
