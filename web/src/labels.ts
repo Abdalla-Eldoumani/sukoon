@@ -1,7 +1,7 @@
 import type { JobState } from './types'
 
 export const STATE_LABEL: Record<JobState, string> = {
-  uploading: 'Checking',
+  uploading: 'Uploading',
   fetching: 'Fetching',
   checking: 'Checking',
   awaiting_track: 'Choose track',
