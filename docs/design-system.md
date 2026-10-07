@@ -28,48 +28,28 @@ Rules that follow from the contract.
 
 ## Colors
 
-The app follows the operating system theme and has a manual toggle. Dark is the reference theme: warm graphite. Light is the same panel by daylight: cool aluminium, never cream.
+Five themes, all built from the same thirteen tokens, so a component never names a colour. The values live in `web/styles/themes.css`, one block per theme. Night is the reference: warm graphite. Day is the same panel by daylight, cool aluminium, never cream. High contrast is pure black and white with hairlines you can see. Parchment is warm paper with brown-black ink. Midnight is blue-black with a cooler steel. The picker's System choice follows the computer's light or dark setting, and picks High contrast when the computer asks for more contrast.
 
-### Dark
+| Token | Use | Night | Day | High contrast | Parchment | Midnight |
+| --- | --- | --- | --- | --- | --- | --- |
+| --ground | Page, rows | #12110F | #ECECE8 | #000000 | #EFE7D6 | #0A0E16 |
+| --band | Selected row, review panel, fields, the settings sheet, the empty strip | #1C1B18 | #E0E0DA | #111111 | #E5DBC6 | #121826 |
+| --rule | Hairlines, lane center lines, empty tracks | #2F2D28 | #C9C9C1 | #6E6E6E | #D3C6AB | #232B3C |
+| --edge | Borders of fields, quiet buttons, switches | #6B675D | #7A7A70 | #C4C4C4 | #857761 | #626E84 |
+| --text | Primary text, progress, playhead | #EEEBE3 | #191A18 | #FFFFFF | #251A0F | #E7EBF3 |
+| --text-2 | Secondary text | #A8A396 | #4A4B44 | #E3E3E3 | #58493A | #9EA9BC |
+| --ink | Primary button, focus ring, drag frame, a switch that is on | #EEEBE3 | #191A18 | #FFFFFF | #251A0F | #E7EBF3 |
+| --on-ink | Text and knobs on ink | #12110F | #ECECE8 | #000000 | #EFE7D6 | #0A0E16 |
+| --voice | The voice lane (graphic) | #F0A23A | #A15F00 | #FFB43D | #A6560A | #F4AD4E |
+| --voice-text | The voice lane's label | #F0A23A | #7A4700 | #FFB43D | #7C3E05 | #F4AD4E |
+| --removed | The removed lane, and its label | #7C97A8 | #46606F | #A3D4F2 | #3D5766 | #88A8C0 |
+| --fault | Errors | #EF6F5E | #AE3226 | #FF9182 | #A52E1D | #F2806F |
+| --scrim | Behind the settings sheet | rgba(18, 17, 15, 0.72) | rgba(236, 236, 232, 0.72) | rgba(0, 0, 0, 0.86) | rgba(239, 231, 214, 0.74) | rgba(10, 14, 22, 0.74) |
+| --focus | Focus ring width | 2px | 2px | 3px | 2px | 2px |
 
-| Token | Hex | CSS var | Use |
-| --- | --- | --- | --- |
-| ground | #12110F | --ground | Page, rows |
-| band | #1C1B18 | --band | Selected row, review panel, fields, the settings sheet |
-| rule | #2F2D28 | --rule | Hairlines between rows, lane center lines, empty tracks |
-| edge | #6B675D | --edge | Borders of fields, quiet buttons, and switches |
-| text | #EEEBE3 | --text | Primary text, progress, playhead |
-| text-2 | #A8A396 | --text-2 | Secondary text, metadata |
-| ink | #EEEBE3 | --ink | Primary button fill, focus ring, drag frame |
-| on-ink | #12110F | --on-ink | Text on the primary button |
-| voice | #F0A23A | --voice | The voice lane, and its label |
-| removed | #7C97A8 | --removed | The removed-music lane, and its label |
-| fault | #EF6F5E | --fault | Errors |
-| scrim | rgba(18, 17, 15, 0.72) | --scrim | Behind the settings sheet |
+Contrast (WCAG 2.2), on both --ground and --band, in every theme: --text at least 12:1; --text-2, --voice-text, --removed, and --fault at least 4.5:1; --voice (a graphic) and --edge (control boundaries) at least 3:1; --on-ink on --ink at least 13:1. --rule is decorative except in High contrast, and no control relies on it. A theme that fails any of these doesn't ship.
 
-Contrast (WCAG 2.2): text on ground 15.84, on band 14.46. text-2 on ground 7.50, on band 6.84. voice on ground 8.93, on band 8.15. removed on ground 6.15, on band 5.62. fault on ground 6.39, on band 5.83. on-ink on ink 15.84. edge on ground 3.35, on band 3.05 (control boundaries need 3). Rule on ground is 1.37 and is decorative only; no control relies on it.
-
-### Light
-
-| Token | Hex | CSS var | Use |
-| --- | --- | --- | --- |
-| ground | #ECECE8 | --ground | Page, rows |
-| band | #E0E0DA | --band | Selected row, review panel, fields, the settings sheet |
-| rule | #C9C9C1 | --rule | Hairlines |
-| edge | #7A7A70 | --edge | Borders of fields, quiet buttons, and switches |
-| text | #191A18 | --text | Primary text, progress, playhead |
-| text-2 | #4A4B44 | --text-2 | Secondary text |
-| ink | #191A18 | --ink | Primary button fill, focus ring, drag frame |
-| on-ink | #ECECE8 | --on-ink | Text on the primary button |
-| voice | #A15F00 | --voice | The voice lane (graphic) |
-| voice-text | #7A4700 | --voice-text | The voice lane's label (text) |
-| removed | #46606F | --removed | The removed-music lane, and its label |
-| fault | #AE3226 | --fault | Errors |
-| scrim | rgba(236, 236, 232, 0.72) | --scrim | Behind the settings sheet |
-
-Contrast: text on ground 14.75, on band 13.18. text-2 on ground 7.45, on band 6.65. voice (graphic only) on ground 4.27, on band 3.82. voice-text on ground 6.50, on band 5.81. removed on ground 5.61, on band 5.01. fault on ground 5.40, on band 4.82. on-ink on ink 14.75. edge on ground 3.66, on band 3.27. In dark, `--voice-text` equals `--voice`.
-
-Amber and steel are close in lightness (1.45 dark, 1.31 light), so they are never the only difference between two things: the lanes sit on opposite sides of a line, and each lane is labelled in words.
+Amber and steel are close in lightness (1.1 to 1.5:1 apart), so they are never the only difference between two things: the lanes sit on opposite sides of a line, and each lane is labelled in words.
 
 ## Typography
 
@@ -108,7 +88,7 @@ Base unit 4px. Tokens: --s1 4px, --s2 8px, --s3 12px, --s4 16px, --s5 20px, --s6
 - Top bar: 64px tall, a hairline under it.
 - Queue row: at least 76px tall, 14px vertical padding, a hairline under it. Columns, always in these tracks: glyph 20px, name up to 340px, lane the rest (at least 120px), time 184px (room for "1:02:44 of 1:30:00"), actions 84px, with 20px between them; below 1024px the name and the lane split the width evenly and the time track is 176px. A row with choices or a failure reason, and nothing to draw in its lane, lets the name column take the lane's track. Under 600px the row stacks: glyph, name, and actions on the first line; the lane and the time on the second.
 - Review panel: a --band region under its row, 24px padding top and 32px bottom; video and strip side by side (video 420px) from 1024px wide, stacked below.
-- Intake: starts 18vh down (10vh under 600px).
+- Empty page: the intake starts 14vh down (8vh under 600px), and the empty strip sits 48px under it.
 
 ## Radius and borders
 
@@ -119,7 +99,7 @@ Base unit 4px. Tokens: --s1 4px, --s2 8px, --s3 12px, --s4 16px, --s5 20px, --s6
 
 Nothing else is rounded. Borders are 1px: --edge for anything you can operate, --rule for dividers. Elevation is flat: surfaces separate by tone and hairlines, never by shadow. The settings sheet sits over a --scrim and has a 1px --rule border on its leading edge; it has no shadow.
 
-Focus: 2px solid --ink, offset 2px, on every focusable element, keyboard focus only (`:focus-visible`).
+Focus: --focus (2px, 3px in High contrast) solid --ink, offset 2px, on every focusable element, keyboard focus only (`:focus-visible`).
 
 ## Motion
 
@@ -142,17 +122,18 @@ Every component has default, hover, focus-visible, active, and disabled states, 
 - **Quiet button.** Transparent, text --text, 1px --edge border, same sizes. Hover: --band fill. Icon-only quiet buttons are 36 by 36 with an `aria-label` and a title.
 - **Text field** (the link field): native `<input type="url">`, 44px (40px in the intake bar), --band fill, 1px --edge border, --r-sm, 14px padding, placeholder --text-2. Hover: border --text-2. Invalid: `aria-invalid`, and the sentence under it in small --fault, tied with `aria-describedby`.
 - **Select** (output format, track, default formats): native `<select>`, 40px, --band fill, 1px --edge border, --r-sm. Buttons beside a select (Continue, Re-encode) use the 40px small size.
-- **Segmented control** (quality, device, theme): a row of segments in a 1px --edge frame; the selected one has --ground fill (it sits on the --band sheet), --text, and a 2px --ink underline; the others --text-2. Arrow keys move the choice.
-- **Remove music switch** (link rows, until the job is checked): a 36 by 20 track with a 1px --edge border and a 12px knob, in the same detent as the Original switch, followed by "Remove music" in small text. `role="switch"`, accessible name "Remove music from" plus the file name. Off, the label stays the same and the row's line says "download only".
-- **Intake (empty).** No box. Left-aligned in the gutter: the display line "Drop a recording anywhere on this window.", one sentence in --text-2, body size ("Voices stay and the music goes, all on this computer; a link from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, or SoundCloud is fetched from its site, then cleaned here."), then the primary "Choose files", "or", the link field (420px), and a quiet "Add link". Nothing else. While a drag is over the window, the line reads "Release to add." and the window shows a 2px --ink inset frame. No dashed borders.
+- **Segmented control** (quality, device): a row of segments in a 1px --edge frame; the selected one has --ground fill (it sits on the --band sheet), --text, and a 2px --ink underline; the others --text-2. Arrow keys move the choice.
+- **Remove music switch** (link rows, until the job is checked): a 36 by 20 track with a 1px --edge border and a 12px --text-2 knob, followed by "Remove music" in small text. On, the track fills with --ink and the knob turns --on-ink and steps across in the 90ms detent, so on and off read without comparing positions. `role="switch"`, accessible name "Remove music from" plus the file name. Off, the row's line says "download only".
+- **Theme picker** (settings): a radio group of six swatches, three to a row. Each swatch is a 48px preview drawn in its own theme's tokens (the theme block sits on the preview element): a 56 by 24 stretch of strip, amber bars above a --rule line and steel bars below, on that theme's --ground. System shows Night and Day split on a slant. The name sits under it in small --text-2, --text and 560 weight when chosen. Chosen: a 1px --ink border; hover: a 1px --rule border. Arrow keys move the choice.
+- **Intake (empty).** No box. Left-aligned in the gutter: the display line "Drop a recording anywhere.", one --text-2 line ("Voices stay and the music goes. Everything happens on this computer."), the primary "Choose files", "or" (hidden under 600px), the link field (420px), and a quiet "Add link", then a small --text-2 line naming the link sites. Under it, the empty strip: a full-width --band with a --rule hairline above and below, two 72px lanes (56px under 768px) with a 1px --rule line between them, "Voice kept" in --voice-text at the top left, "Music removed" in --removed at the bottom left, and one small --text-2 sentence at the bottom right (under the lanes below 768px) saying each file gets a strip like it. It's the review strip at rest, with no bars, because no file has given it any. While a drag is over the window, the display line reads "Release to add.", the strip's line turns --ink, and the window shows a 2px --ink inset frame. No dashed borders.
 - **Intake bar (queue).** A row above the queue with a hairline under it: "Drop more files anywhere" in body-strong (hidden below 1024px), quiet "Choose files", the link field (it takes the room left, up to 480px with its button), quiet "Add link", and at the far right quiet "Clear finished" (which asks "Clear 3 finished jobs and their files?" in place, with Clear and Keep). Every button in the bar is the 40px small size.
-- **Queue row.** A band on --ground with a hairline under it. Name column: the file name (name style, on one line, cut at its end with an ellipsis when it runs out of room; the whole name stays in the text, so it is read out in full, and in `title`; the format is on the line under it), then one small --text-2 line: the stage word in --text followed by what it is doing ("Separating", "Waiting, becomes MP3", "Done, MP3"); a link adds where it is from and that it was checked ("from youtube.com, checked as real video"), and "download only" when music removal is off. Choices (track, format, re-encode, Remove music) sit under that line. A failed row's reason replaces the line, in small --fault. Lane column: see Lane. Time column, right-aligned readouts: while decoding, separating, or encoding, how far that pass is through the recording and the total ("17:44 of 30:34"; the server sends the pass's own fraction, since overall progress is weighted across the passes) in readout-strong over the time left ("1:36 left") in readout --text-2; while fetching, the bytes ("31 MB of 74 MB", "1.20 GB of 2.50 GB", or "1 MB so far" without a total); while uploading, the share sent ("37%"); otherwise the duration. The file name, when it opens the review, underlines on hover with a 3px offset. Actions: Cancel while it can be stopped; Download and Delete when done; Retry and Delete when stopped. Selected (review open): --band. The glyph is audio, video, or link (while a link's kind is unknown).
+- **Queue row.** A band on --ground with a hairline under it. Name column: the file name (name style, on one line, cut at its end with an ellipsis when it runs out of room; the whole name stays in the text, so it is read out in full, and in `title`; the format is on the line under it), then one small --text-2 line: the stage word in --text followed by what it is doing ("Separating", "Waiting, becomes MP3", "Done, MP3"); a link adds where it is from and that its file was checked ("from youtube.com, file checked"), and "download only" when music removal is off. Choices (track, format, re-encode, Remove music) sit under that line. A failed row's reason replaces the line, in small --fault. Lane column: see Lane. Time column, right-aligned readouts: while decoding, separating, or encoding, how far that pass is through the recording and the total ("17:44 of 30:34"; the server sends the pass's own fraction, since overall progress is weighted across the passes) in readout-strong over the time left ("1:36 left") in readout --text-2; while fetching, the bytes ("31 MB of 74 MB", "1.20 GB of 2.50 GB", or "1 MB so far" without a total); while uploading, the share sent ("37%"); otherwise the duration. The file name, when it opens the review, underlines on hover with a 3px offset. Actions: Cancel while it can be stopped; Download and Delete when done; Retry and Delete when stopped. Selected (review open): --band. The glyph is audio, video, or link (while a link's kind is unknown).
 - **Lane.** 40px tall, the row's own strip. Done with a cleaned result: the miniature strip, voice above and removed below a 1px gap, drawn from the job's peaks with bars 1px wide every 2px. Working: a 2px --rule line with the done part in --text and a 2px by 16px --text marker at the point reached; it glides. Fetching: the same line in bytes. Waiting, failed, stopped, or download only: the --rule line alone.
 - **The strip** (review). A 20px time ruler (12px readout labels in --text-2, ticks at a round step of 1, 2, 5, 10, 15, or 30 seconds or whole minutes, at most one per 80px) over two lanes of 100px each with a 1px --rule line between them, voice above and removed below, on --band, bars 2px wide every 3px. A tick label that would run past the right edge is left out. Labels in words at the left, small, on a --band backing: "Voice kept" in --voice-text, "Music removed" in --removed. Playhead: 1px --text line with a 6px square cap on the ruler. Click or drag to seek; Left and Right move 5 seconds, Home and End jump, when it has focus.
-- **Transport.** Play and pause (44px quiet icon button), the clock in readout-lg ("0:06 / 0:19", the total in --text-2), then the Original switch: "Clean" and "Original" in small text either side of a 46 by 24 track with a 16px knob that steps across in one 90ms detent (hover fills the track with --ground), and "hold C to compare" after it in small --text-2. Holding C, or holding the switch, plays the original only while held; a click toggles it. `role="switch"` with `aria-checked`. Download (primary) at the far right.
+- **Transport.** Play and pause (44px quiet icon button), the clock in readout-lg ("0:06 / 0:19", the total in --text-2), then the Original switch: "Clean" and "Original" in small text either side of a 46 by 24 track with a 16px knob that steps across in one 90ms detent (hover fills the track with --ground), and "hold C to compare" after it in small --text-2 (hidden on touch screens and under 600px). Holding C, or holding the switch, plays the original only while held; a click toggles it. `role="switch"` with `aria-checked`. Download (primary) at the far right.
 - **Review panel.** Opens under its row. Video and strip side by side from 1024px, so the strip is never under the fold; stacked below that, with the video at most 40vh tall. Audio jobs have the strip at full width.
 - **Model download card.** A band under the intake, with a hairline under it: the title "The separation model downloads once", one sentence ("Best, 913 MB, is the cleaner, and the faster one on a graphics card. Fast, 67 MB, always runs on the processor, for computers without one."), the primary "Download Best (913 MB)" and a quiet "Start with Fast (67 MB)". While downloading: a 2px progress line, --text on --rule, and "322 MB of 913 MB at 16.3 MB/s". Its text is held to 60 characters a line.
-- **Settings sheet.** Slides in from the right, 380px wide (full width under 600px), --band, over a --scrim that closes it on click. Groups with small --text-2 headings in sentence case: Quality ("Best is cleaner, and on a graphics card it is also the faster. Fast always runs on the processor."), Device, Default output format, Theme, Data folder (path in a readout, Open the cleaned files), Storage (sizes in readouts, Clear finished jobs).
+- **Settings sheet.** Slides in from the right, 380px wide (full width under 600px), --band, over a --scrim that closes it on click. Groups with small --text-2 headings in sentence case: Quality ("Best is cleaner, and on a graphics card it is also the faster. Fast always runs on the processor."), Device, Default output format, Theme (the picker), Data folder (path in a readout, Open the cleaned files), Storage (sizes in readouts, Clear finished jobs).
 - **Setup screen.** The top bar with the wordmark (no settings button), then the intake layout: the display line "sukoon needs ffmpeg.", one sentence, the command in a readout on --band with 12px by 16px padding, square, and the primary "Check again".
 - **Errors.** Inline, next to what failed, in --fault, written as what happened plus what to do. Never a toast for an error.
 
