@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { postJson } from '../api'
-import type { Job, Track } from '../types'
+import { postJson } from '../../lib/api/client'
+import type { Job, Track } from '../../lib/api/types'
 import styles from './JobChoices.module.css'
 
 const CHOOSABLE = new Set(['awaiting_track', 'awaiting_confirm', 'queued', 'waiting_model'])
