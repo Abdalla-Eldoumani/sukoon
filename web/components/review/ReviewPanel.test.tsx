@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { job } from '../test/fixtures'
+import { job } from '../../test/fixtures'
 import { ReviewPanel } from './ReviewPanel'
 
 beforeEach(() => {
