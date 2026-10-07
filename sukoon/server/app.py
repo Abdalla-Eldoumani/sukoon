@@ -7,17 +7,20 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from sukoon import __version__, tools
-from sukoon.api import Services, build_router
-from sukoon.device import detect_cached
-from sukoon.download import Downloads
-from sukoon.models import Preset
-from sukoon.runner import Runner
+from sukoon import __version__
+from sukoon.jobs.runner import Runner
+from sukoon.jobs.store import Store
+from sukoon.media import tools
+from sukoon.separation.device import detect_cached
+from sukoon.separation.download import Downloads
+from sukoon.separation.models import Preset
+from sukoon.separation.worker import Worker, WorkerConfig
+from sukoon.server.router import build_router
+from sukoon.server.services import Services
 from sukoon.settings import Settings
-from sukoon.store import Store
-from sukoon.worker import Worker, WorkerConfig
 
-WEB_DIST = Path(__file__).parent / "web_dist"
+# The built interface, which scripts/build_web.py puts in the package.
+WEB_DIST = Path(__file__).parents[1] / "web_dist"
 
 SECURITY_HEADERS = [
     (
