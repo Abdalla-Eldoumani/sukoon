@@ -7,9 +7,11 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from sukoon.cli import bind_first_free, clean, main
-from sukoon.engine import FakeEngine
-from sukoon.pipeline import Options
+from sukoon.cli.clean import clean
+from sukoon.cli.main import main
+from sukoon.cli.serve import bind_first_free
+from sukoon.jobs.pipeline import Options
+from sukoon.separation.engine import FakeEngine
 
 
 def free_port_pair():
@@ -170,8 +172,8 @@ def test_clean_format_option(corpus, settings, tmp_path):
 def test_clean_reports_a_tampered_model_instead_of_crashing(corpus, settings, tmp_path):
     import hashlib
 
-    from sukoon.engine import AudioSeparatorEngine
-    from sukoon.models import CHECKSUM_MESSAGE, ModelFile
+    from sukoon.separation.engine import AudioSeparatorEngine
+    from sukoon.separation.models import CHECKSUM_MESSAGE, ModelFile
 
     body = b"weights" * 100
     files = (

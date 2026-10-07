@@ -10,8 +10,8 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from sukoon.store import Store
-from sukoon.worker import Worker, WorkerConfig
+from sukoon.jobs.store import Store
+from sukoon.separation.worker import Worker, WorkerConfig
 from tests.conftest import BASE, fake_app, fixture_script
 from tests.test_api import upload, wait
 
@@ -190,7 +190,7 @@ def test_restart_interrupts_running_jobs_and_sweeps_leftovers(settings, web_dist
     folder = settings.home / "uploads" / job["id"]
     folder.mkdir(parents=True)
     (folder / "source.wav").write_bytes((corpus / "short-2s.wav").read_bytes())
-    from sukoon.probe import probe
+    from sukoon.media.probe import probe
 
     store.update(job["id"], probe=probe(folder / "source.wav").to_json(), kind="audio")
     for state in ("queued", "decoding", "separating"):

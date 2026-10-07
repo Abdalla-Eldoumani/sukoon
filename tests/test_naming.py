@@ -1,6 +1,6 @@
 import pytest
 
-from sukoon.naming import content_disposition, download_name
+from sukoon.media.naming import content_disposition, download_name
 
 
 @pytest.mark.parametrize(

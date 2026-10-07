@@ -4,8 +4,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from sukoon.download import OFFLINE_MESSAGE, DownloadError, download_file, download_preset
-from sukoon.models import CHECKSUM_MESSAGE, ModelChecksumError, ModelFile
+from sukoon.separation.download import (
+    OFFLINE_MESSAGE,
+    DownloadError,
+    download_file,
+    download_preset,
+)
+from sukoon.separation.models import CHECKSUM_MESSAGE, ModelChecksumError, ModelFile
 
 BODY = bytes(range(256)) * 4096  # 1 MiB
 SHA = hashlib.sha256(BODY).hexdigest()

@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from sukoon.store import Store, TransitionError
+from sukoon.jobs.store import Store, TransitionError
 
 
 @pytest.fixture

@@ -11,10 +11,11 @@ import pytest
 from fastapi.testclient import TestClient
 from packaging.requirements import Requirement
 
-from sukoon import doctor
-from sukoon.doctor import age_in_days, node_major
+from sukoon.cli import doctor
+from sukoon.cli.doctor import age_in_days, node_major
 from sukoon.errors import JobError
-from sukoon.links import (
+from sukoon.links.fetch import assemble, fetch
+from sukoon.links.messages import (
     AGE,
     CRASHED,
     DRM,
@@ -26,16 +27,10 @@ from sukoon.links import (
     REGION,
     STALLED,
     UPDATE,
-    LinkRefused,
-    assemble,
-    explain,
-    fetch,
-    guarded,
-    refusal,
-    site,
-    ytdl_options,
 )
-from sukoon.probe import PLAYLIST as PLAYLIST_FILE
+from sukoon.links.sites import LinkRefused, site
+from sukoon.links.ytdlp import explain, guarded, refusal, ytdl_options
+from sukoon.media.probe import PLAYLIST as PLAYLIST_FILE
 from tests.conftest import BASE, fake_app
 from tests.test_api import wait
 

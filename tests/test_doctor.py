@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sukoon import doctor
+from sukoon.cli import doctor
 
 ALL_ENCODERS = "libmp3lame aac libopus libvorbis flac pcm_s24le libx264 libvpx-vp9"
 

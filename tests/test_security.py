@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from sukoon.probe import PLAYLIST, Rejected, probe
+from sukoon.media.probe import PLAYLIST, Rejected, probe
 from sukoon.settings import Settings, UnsafePathError
 from tests.test_api import upload, wait
 
