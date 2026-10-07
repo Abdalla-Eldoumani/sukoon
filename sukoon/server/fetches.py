@@ -62,6 +62,11 @@ def run_fetch(services: Services, job_id: str) -> None:
     except Canceled:
         shutil.rmtree(folder, ignore_errors=True)
         return
+    except sqlite3.ProgrammingError:
+        # The store closed under a progress update: the app is stopping, and the next start
+        # marks this job interrupted.
+        shutil.rmtree(folder, ignore_errors=True)
+        return
     except Exception as exc:
         shutil.rmtree(folder, ignore_errors=True)
         if not isinstance(exc, JobError):
