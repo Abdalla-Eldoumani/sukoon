@@ -13,15 +13,15 @@ from typing import Any, Literal, Protocol
 import numpy as np
 import soundfile as sf
 
-from sukoon import compat, ffmpeg
-from sukoon.chunk import ChunkReport
-from sukoon.decode import decode, mmss
-from sukoon.device import DevicePreference
-from sukoon.encode import AUDIO_FORMATS, default_audio_format, encode_audio, output_rate
 from sukoon.errors import DISK_FULL, JobError
-from sukoon.models import Preset
-from sukoon.mux import mux_video
-from sukoon.probe import Probe
+from sukoon.media import compat, ffmpeg
+from sukoon.media.decode import decode, mmss
+from sukoon.media.encode import AUDIO_FORMATS, default_audio_format, encode_audio, output_rate
+from sukoon.media.mux import mux_video
+from sukoon.media.probe import Probe
+from sukoon.separation.chunk import ChunkReport
+from sukoon.separation.device import DevicePreference
+from sukoon.separation.models import Preset
 
 Stage = Literal["decoding", "separating", "encoding"]
 # Share of the bar each stage fills; separation is nearly all of the wait.
