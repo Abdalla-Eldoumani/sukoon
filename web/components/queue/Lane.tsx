@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { loadPeaks, paintLanes, useCanvas, type Peaks } from '../lanes'
-import type { Job } from '../types'
+import { loadPeaks, paintLanes, useCanvas, type Peaks } from '../../lib/review/lanes'
+import type { Job } from '../../lib/api/types'
 import styles from './Lane.module.css'
 
 /** How far a job has got, 0 to 1, when that is known. */
