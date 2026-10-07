@@ -1,4 +1,4 @@
-import type { Job, ModelState } from '../types'
+import type { Job, ModelState } from '../lib/api/types'
 
 export function job(fields: Partial<Job> = {}): Job {
   return {

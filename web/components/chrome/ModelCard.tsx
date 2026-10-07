@@ -1,5 +1,5 @@
-import { megabytes } from '../format'
-import type { ModelState, Preset } from '../types'
+import { megabytes } from '../../lib/text/format'
+import type { ModelState, Preset } from '../../lib/api/types'
 import styles from './ModelCard.module.css'
 
 interface Props {

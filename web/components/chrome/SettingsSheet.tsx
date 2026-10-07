@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { request, type Settings } from '../api'
-import { megabytes } from '../format'
-import { applyTheme, storedTheme, type Theme } from '../theme'
-import { CancelIcon, FolderIcon } from './icons'
-import { Segmented } from './Segmented'
+import { request, type Settings } from '../../lib/api/client'
+import { megabytes } from '../../lib/text/format'
+import { applyTheme, storedTheme, type Theme } from '../../lib/theme/theme'
+import { CancelIcon, FolderIcon } from '../ui/icons'
+import { Segmented } from '../ui/Segmented'
 import styles from './SettingsSheet.module.css'
 
 const AUDIO = ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg']

@@ -14,6 +14,6 @@ export default defineConfig({
   build: { outDir: 'dist', assetsInlineLimit: 0 },
   test: {
     environment: 'jsdom',
-    setupFiles: ['src/test/setup.ts'],
+    setupFiles: ['test/setup.ts'],
   },
 })

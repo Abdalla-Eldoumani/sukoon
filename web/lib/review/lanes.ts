@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from 'react'
-import { getJson } from './api'
+import { getJson } from '../api/client'
 
 export interface Peaks {
   seconds: number

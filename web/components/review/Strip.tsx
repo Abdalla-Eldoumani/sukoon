@@ -1,9 +1,9 @@
 import { useCallback, useRef, type KeyboardEvent, type PointerEvent } from 'react'
-import { clock } from '../format'
-import { cssVar, paintLanes, useCanvas, type Peaks } from '../lanes'
+import { clock } from '../../lib/text/format'
+import { cssVar, paintLanes, useCanvas, type Peaks } from '../../lib/review/lanes'
 import styles from './Strip.module.css'
 
-export type { Peaks } from '../lanes'
+export type { Peaks } from '../../lib/review/lanes'
 
 const RULER = 20
 const LANE = 100
