@@ -225,6 +225,10 @@ def fake_fetch(url, folder, outbox, max_seconds, max_bytes):
         time.sleep(120)
     if what == "crash":
         os._exit(3)
+    if what == "trickle":
+        for n in range(1, 2400):
+            outbox.put(("progress", (n * 1000, 10_000_000)))
+            time.sleep(0.05)
     if what == "huge":
         outbox.put(("progress", (max_bytes + 1, None)))
         time.sleep(120)
@@ -447,6 +451,18 @@ def test_a_restart_during_a_fetch_leaves_it_interrupted_with_retry(settings, web
         again = c.get(f"/api/jobs/{job['id']}").json()
         assert again["state"] == "interrupted"
         assert again["retryable"]
+
+
+def test_stopping_the_app_mid_download_logs_no_error(settings, web_dist, corpus, caplog):
+    with TestClient(
+        fake_app(settings, web_dist=web_dist, fetch_options={"target": fake_fetch}),
+        base_url=BASE,
+    ) as c:
+        job = link(c, "trickle")
+        wait(c, job["id"], {"fetching"})
+        time.sleep(1)
+    time.sleep(1)
+    assert [r.getMessage() for r in caplog.records if r.levelname == "ERROR"] == []
 
 
 def test_doctor_counts_yt_dlp_age_from_its_version():

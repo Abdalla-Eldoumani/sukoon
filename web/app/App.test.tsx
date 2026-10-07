@@ -24,8 +24,8 @@ describe('App', () => {
     serveHealth('CPU')
     render(<App />)
     expect(screen.getByRole('heading', { level: 1, name: 'sukoon سكون' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Drop a recording anywhere on this window.' })).toBeInTheDocument()
-    expect(screen.getByText(/Voices stay and the music goes, all on this computer/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Drop a recording anywhere.' })).toBeInTheDocument()
+    expect(screen.getByText('Voices stay and the music goes. Everything happens on this computer.')).toBeInTheDocument()
   })
 
   it('shows the device the server reports', async () => {
@@ -85,7 +85,7 @@ describe('App', () => {
     serveHealth('CPU', false)
     render(<App />)
     expect(await screen.findByRole('heading', { name: 'sukoon needs ffmpeg.' })).toBeInTheDocument()
-    expect(screen.queryByText('Drop a recording anywhere on this window.')).toBeNull()
+    expect(screen.queryByText('Drop a recording anywhere.')).toBeNull()
   })
 
   it('keeps a saved setting when an earlier change is refused afterwards', async () => {

@@ -1,0 +1,63 @@
+/* Drawn like the review strip with nothing in it: a band, two lanes, the line between them. */
+.strip {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 72px 1px 72px;
+  margin: 0;
+  padding: 0 var(--inline);
+  background: var(--band);
+  border-block: 1px solid var(--rule);
+}
+
+.voice {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  padding-top: var(--s3);
+  color: var(--voice-text);
+}
+
+.line {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  background: var(--rule);
+  transition: background-color var(--d-hover) var(--ease-out);
+}
+
+.removed {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: end;
+  padding-bottom: var(--s3);
+  color: var(--removed);
+}
+
+.caption {
+  grid-column: 2;
+  grid-row: 3;
+  align-self: end;
+  max-width: 44ch;
+  padding-bottom: var(--s3);
+  color: var(--text-2);
+  text-align: right;
+}
+
+/* While a file is held over the window, the line it will land on is drawn in ink. */
+.strip[data-dragging] .line {
+  background: var(--ink);
+}
+
+@media (max-width: 767px) {
+  .strip {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px 1px 56px auto;
+  }
+
+  .caption {
+    grid-column: 1;
+    grid-row: 4;
+    max-width: none;
+    padding: var(--s3) 0 var(--s4);
+    text-align: left;
+  }
+}

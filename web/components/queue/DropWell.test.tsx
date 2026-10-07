@@ -8,14 +8,22 @@ const noLink = async () => true
 describe('DropWell', () => {
   it('invites a drop and offers a button for people who do not drag', () => {
     render(<DropWell compact={false} dragging={false} onFiles={() => {}} onLink={noLink} />)
-    expect(screen.getByRole('heading', { name: 'Drop a recording anywhere on this window.' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Drop a recording anywhere.' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Choose files' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Link to a video' })).toBeInTheDocument()
   })
 
-  it('says release while files are over the window', () => {
-    render(<DropWell compact={false} dragging onFiles={() => {}} onLink={noLink} />)
+  it('shows the empty strip the files will fill, and the sites links work from', () => {
+    render(<DropWell compact={false} dragging={false} onFiles={() => {}} onLink={noLink} />)
+    expect(screen.getByText('Voice kept')).toBeInTheDocument()
+    expect(screen.getByText('Music removed')).toBeInTheDocument()
+    expect(screen.getByText(/Links work from YouTube, X, Instagram, TikTok/)).toBeInTheDocument()
+  })
+
+  it('says release, and inks the strip line, while files are over the window', () => {
+    const { container } = render(<DropWell compact={false} dragging onFiles={() => {}} onLink={noLink} />)
     expect(screen.getByText('Release to add.')).toBeInTheDocument()
+    expect(container.querySelector('figure')).toHaveAttribute('data-dragging')
   })
 
   it('hands chosen files over', async () => {

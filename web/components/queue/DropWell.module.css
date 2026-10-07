@@ -1,9 +1,16 @@
+/* The empty page: the way in, then the strip the files will fill. */
 .intake {
-  padding: 18vh var(--inline) var(--s12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s12);
 }
 
-.intake > :global(.display) {
-  max-width: 15ch;
+.hero {
+  padding: 14vh var(--inline) 0;
+}
+
+.hero > :global(.display) {
+  max-width: 18ch;
 }
 
 .lede {
@@ -35,6 +42,11 @@
 .intake .link input {
   width: 420px;
   max-width: 100%;
+}
+
+.sites {
+  margin: var(--s4) 0 0;
+  color: var(--text-2);
 }
 
 .error {
@@ -80,8 +92,12 @@
 }
 
 @media (max-width: 599px) {
-  .intake {
-    padding-top: 10vh;
+  .hero {
+    padding-top: 8vh;
+  }
+
+  .or {
+    display: none;
   }
 
   .intake .link,

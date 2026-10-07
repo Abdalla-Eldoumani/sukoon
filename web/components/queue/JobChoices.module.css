@@ -37,6 +37,7 @@
   border: 1px solid var(--edge);
   border-radius: var(--r-sm);
   cursor: pointer;
+  transition: background-color var(--d-hover) var(--ease-out);
 }
 
 .toggle input::after {
@@ -51,11 +52,17 @@
   transition: transform var(--d-detent) var(--ease-out);
 }
 
-.toggle input:checked::after {
-  transform: translateX(16px);
-  background: var(--text);
+/* On fills the track in ink, so the state reads without comparing knob positions. */
+.toggle input:checked {
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
-.toggle:hover input {
+.toggle input:checked::after {
+  transform: translateX(16px);
+  background: var(--on-ink);
+}
+
+.toggle:hover input:not(:checked) {
   background: var(--band);
 }

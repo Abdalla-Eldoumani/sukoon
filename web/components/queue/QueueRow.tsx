@@ -28,13 +28,13 @@ interface Props {
   onSelect?: (job: Job) => void
 }
 
-/** What sits after the stage word: where a link came from, what it was checked as, and the format. */
+/** What sits after the stage word: where a link came from, that its file was checked, and the format. */
 function details(job: Job): string[] {
   const out: string[] = []
   if (job.link) {
     out.push(`from ${job.link.site}`)
     // Only once ffprobe has read it, the same check an upload gets; never a virus scan.
-    if (job.kind) out.push(`checked as real ${job.kind}`)
+    if (job.kind) out.push('file checked')
     if (job.options.keep_music) out.push('download only')
   }
   if (job.state === 'done' && job.output_name) out.push(job.output_name.split('.').pop()!.toUpperCase())

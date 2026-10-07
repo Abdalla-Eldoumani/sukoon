@@ -58,3 +58,10 @@
 .switch:hover {
   background: var(--ground);
 }
+
+/* No keyboard to hold C on a touch screen, and no room for the hint on a phone. */
+@media (pointer: coarse), (max-width: 599px) {
+  .hint {
+    display: none;
+  }
+}

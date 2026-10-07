@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from 'react'
 import styles from './DropWell.module.css'
+import { EmptyStrip } from './EmptyStrip'
 
 export const ACCEPT =
   'audio/*,video/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.webm,.mp4,.mov,.mkv,.avi'
@@ -93,17 +94,20 @@ export function DropWell({ compact, dragging, onFiles, onLink, linkError = null 
   }
   return (
     <section className={styles.intake} aria-label="Add files">
-      <h2 className="display">{dragging ? 'Release to add.' : 'Drop a recording anywhere on this window.'}</h2>
-      <p className={styles.lede}>
-        Voices stay and the music goes, all on this computer; a link from YouTube, X, Instagram, TikTok, Facebook,
-        Reddit, Vimeo, or SoundCloud is fetched from its site, then cleaned here.
-      </p>
-      <div className={styles.controls}>
-        {choose}
-        <span className={styles.or}>or</span>
-        {link}
+      <div className={styles.hero}>
+        <h2 className="display">{dragging ? 'Release to add.' : 'Drop a recording anywhere.'}</h2>
+        <p className={styles.lede}>Voices stay and the music goes. Everything happens on this computer.</p>
+        <div className={styles.controls}>
+          {choose}
+          <span className={styles.or}>or</span>
+          {link}
+        </div>
+        {error}
+        <p className={`small ${styles.sites}`}>
+          Links work from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud.
+        </p>
       </div>
-      {error}
+      <EmptyStrip dragging={dragging} />
       {picker}
     </section>
   )
