@@ -2,7 +2,7 @@ import subprocess
 
 import pytest
 
-from sukoon.probe import NO_SOUND, PLAYLIST, UNREADABLE, Probe, Rejected, probe
+from sukoon.media.probe import NO_SOUND, PLAYLIST, UNREADABLE, Probe, Rejected, probe
 
 
 @pytest.mark.parametrize(
@@ -100,7 +100,7 @@ def test_probe_round_trips_through_json(corpus):
     ],
 )
 def test_format_denylist(format_name, denied):
-    from sukoon.probe import is_denied
+    from sukoon.media.probe import is_denied
 
     assert is_denied(format_name) is denied
 
