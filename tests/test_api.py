@@ -11,8 +11,8 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from sukoon.models import ModelFile
-from sukoon.probe import NO_SOUND, PLAYLIST, UNREADABLE
+from sukoon.media.probe import NO_SOUND, PLAYLIST, UNREADABLE
+from sukoon.separation.models import ModelFile
 from tests.conftest import BASE, fake_app
 
 FINISHED = {"done", "failed", "canceled", "interrupted", "awaiting_track", "waiting_model"}
@@ -321,7 +321,7 @@ def test_cancel_a_finished_job_changes_nothing(client, corpus):
 
 
 def test_event_stream_sends_keep_alives(live, monkeypatch):
-    monkeypatch.setattr("sukoon.api.KEEPALIVE_S", 0.2)
+    monkeypatch.setattr("sukoon.server.routes.events.KEEPALIVE_S", 0.2)
     server = live()
     lines = []
     with httpx.stream("GET", f"{server.url}/api/events", timeout=10) as r:
