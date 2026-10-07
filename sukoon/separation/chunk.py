@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from sukoon.engine import Engine, OutOfMemory
 from sukoon.errors import Canceled
+from sukoon.separation.engine import Engine, OutOfMemory
 
 CHUNK_S = 60
 OVERLAP_S = 4
