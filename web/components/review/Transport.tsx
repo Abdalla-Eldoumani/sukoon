@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react'
-import { clock } from '../format'
-import { PauseIcon, PlayIcon } from './icons'
+import { clock } from '../../lib/text/format'
+import { PauseIcon, PlayIcon } from '../ui/icons'
 import styles from './Transport.module.css'
 
 const HOLD_MS = 300
