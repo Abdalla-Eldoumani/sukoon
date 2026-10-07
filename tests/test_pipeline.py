@@ -7,12 +7,12 @@ import subprocess
 import pytest
 import soundfile as sf
 
-from sukoon import pipeline
-from sukoon.chunk import separate_chunked
-from sukoon.engine import FakeEngine
 from sukoon.errors import Canceled, JobError
-from sukoon.pipeline import Options
-from sukoon.probe import probe
+from sukoon.jobs import pipeline
+from sukoon.jobs.pipeline import Options
+from sukoon.media.probe import probe
+from sukoon.separation.chunk import separate_chunked
+from sukoon.separation.engine import FakeEngine
 
 never = functools.partial(bool, False)
 

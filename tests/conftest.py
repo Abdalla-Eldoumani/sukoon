@@ -9,9 +9,9 @@ import pytest
 import uvicorn
 from fastapi.testclient import TestClient
 
-from sukoon.app import create_app
+from sukoon.separation.worker import WorkerConfig
+from sukoon.server.app import create_app
 from sukoon.settings import Settings
-from sukoon.worker import WorkerConfig
 
 PORT = 8417
 BASE = f"http://127.0.0.1:{PORT}"

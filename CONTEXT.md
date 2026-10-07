@@ -21,7 +21,7 @@ Avoid: daemon, service.
 **Chunk.** A 60-second window of decoded audio, with 4 seconds of overlap on each side, separated in one engine call.
 Avoid: segment (the library uses that word for something smaller), block.
 
-**Strip.** The two waveform lanes on the review panel: voice above the center line, removed below.
+**Strip.** Two waveform lanes, voice above the center line and removed below: full size in the review, a miniature on each finished row, and empty on the empty page.
 Avoid: visualizer, spectrogram.
 
 **Compare.** Playing the original audio in place of the cleaned audio at the same moment.
@@ -35,3 +35,6 @@ Avoid: keep music (in the interface), raw download.
 
 **Data folder.** The one directory sukoon reads and writes, holding uploads, scratch, outputs, the database, and models.
 Avoid: cache, app dir.
+
+**Theme.** One set of colours for the whole interface: Night, Day, High contrast, Parchment, or Midnight. System is a choice, not a theme; it picks one of them.
+Avoid: skin, mode (except light and dark mode when talking about the computer's setting).

@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 DIST = WEB / "dist"
-TARGET = ROOT / "src" / "sukoon" / "web_dist"
+TARGET = ROOT / "sukoon" / "web_dist"
 
 
 def npm(*args: str) -> None:

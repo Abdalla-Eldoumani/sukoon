@@ -1,0 +1,270 @@
+:root {
+  --font-ui: 'Archivo Variable', 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Martian Mono Variable', ui-monospace, monospace;
+
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s12: 48px;
+  --s16: 64px;
+
+  --r-sm: 3px;
+  --r-xs: 2px;
+
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --d-detent: 90ms;
+  --d-hover: 160ms;
+  --d-panel: 240ms;
+  --d-draw: 400ms;
+
+  --gutter: 48px;
+  --page: 1440px;
+  /* A band's inner edge: the gutter, or wider once the window passes the page width. */
+  --inline: max(var(--gutter), calc((100% - var(--page)) / 2 + var(--gutter)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --d-detent: 0ms;
+    --d-hover: 0ms;
+    --d-panel: 0ms;
+    --d-draw: 0ms;
+  }
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+
+@media (max-width: 599px) {
+  :root {
+    --gutter: 16px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  font-stretch: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: var(--focus) solid var(--ink);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.display {
+  margin: 0;
+  font-size: clamp(30px, 2.6vw + 14px, 44px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 640;
+  font-stretch: 112%;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.name {
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 560;
+  font-stretch: 87%;
+}
+
+.body-strong {
+  font-weight: 560;
+}
+
+.small {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.readout,
+.readout-strong,
+.readout-lg {
+  font-family: var(--font-mono);
+  font-weight: 450;
+  font-stretch: 87.5%;
+}
+
+.readout {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.readout-strong {
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.readout-lg {
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.btn-primary,
+.btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  height: 44px;
+  padding: 0 22px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color var(--d-hover) var(--ease-out),
+    color var(--d-hover) var(--ease-out),
+    transform var(--d-detent) var(--ease-out);
+}
+
+.btn-primary {
+  background: var(--ink);
+  color: var(--on-ink);
+  border: 1px solid var(--ink);
+  font-weight: 560;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 88%, var(--text-2));
+}
+
+.btn-quiet {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--edge);
+}
+
+.btn-quiet:hover:not(:disabled) {
+  background: var(--band);
+}
+
+.btn-primary:active:not(:disabled),
+.btn-quiet:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled,
+.btn-quiet:disabled {
+  background: var(--band);
+  border-color: var(--band);
+  color: var(--text-2);
+  cursor: default;
+}
+
+.btn-small {
+  height: 40px;
+  padding: 0 var(--s4);
+}
+
+.btn-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--text-2);
+}
+
+.btn-icon:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.select {
+  height: 40px;
+  max-width: 100%;
+  padding: 0 var(--s3);
+  background: var(--band);
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.select:hover {
+  border-color: var(--text-2);
+}
+
+.input {
+  height: 44px;
+  padding: 0 14px;
+  background: var(--band);
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-sm);
+  font: inherit;
+}
+
+.input::placeholder {
+  color: var(--text-2);
+}
+
+.input:hover {
+  border-color: var(--text-2);
+}
+
+.input-small {
+  height: 40px;
+}
+
+/* The review panel's open and close cross-fade, where the browser has view transitions. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--d-panel);
+  animation-timing-function: var(--ease-out);
+}

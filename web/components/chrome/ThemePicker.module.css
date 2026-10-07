@@ -1,0 +1,87 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s2);
+  width: 100%;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s2);
+  padding: var(--s1);
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--d-hover) var(--ease-out),
+    color var(--d-hover) var(--ease-out);
+}
+
+.swatch:hover {
+  color: var(--text);
+  border-color: var(--rule);
+}
+
+.swatch[aria-checked='true'] {
+  color: var(--text);
+  border-color: var(--ink);
+}
+
+.preview {
+  position: relative;
+  display: block;
+  height: 48px;
+  border-radius: var(--r-xs);
+  /* Each sample paints its own theme's ground, so a hairline keeps a pale one off a pale sheet. */
+  box-shadow: inset 0 0 0 1px var(--rule);
+  overflow: hidden;
+}
+
+.sample {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--ground);
+}
+
+.sample[data-half='left'] {
+  clip-path: polygon(0 0, 62% 0, 38% 100%, 0 100%);
+}
+
+.sample[data-half='right'] {
+  clip-path: polygon(62% 0, 100% 0, 100% 100%, 38% 100%);
+}
+
+.sample svg {
+  width: 56px;
+  height: 24px;
+}
+
+.line {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.voice {
+  fill: var(--voice);
+}
+
+.removed {
+  fill: var(--removed);
+}
+
+.name {
+  padding: 0 var(--s1) var(--s1);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.swatch[aria-checked='true'] .name {
+  font-weight: 560;
+}

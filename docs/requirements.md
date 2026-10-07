@@ -98,7 +98,7 @@ Acceptance: for each container pair in the test matrix, ffprobe shows the expect
 - **Privacy.** Server binds to `127.0.0.1` only. No analytics, no crash reporting, no fonts or scripts from a CDN. The only outbound requests are model downloads from the pinned addresses, and, when the user pastes a link, requests to that site and its media servers.
 - **Security.** Requests with a `Host` header other than `127.0.0.1:<port>` or `localhost:<port>` are refused, which stops DNS-rebinding. State-changing requests whose `Origin` is not the app's own are refused, which stops other websites posting to the local server. ffmpeg runs with argument lists, never a shell, with its protocols limited to local files and pipes. Stored files use generated IDs, never user-supplied names.
 - **Performance.** On an RTX 3060 Laptop GPU (6 GB) the target is at least 10 times faster than real time with Best. Measured on 2026-10-06: Best ran at 6.7 times real time on that GPU, short of the target but enough for one user (an hour of audio in about 9 minutes). Fast runs on the CPU, at 1.1 times real time on the same laptop and 0.45 times on a two-core sandbox.
-- **Accessibility.** WCAG 2.2 AA contrast, full keyboard path through drop, queue, player, and download, visible focus, `prefers-reduced-motion` respected, screen-reader names on every control, progress announced politely.
+- **Accessibility.** WCAG 2.2 AA contrast in every theme, and a High contrast theme that System picks when the computer asks for more contrast. Full keyboard path through drop, queue, player, and download, visible focus, `prefers-reduced-motion` respected, screen-reader names on every control, progress announced politely.
 - **Browsers.** Current Chrome, Edge, Firefox, Safari.
 - **Platforms.** Windows 10 and 11 (primary), macOS on Apple Silicon, Linux. Python 3.12.
 
@@ -113,14 +113,8 @@ All data is the user's own and stays on their disk, in the app data folder (`%LO
 
 ## Open items
 
-**Decisions** (each has a recommended answer; the build proceeds on the recommendation unless told otherwise):
+Decided: the name stays sukoon, and finished jobs stay until they're deleted, with the space they use shown in Settings.
 
-- Project name `sukoon`. Recommended: keep.
-- Keep finished jobs until deleted, rather than auto-deleting after some number of days. Recommended: keep, with storage use visible.
+Not yet clear enough to decide: whether a dialogue, music, and effects separator would serve video better than a voice separator (revisit once real use shows how much people miss sound effects), and whether an Arabic interface is wanted.
 
-**Fog** (cannot be phrased precisely yet):
-
-- Whether a dialogue, music, and effects separator would serve video users better than a voice separator. Revisit after real use shows how much people miss the sound effects.
-- Whether an interface translation (Arabic first) is wanted.
-
-**Out of scope for this release:** folders dropped as folders, editing, speech-only mode, hosting, signing in to sites.
+Out of scope for this release: dropping folders, editing, a speech-only mode, hosting, and signing in to sites.

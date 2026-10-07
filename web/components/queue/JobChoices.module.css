@@ -1,0 +1,68 @@
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.text {
+  color: var(--text-2);
+}
+
+.error {
+  color: var(--fault);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* The checkbox drawn as the same detented switch as Original, smaller. */
+.toggle input {
+  appearance: none;
+  position: relative;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background-color var(--d-hover) var(--ease-out);
+}
+
+.toggle input::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-xs);
+  background: var(--text-2);
+  transition: transform var(--d-detent) var(--ease-out);
+}
+
+/* On fills the track in ink, so the state reads without comparing knob positions. */
+.toggle input:checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.toggle input:checked::after {
+  transform: translateX(16px);
+  background: var(--on-ink);
+}
+
+.toggle:hover input:not(:checked) {
+  background: var(--band);
+}

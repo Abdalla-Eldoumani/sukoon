@@ -1,7 +1,7 @@
 import pytest
 
-from sukoon.compat import default_container, plan
-from sukoon.probe import Probe, Stream, probe
+from sukoon.media.compat import default_container, plan
+from sukoon.media.probe import Probe, Stream, probe
 
 
 def synthetic(video="h264", audio=("aac",), subs=()):

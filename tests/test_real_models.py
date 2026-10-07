@@ -10,12 +10,12 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from sukoon import pipeline
-from sukoon.chunk import separate_chunked
-from sukoon.download import download_preset
-from sukoon.engine import AudioSeparatorEngine
-from sukoon.pipeline import Options
-from sukoon.probe import probe
+from sukoon.jobs import pipeline
+from sukoon.jobs.pipeline import Options
+from sukoon.media.probe import probe
+from sukoon.separation.chunk import separate_chunked
+from sukoon.separation.download import download_preset
+from sukoon.separation.engine import AudioSeparatorEngine
 
 pytestmark = [
     pytest.mark.model,
