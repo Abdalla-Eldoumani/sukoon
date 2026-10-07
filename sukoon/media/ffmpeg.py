@@ -4,8 +4,8 @@ import threading
 import time
 from collections.abc import Callable, Sequence
 
-from sukoon import tools
 from sukoon.errors import Canceled
+from sukoon.media import tools
 
 
 class FfmpegError(Exception):
