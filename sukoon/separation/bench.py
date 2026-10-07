@@ -7,10 +7,10 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from sukoon.chunk import separate_chunked
-from sukoon.device import DevicePreference, detect
-from sukoon.engine import Engine
-from sukoon.models import Preset
+from sukoon.separation.chunk import separate_chunked
+from sukoon.separation.device import DevicePreference, detect
+from sukoon.separation.engine import Engine
+from sukoon.separation.models import Preset
 
 RATE = 44100
 SECONDS = 30
