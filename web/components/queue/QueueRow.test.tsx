@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { job } from '../test/fixtures'
+import { job } from '../../test/fixtures'
 import { QueueRow } from './QueueRow'
 
 function row(fields: Parameters<typeof job>[0], problem: string | null = null) {
