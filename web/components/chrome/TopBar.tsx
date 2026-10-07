@@ -1,5 +1,5 @@
-import { megabytes } from '../format'
-import { SettingsIcon } from './icons'
+import { megabytes } from '../../lib/text/format'
+import { SettingsIcon } from '../ui/icons'
 import styles from './TopBar.module.css'
 
 interface Props {
