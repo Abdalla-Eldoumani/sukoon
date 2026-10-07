@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-from sukoon import tools
+from sukoon.media import tools
 
 Kind = Literal["audio", "video"]
 
