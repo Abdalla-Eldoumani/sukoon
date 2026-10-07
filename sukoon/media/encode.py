@@ -3,8 +3,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from sukoon import ffmpeg
-from sukoon.probe import Probe
+from sukoon.media import ffmpeg
+from sukoon.media.probe import Probe
 
 MAX_RATE = 48000
 
