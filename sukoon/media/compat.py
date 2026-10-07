@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePath
 from typing import Literal
 
-from sukoon.probe import Probe
+from sukoon.media.probe import Probe
 
 VIDEO_CONTAINERS = ("mp4", "mkv", "webm", "mov")
 
