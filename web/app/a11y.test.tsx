@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import axe from 'axe-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
-import { FakeEventSource, job, model } from './test/fixtures'
+import { FakeEventSource, job, model } from '../test/fixtures'
 
 const health = { status: 'ok', version: '0.1.0', device: 'CPU', ffmpeg: { ok: true, install: '' } }
 const settings = { preset: 'best', device: 'auto', audio_format: null, video_format: null, missing: {}, folder: '/data' }
