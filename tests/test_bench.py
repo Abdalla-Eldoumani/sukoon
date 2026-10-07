@@ -2,8 +2,8 @@ import re
 
 import soundfile as sf
 
-from sukoon.bench import bench, make_clip
-from sukoon.engine import FakeEngine
+from sukoon.separation.bench import bench, make_clip
+from sukoon.separation.engine import FakeEngine
 
 
 def test_clip_is_thirty_seconds_of_stereo(tmp_path):
