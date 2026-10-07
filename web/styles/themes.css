@@ -1,0 +1,102 @@
+/*
+ * Every colour the interface uses, one block per theme. lib/theme/themes.ts lists the themes and
+ * their names; public/theme.js picks one before the page paints.
+ *
+ * The meanings hold in every theme: amber is the voice that stays, steel is the music taken out,
+ * ink is progress, focus, and the one primary button. A block can sit on any element, so the theme
+ * picker previews each theme inside its own swatch.
+ */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --ground: #12110f;
+  --band: #1c1b18;
+  --rule: #2f2d28;
+  --edge: #6b675d;
+  --text: #eeebe3;
+  --text-2: #a8a396;
+  --ink: #eeebe3;
+  --on-ink: #12110f;
+  --voice: #f0a23a;
+  --voice-text: #f0a23a;
+  --removed: #7c97a8;
+  --fault: #ef6f5e;
+  --scrim: rgba(18, 17, 15, 0.72);
+  --focus: 2px;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --ground: #ecece8;
+  --band: #e0e0da;
+  --rule: #c9c9c1;
+  --edge: #7a7a70;
+  --text: #191a18;
+  --text-2: #4a4b44;
+  --ink: #191a18;
+  --on-ink: #ecece8;
+  --voice: #a15f00;
+  --voice-text: #7a4700;
+  --removed: #46606f;
+  --fault: #ae3226;
+  --scrim: rgba(236, 236, 232, 0.72);
+  --focus: 2px;
+}
+
+/* Pure black and white, hairlines you can see, and a thicker focus ring. */
+[data-theme='contrast'] {
+  color-scheme: dark;
+  --ground: #000000;
+  --band: #111111;
+  --rule: #6e6e6e;
+  --edge: #c4c4c4;
+  --text: #ffffff;
+  --text-2: #e3e3e3;
+  --ink: #ffffff;
+  --on-ink: #000000;
+  --voice: #ffb43d;
+  --voice-text: #ffb43d;
+  --removed: #a3d4f2;
+  --fault: #ff9182;
+  --scrim: rgba(0, 0, 0, 0.86);
+  --focus: 3px;
+}
+
+/* Warm paper and brown-black ink: the light theme for long evenings. */
+[data-theme='parchment'] {
+  color-scheme: light;
+  --ground: #efe7d6;
+  --band: #e5dbc6;
+  --rule: #d3c6ab;
+  --edge: #857761;
+  --text: #251a0f;
+  --text-2: #58493a;
+  --ink: #251a0f;
+  --on-ink: #efe7d6;
+  --voice: #a6560a;
+  --voice-text: #7c3e05;
+  --removed: #3d5766;
+  --fault: #a52e1d;
+  --scrim: rgba(239, 231, 214, 0.74);
+  --focus: 2px;
+}
+
+/* Blue-black, with the steel lane a little cooler to match. */
+[data-theme='midnight'] {
+  color-scheme: dark;
+  --ground: #0a0e16;
+  --band: #121826;
+  --rule: #232b3c;
+  --edge: #626e84;
+  --text: #e7ebf3;
+  --text-2: #9ea9bc;
+  --ink: #e7ebf3;
+  --on-ink: #0a0e16;
+  --voice: #f4ad4e;
+  --voice-text: #f4ad4e;
+  --removed: #88a8c0;
+  --fault: #f2806f;
+  --scrim: rgba(10, 14, 22, 0.74);
+  --focus: 2px;
+}
