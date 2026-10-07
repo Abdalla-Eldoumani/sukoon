@@ -3,9 +3,9 @@ import subprocess
 import pytest
 import soundfile as sf
 
-from sukoon.decode import decode
 from sukoon.errors import Canceled, JobError
-from sukoon.probe import probe
+from sukoon.media.decode import decode
+from sukoon.media.probe import probe
 
 never = lambda: False  # noqa: E731
 
