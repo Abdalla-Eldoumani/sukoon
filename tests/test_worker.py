@@ -10,8 +10,8 @@ import pytest
 import soundfile as sf
 
 from sukoon.errors import Canceled, JobError
-from sukoon.models import CHECKSUM_MESSAGE, ModelFile
-from sukoon.worker import CRASHED, STALLED, Worker, WorkerConfig
+from sukoon.separation.models import CHECKSUM_MESSAGE, ModelFile
+from sukoon.separation.worker import CRASHED, STALLED, Worker, WorkerConfig
 
 SR = 44100
 
@@ -163,7 +163,7 @@ def running(pid):
 SERVER = """
 import os, sys, time
 from pathlib import Path
-from sukoon.worker import Worker, WorkerConfig
+from sukoon.separation.worker import Worker, WorkerConfig
 
 if __name__ == "__main__":
     scratch = Path(sys.argv[1])
