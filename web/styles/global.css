@@ -1,19 +1,4 @@
 :root {
-  color-scheme: dark;
-  --ground: #12110f;
-  --band: #1c1b18;
-  --rule: #2f2d28;
-  --edge: #6b675d;
-  --text: #eeebe3;
-  --text-2: #a8a396;
-  --ink: #eeebe3;
-  --on-ink: #12110f;
-  --voice: #f0a23a;
-  --voice-text: #f0a23a;
-  --removed: #7c97a8;
-  --fault: #ef6f5e;
-  --scrim: rgba(18, 17, 15, 0.72);
-
   --font-ui: 'Archivo Variable', 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'Martian Mono Variable', ui-monospace, monospace;
 
@@ -41,42 +26,6 @@
   --page: 1440px;
   /* A band's inner edge: the gutter, or wider once the window passes the page width. */
   --inline: max(var(--gutter), calc((100% - var(--page)) / 2 + var(--gutter)));
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) {
-    color-scheme: light;
-    --ground: #ecece8;
-    --band: #e0e0da;
-    --rule: #c9c9c1;
-    --edge: #7a7a70;
-    --text: #191a18;
-    --text-2: #4a4b44;
-    --ink: #191a18;
-    --on-ink: #ecece8;
-    --voice: #a15f00;
-    --voice-text: #7a4700;
-    --removed: #46606f;
-    --fault: #ae3226;
-    --scrim: rgba(236, 236, 232, 0.72);
-  }
-}
-
-:root[data-theme='light'] {
-  color-scheme: light;
-  --ground: #ecece8;
-  --band: #e0e0da;
-  --rule: #c9c9c1;
-  --edge: #7a7a70;
-  --text: #191a18;
-  --text-2: #4a4b44;
-  --ink: #191a18;
-  --on-ink: #ecece8;
-  --voice: #a15f00;
-  --voice-text: #7a4700;
-  --removed: #46606f;
-  --fault: #ae3226;
-  --scrim: rgba(236, 236, 232, 0.72);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -131,7 +80,7 @@ input {
 }
 
 :focus-visible {
-  outline: 2px solid var(--ink);
+  outline: var(--focus) solid var(--ink);
   outline-offset: 2px;
 }
 

@@ -5,6 +5,7 @@ import { applyTheme, storedTheme, type Theme } from '../../lib/theme/theme'
 import { CancelIcon, FolderIcon } from '../ui/icons'
 import { Segmented } from '../ui/Segmented'
 import styles from './SettingsSheet.module.css'
+import { ThemePicker } from './ThemePicker'
 
 const AUDIO = ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg']
 const VIDEO = ['mp4', 'mkv', 'webm', 'mov']
@@ -144,14 +145,8 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
 
         <section className={styles.group}>
           <h3 className="small">Theme</h3>
-          <Segmented
-            label="Theme"
+          <ThemePicker
             value={theme}
-            options={[
-              { value: 'system', label: 'System' },
-              { value: 'dark', label: 'Dark' },
-              { value: 'light', label: 'Light' },
-            ]}
             onChange={(t) => {
               setTheme(t)
               applyTheme(t)
