@@ -27,6 +27,8 @@ A local web app that removes music from audio and video files. One person, one m
  models folder, SHA-256 checked before load
 ```
 
+[contributing.md](contributing.md) maps each box to its folder: the app is `sukoon/server/`, the runner and the store are `sukoon/jobs/`, ffmpeg is `sukoon/media/`, the worker is `sukoon/separation/`, and the link fetcher is `sukoon/links/`.
+
 Trust boundaries: the browser is trusted only because it is local, and even so every request is checked for Host and Origin. Uploaded files are untrusted input to ffprobe and ffmpeg. Model files are untrusted until their hash matches. A pasted link is untrusted twice: its address is checked against a fixed list of sites before anything is fetched, and what yt-dlp downloads is checked exactly as an upload is before sukoon's own ffmpeg opens it. The internet is touched only to fetch a model whose hash is already known, and to fetch a link from the site it names when someone pastes it.
 
 ## Load model
@@ -55,7 +57,7 @@ There is no spike to absorb: the queue holds at most 50 waiting jobs and runs th
 | Job metadata and state | SQLite `jobs.db` in the data folder, `jobs` table | Live events sent to the browser |
 | A link job's address, site, and bytes fetched | `jobs.link`, JSON | The row's "from youtube.com" line and its progress |
 | Settings (preset, device, default formats) | `jobs.db`, `settings` table of keys and JSON values | Defaults applied to each new upload |
-| Theme | The browser's `localStorage` | |
+| Theme | The browser's `localStorage`; `public/theme.js` reads it before the page paints | The `data-theme` on the page |
 | Uploaded file | `uploads/<job id>/source.<ext>` | Decoded mixture WAV, original preview |
 | A link's downloaded parts | `uploads/<job id>/part0.<ext>`, `part1.<ext>` while fetching; joined into `source.<ext>` and deleted | The source file |
 | Decoded mixture | `work/<job id>/` (the whole folder is deleted when the job ends) | Separated voice, waveform peaks |
@@ -83,7 +85,7 @@ Recovery: if the app dies, nothing is lost but in-flight work. Interrupted jobs 
 | torch CUDA | No GPU, old driver, OOM | Device badge says CPU; OOM note on the job | Auto-detect; per-chunk CPU fallback |
 | audio-separator | Import error, model load error | Job fails with the error's message | Pinned version; its settings tables are pinned and hash-checked like the models, so loading needs no network; a crashed worker is replaced |
 | Browser codec support | Cannot play the video codec | Waveform-only player with a note | Detect `error` on the video element |
-| yt-dlp and the sites it reads (link imports only) | A site changes its pages, refuses signed-out requests, blocks non-browser clients, or is unreachable | The link job fails with a sentence; an out-of-date reader gets the update command | Pinned version; `sukoon doctor` warns when it is 60 days old; nothing updates itself; every failure is mapped to a sentence in `links.explain` |
+| yt-dlp and the sites it reads (link imports only) | A site changes its pages, refuses signed-out requests, blocks non-browser clients, or is unreachable | The link job fails with a sentence; an out-of-date reader gets the update command | Pinned version; `sukoon doctor` warns when it is 60 days old; nothing updates itself; every failure is mapped to a sentence by `explain()` in `sukoon/links/ytdlp.py` |
 | Node.js (YouTube links) | Missing or older than 22 | YouTube links fail as "out of date"; doctor says FAIL with the install command | yt-dlp runs YouTube's JavaScript checks in Node with the bundled `yt-dlp-ejs`, never a downloaded solver |
 
 ## Security and privacy threats
@@ -116,6 +118,7 @@ No personal data is collected and nothing is transmitted, so no privacy law is t
 - Copy the video stream instead of re-encoding. Two-way door; the re-encode path exists only for containers that cannot hold the codec.
 - SQLite from the standard library rather than a server database or JSON files. Two-way door.
 - Plain CSS with custom properties and CSS modules, no CSS framework; no animation library, motion uses CSS transitions and the View Transitions API. Two-way doors.
+- Themes are blocks of the same custom properties, one per theme, picked before the page paints by a static script (`public/theme.js`), since the content security policy blocks inline scripts. Two-way door.
 
 ## Pre-mortem
 
