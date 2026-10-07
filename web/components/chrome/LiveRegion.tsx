@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { STATE_LABEL } from '../labels'
-import type { Job } from '../types'
+import { STATE_LABEL } from '../../lib/text/labels'
+import type { Job } from '../../lib/api/types'
 
 /** Reads out state changes and every tenth of progress, politely, so screen readers keep up. */
 export function LiveRegion({ jobs }: { jobs: Job[] }) {
