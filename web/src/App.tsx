@@ -35,6 +35,8 @@ function localJob(id: string, file: File): Job {
     offset: 0,
     confirm: null,
     output_name: null,
+    link: null,
+    through: null,
   }
 }
 
@@ -73,6 +75,31 @@ export function App() {
     }
   }, [])
   const dragging = useWindowDrag(addFiles)
+
+  const [linkError, setLinkError] = useState<string | null>(null)
+  const addLink = useCallback(async (url: string) => {
+    setLinkError(null)
+    try {
+      await postJson('/api/links', { url })
+      return true
+    } catch (e) {
+      setLinkError((e as Error).message)
+      return false
+    }
+  }, [])
+  // A link pasted anywhere but a text field starts a job, so Ctrl+V is all it takes.
+  useEffect(() => {
+    const paste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return
+      const text = e.clipboardData?.getData('text/plain').trim() ?? ''
+      if (!/^https?:\/\/\S+$/i.test(text)) return
+      e.preventDefault()
+      void addLink(text)
+    }
+    window.addEventListener('paste', paste)
+    return () => window.removeEventListener('paste', paste)
+  }, [addLink])
 
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const checkHealth = useCallback(() => {
@@ -183,7 +210,12 @@ export function App() {
     server.jobs.some((j) => j.state === 'waiting_model') || server.models.some((m) => m.downloading || m.error)
 
   if (health && !health.ffmpeg.ok) {
-    return <SetupScreen install={health.ffmpeg.install} checking={checking} onCheck={checkHealth} />
+    return (
+      <>
+        <TopBar device={health.device} library={null} />
+        <SetupScreen install={health.ffmpeg.install} checking={checking} onCheck={checkHealth} />
+      </>
+    )
   }
 
   return (
@@ -194,35 +226,44 @@ export function App() {
         onSettings={settings ? () => toggleSheet(true) : null}
       />
       <main className={styles.main}>
-        <DropWell compact={rows.length > 0} dragging={dragging} onFiles={addFiles} />
         {rows.length === 0 && (
-          <p className={styles.note}>
-            Voices stay. Instruments, and most other non-voice sounds, are removed. Everything happens on this
-            computer.
-          </p>
+          <DropWell compact={false} dragging={dragging} onFiles={addFiles} onLink={addLink} linkError={linkError} />
         )}
-        {needsModel && best && fast && <ModelCard best={best} fast={fast} onDownload={download} problem={downloadError} />}
-        {finished.length > 0 && (
+        {rows.length > 0 && (
+          <div className={styles.intakeBar}>
+            <DropWell compact dragging={dragging} onFiles={addFiles} onLink={addLink} linkError={linkError} />
+            {finished.length > 0 && (
           <div className={styles.queueBar}>
             {clearing ? (
               <>
                 <span className="small">
                   Clear {finished.length} finished {finished.length === 1 ? 'job' : 'jobs'} and their files?
                 </span>
-                <button type="button" className="btn-quiet" autoFocus onClick={clearFinished}>
+                <button type="button" className="btn-quiet btn-small" autoFocus onClick={clearFinished}>
                   Clear
                 </button>
-                <button type="button" className="btn-quiet" onClick={() => setClearing(false)}>
+                <button type="button" className="btn-quiet btn-small" onClick={() => setClearing(false)}>
                   Keep
                 </button>
               </>
             ) : (
-              <button type="button" className="btn-quiet" onClick={() => setClearing(true)}>
+              <button type="button" className="btn-quiet btn-small" onClick={() => setClearing(true)}>
                 Clear finished
               </button>
             )}
             {clearError && <span className={`small ${styles.error}`}>{clearError}</span>}
           </div>
+            )}
+          </div>
+        )}
+        {needsModel && best && fast && (
+          <ModelCard
+            best={best}
+            fast={fast}
+            onDownload={download}
+            problem={downloadError}
+            primary={rows.length > 0 && reviewing === null}
+          />
         )}
         {rows.length > 0 && (
           <ol className={styles.queue} aria-label="Queue">

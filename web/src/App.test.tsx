@@ -23,14 +23,16 @@ describe('App', () => {
   it('shows the empty state with the plain promise', () => {
     serveHealth('CPU')
     render(<App />)
-    expect(screen.getByText('sukoon')).toBeInTheDocument()
-    expect(screen.getByText(/Voices stay\. Instruments, and most other non-voice sounds/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'sukoon سكون' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Drop a recording anywhere on this window.' })).toBeInTheDocument()
+    expect(screen.getByText(/Voices stay and the music goes, all on this computer/)).toBeInTheDocument()
   })
 
   it('shows the device the server reports', async () => {
     serveHealth('CUDA · RTX 3060 Laptop')
     render(<App />)
-    expect(await screen.findByText('CUDA · RTX 3060 Laptop')).toBeInTheDocument()
+    expect(await screen.findByText('RTX 3060 Laptop')).toBeInTheDocument()
+    expect(screen.getByText('CUDA')).toBeInTheDocument()
   })
 
   it('frames the window while files are dragged over it', () => {
@@ -40,7 +42,7 @@ describe('App', () => {
     Object.defineProperty(enter, 'dataTransfer', { value: { types: ['Files'], files: [] } })
     window.dispatchEvent(enter)
     return vi.waitFor(() => {
-      expect(screen.getByText('Release to add')).toBeInTheDocument()
+      expect(screen.getByText('Release to add.')).toBeInTheDocument()
       expect(screen.getByTestId('drag-frame')).toBeInTheDocument()
     })
   })
@@ -50,9 +52,9 @@ describe('App', () => {
     render(<App />)
     act(() => FakeEventSource.last!.emit('snapshot', { jobs: [job({ state: 'queued' })], models: [] }))
     expect(screen.getByText('Queued')).toBeInTheDocument()
-    act(() => FakeEventSource.last!.emit('job', job({ state: 'separating', progress: 0.5 })))
+    act(() => FakeEventSource.last!.emit('job', job({ state: 'separating', progress: 0.55, through: 0.5 })))
     expect(screen.getByText('Separating')).toBeInTheDocument()
-    expect(screen.getByText('50%')).toBeInTheDocument()
+    expect(screen.getByText('1:03 of 2:05')).toBeInTheDocument()
     act(() => FakeEventSource.last!.emit('deleted', { id: 'a1' }))
     expect(screen.queryByRole('list', { name: 'Queue' })).toBeNull()
   })
@@ -82,8 +84,8 @@ describe('App', () => {
   it('shows only the setup screen while ffmpeg is missing', async () => {
     serveHealth('CPU', false)
     render(<App />)
-    expect(await screen.findByRole('heading', { name: 'sukoon needs ffmpeg' })).toBeInTheDocument()
-    expect(screen.queryByText('Drop audio or video here')).toBeNull()
+    expect(await screen.findByRole('heading', { name: 'sukoon needs ffmpeg.' })).toBeInTheDocument()
+    expect(screen.queryByText('Drop a recording anywhere on this window.')).toBeNull()
   })
 
   it('keeps a saved setting when an earlier change is refused afterwards', async () => {
@@ -139,4 +141,53 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: /Download Best/ }))
     expect(await screen.findByText('A download is already running.')).toBeInTheDocument()
   })
+
+  it('starts a link job when a link is pasted anywhere but a text field', async () => {
+    const sent: string[] = []
+    serveLinks(sent, () => new Response(JSON.stringify(job({ state: 'fetching' })), { status: 201 }))
+    render(<App />)
+    paste(document.body, 'https://youtu.be/jNQXAC9IVRw')
+    await waitFor(() => expect(sent).toEqual(['https://youtu.be/jNQXAC9IVRw']))
+  })
+
+  it('leaves a paste into a text field to the field', async () => {
+    const sent: string[] = []
+    serveLinks(sent, () => new Response('{}', { status: 201 }))
+    render(<App />)
+    paste(screen.getByRole('textbox', { name: 'Link to a video' }), 'https://youtu.be/jNQXAC9IVRw')
+    paste(document.body, 'just some words')
+    await new Promise((r) => setTimeout(r, 50))
+    expect(sent).toEqual([])
+  })
+
+  it('says why a pasted link was refused', async () => {
+    const reason = 'sukoon takes links from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud.'
+    serveLinks([], () => new Response(JSON.stringify({ error: reason }), { status: 400 }))
+    render(<App />)
+    paste(document.body, 'https://example.com/video')
+    expect(await screen.findByText(reason)).toBeInTheDocument()
+  })
 })
+
+function paste(target: Element, text: string) {
+  const event = new Event('paste', { bubbles: true, cancelable: true })
+  Object.defineProperty(event, 'clipboardData', { value: { getData: () => text } })
+  target.dispatchEvent(event)
+}
+
+/** Health and settings as usual; each link the page sends is recorded and answered. */
+function serveLinks(sent: string[], answer: () => Response) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/links') {
+        sent.push((JSON.parse(String(init?.body)) as { url: string }).url)
+        return answer()
+      }
+      const body = url.endsWith('/api/health')
+        ? { status: 'ok', version: '0.1.0', device: 'CPU', ffmpeg: { ok: true, install: '' } }
+        : { jobs: 0, models: 0 }
+      return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
+    }),
+  )
+}

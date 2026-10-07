@@ -1,6 +1,7 @@
 import errno
 import functools
 import json
+import shutil
 import subprocess
 
 import pytest
@@ -94,6 +95,10 @@ def test_format_matrix(corpus, tmp_path, fmt, codec, rate, check):
     assert check(stream)
 
 
+@pytest.mark.skipif(
+    shutil.which("espeak-ng") is None,
+    reason="without espeak-ng the fixture is a tone pattern, which V0 encodes at a low bitrate",
+)
 def test_mp3_is_vbr_v0(corpus, tmp_path):
     _, out, _ = clean(corpus, tmp_path, "song-with-cover.mp3")
     # V0 averages well above 200 kbps on full-band material.
@@ -238,3 +243,25 @@ def test_previews_are_opus_and_the_same_length(corpus, tmp_path):
         durations.append(float(info["format"]["duration"]))
     assert durations[0] == durations[1]
     assert abs(durations[0] - 30.0) < 0.03
+
+
+@pytest.mark.parametrize(
+    ("state", "progress", "kept", "expected"),
+    [
+        ("decoding", 0.05, False, 1.0),
+        ("separating", 0.05, False, 0.0),
+        ("separating", 0.5, False, 0.5),
+        ("encoding", 0.95, False, 0.0),
+        ("encoding", 0.975, False, 0.5),
+        # Download only has one pass, which reports its own fraction.
+        ("encoding", 0.4, True, 0.4),
+        ("queued", 0.0, False, None),
+        ("done", 1.0, False, None),
+    ],
+)
+def test_each_pass_reports_how_far_through_the_recording_it_is(state, progress, kept, expected):
+    found = pipeline.through(state, progress, kept)
+    if expected is None:
+        assert found is None
+    else:
+        assert found == pytest.approx(expected)

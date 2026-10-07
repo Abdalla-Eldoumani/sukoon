@@ -1,5 +1,6 @@
 import errno
 import multiprocessing as mp
+import os
 import queue
 import threading
 import time
@@ -37,7 +38,17 @@ class WorkerConfig:
         return AudioSeparatorEngine(self.models_dir, self.model_files)
 
 
+def exit_with_parent() -> None:
+    """A server killed outright (Task Manager, kill -9) can't stop its child, so the child
+    watches it; otherwise the model would stay in GPU memory and a restart would load another."""
+    parent = mp.parent_process()
+    if parent is not None:
+        parent.join()
+        os._exit(0)
+
+
 def worker_main(config: WorkerConfig, inbox: Any, outbox: Any, cancel: Event) -> None:
+    threading.Thread(target=exit_with_parent, daemon=True).start()
     engine = config.engine()
     prepared: tuple[Preset, DevicePreference] | None = None
     while True:

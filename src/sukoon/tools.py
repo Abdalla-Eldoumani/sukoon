@@ -30,6 +30,25 @@ def ffmpeg_install_command() -> str:
     return "sudo apt install ffmpeg"
 
 
+def node_install_command() -> str:
+    if sys.platform == "win32":
+        return "winget install OpenJS.NodeJS.LTS"
+    if sys.platform == "darwin":
+        return "brew install node"
+    return "install Node.js 22 or newer from nodejs.org or your package manager"
+
+
+def node_version() -> str | None:
+    """`node --version`, for example v24.7.0. yt-dlp runs YouTube's checks in it."""
+    exe = shutil.which("node")
+    if exe is None:
+        return None
+    out = subprocess.run(
+        [exe, "--version"], capture_output=True, text=True, timeout=20, check=False
+    )
+    return out.stdout.strip() or None
+
+
 def ffmpeg_version() -> str | None:
     exe = ffmpeg_path()
     if exe is None:

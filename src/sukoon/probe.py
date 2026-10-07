@@ -14,6 +14,31 @@ NO_SOUND = "This video has no sound track, so there is nothing to clean."
 
 # Demuxers that open other files or network addresses.
 DENIED_FORMATS = {"hls", "concat", "sdp", "rtp", "rtsp", "tee", "image2", "image2pipe"}
+# Kept on disk only for these, so ffmpeg never sees a playlist extension it might act on.
+MEDIA_EXTS = {
+    ".mp3",
+    ".m4a",
+    ".aac",
+    ".wav",
+    ".flac",
+    ".ogg",
+    ".oga",
+    ".opus",
+    ".webm",
+    ".mp4",
+    ".m4v",
+    ".mov",
+    ".mkv",
+    ".mka",
+    ".avi",
+    ".wma",
+    ".wmv",
+    ".aif",
+    ".aiff",
+    ".ts",
+    ".mpg",
+    ".mpeg",
+}
 # Playlists are refused on sight, before ffprobe gets a chance to follow them.
 PLAYLIST_MAGIC = (b"#EXTM3U", b"ffconcat", b"v=0\r\n", b"v=0\n", b"[playlist]")
 
@@ -146,7 +171,8 @@ def parse(raw: dict[str, Any]) -> Probe:
     )
 
 
-def run_ffprobe(path: Path, timeout: float = 60) -> dict[str, Any]:
+def run_ffprobe(path: Path, timeout: float = 60) -> tuple[dict[str, Any], bool]:
+    """The parsed JSON, and whether the duration in it is a guess from the bitrate."""
     exe = tools.ffprobe_path()
     if exe is None:
         raise RuntimeError("ffprobe was not found")
@@ -154,7 +180,7 @@ def run_ffprobe(path: Path, timeout: float = 60) -> dict[str, Any]:
         [
             exe,
             "-v",
-            "error",
+            "warning",
             "-protocol_whitelist",
             "file,pipe",
             "-print_format",
@@ -175,7 +201,41 @@ def run_ffprobe(path: Path, timeout: float = 60) -> dict[str, Any]:
         data: dict[str, Any] = json.loads(out.stdout)
     except ValueError as exc:
         raise Rejected(UNREADABLE) from exc
-    return data
+    return data, b"Estimating duration from bitrate" in out.stderr
+
+
+def counted_seconds(path: Path) -> float:
+    """A file's length from its audio packets added up, for when ffprobe only guessed it."""
+    exe = tools.ffprobe_path()
+    if exe is None:
+        raise RuntimeError("ffprobe was not found")
+    out = subprocess.run(
+        [
+            exe,
+            "-v",
+            "error",
+            "-protocol_whitelist",
+            "file,pipe",
+            "-select_streams",
+            "a:0",
+            "-show_entries",
+            "packet=duration_time",
+            "-of",
+            "csv=p=0",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+    total = 0.0
+    for line in out.stdout.splitlines():
+        try:
+            total += float(line.split(",")[0])
+        except ValueError:
+            continue
+    return total
 
 
 def is_denied(format_name: str) -> bool:
@@ -183,17 +243,33 @@ def is_denied(format_name: str) -> bool:
     return bool(names & DENIED_FORMATS) or any(n.endswith("_pipe") for n in names)
 
 
-def probe(path: Path, max_duration: float | None = None) -> Probe:
-    """Reads a file's streams and decides whether sukoon can work on it; raises Rejected."""
+def inspect(path: Path) -> Probe:
+    """Reads a file's streams, refusing playlists and anything ffprobe can't read; raises Rejected.
+
+    Every upload goes through this, and so does each part of a link before it is joined.
+    """
     if path.stat().st_size == 0:
         raise Rejected(UNREADABLE)
     with path.open("rb") as f:
         head = f.read(64).lstrip(b"\xef\xbb\xbf \t\r\n")
     if head.startswith(PLAYLIST_MAGIC):
         raise Rejected(PLAYLIST)
-    result = parse(run_ffprobe(path))
+    raw, guessed = run_ffprobe(path)
+    if guessed and (seconds := counted_seconds(path)) > 0:
+        # A raw stream (AAC, for one) has no length of its own, and the bitrate guess can be
+        # off by half; every limit, the disk check, and progress use this number.
+        raw.setdefault("format", {})["duration"] = seconds
+        for stream in raw.get("streams", []):
+            stream["duration"] = seconds
+    result = parse(raw)
     if is_denied(result.format_name):
         raise Rejected(PLAYLIST)
+    return result
+
+
+def probe(path: Path, max_duration: float | None = None) -> Probe:
+    """Reads a file's streams and decides whether sukoon can work on it; raises Rejected."""
+    result = inspect(path)
     if not result.audio:
         raise Rejected(NO_SOUND if result.video else UNREADABLE)
     if result.duration <= 0:

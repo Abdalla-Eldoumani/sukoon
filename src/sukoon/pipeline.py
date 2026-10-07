@@ -1,5 +1,6 @@
 import errno
 import json
+import os
 import shutil
 import threading
 import time
@@ -16,7 +17,7 @@ from sukoon import compat, ffmpeg
 from sukoon.chunk import ChunkReport
 from sukoon.decode import decode, mmss
 from sukoon.device import DevicePreference
-from sukoon.encode import AUDIO_FORMATS, default_audio_format, encode_audio
+from sukoon.encode import AUDIO_FORMATS, default_audio_format, encode_audio, output_rate
 from sukoon.errors import DISK_FULL, JobError
 from sukoon.models import Preset
 from sukoon.mux import mux_video
@@ -29,6 +30,17 @@ WEIGHTS: dict[Stage, tuple[float, float]] = {
     "separating": (0.05, 0.95),
     "encoding": (0.95, 1.0),
 }
+
+
+def through(state: str, progress: float, kept: bool) -> float | None:
+    """How far the running pass has got through the recording, 0 to 1. Progress is weighted across
+    the passes, but each pass runs from the start of the recording to its end."""
+    for stage, (lo, hi) in WEIGHTS.items():
+        if stage == state:
+            # Download only has one pass, which reports its own fraction.
+            return progress if kept else min(1.0, max(0.0, (progress - lo) / (hi - lo)))
+    return None
+
 
 NOTE_SURROUND = "Surround was mixed down to stereo."
 NOTE_NO_MUSIC = "There was almost no music in this file."
@@ -54,6 +66,8 @@ class Options:
     format: str | None = None
     track: int | None = None
     reencode_ok: bool = False
+    # Download only: a link converted to the chosen format, music and all.
+    keep_music: bool = False
 
     def to_json(self) -> dict[str, Any]:
         return asdict(self)
@@ -70,9 +84,20 @@ class Result:
         return asdict(self)
 
 
-# stage, overall fraction, seconds left (known only while separating)
+# stage, overall fraction, seconds left (known while separating and encoding)
 Progress = Callable[[Stage, float, float | None], None]
 ETA_SMOOTHING = 0.5
+# Each output encoder's time next to the Opus preview's, on 20 minutes of speech on the
+# RTX 3060 laptop. ceiling: one machine's ratios, and a confirmed picture re-encode is left
+# out until encoding starts and measures itself; revisit if the time left often runs over.
+ENCODE_COST = {
+    "aac": 7.7,
+    "libopus": 1.7,
+    "libmp3lame": 1.9,
+    "libvorbis": 2.1,
+    "flac": 0.3,
+    "pcm_s24le": 0.05,
+}
 
 
 @dataclass(frozen=True)
@@ -146,6 +171,79 @@ def encode_preview(wav: Path, target: Path, cancelled: Callable[[], bool]) -> fl
     return time.monotonic() - started
 
 
+def time_left(started: float, fraction: float) -> float | None:
+    """ffmpeg moves steadily, so the time so far scales up to the time left."""
+    elapsed = time.monotonic() - started
+    return elapsed / fraction - elapsed if fraction > 0.01 else None
+
+
+# The codecs each audio format is written in; a download already in one is copied as it is.
+OWN_CODECS = {
+    "mp3": {"mp3"},
+    "m4a": {"aac", "alac"},
+    "wav": {"pcm_s24le"},
+    "flac": {"flac"},
+    "opus": {"opus"},
+    "ogg": {"vorbis"},
+}
+
+
+def keep_music(
+    source: Path,
+    probe: Probe,
+    track: int,
+    fmt: str,
+    plan: compat.Plan | None,
+    out_dir: Path,
+    progress: Progress,
+    cancelled: Callable[[], bool],
+) -> Result:
+    """Download only: the chosen format, each stream copied wherever the format can hold it."""
+    stream = probe.audio[track]
+    args = ["-protocol_whitelist", "file,pipe", "-i", str(source)]
+    for video in probe.video if plan else []:
+        args += ["-map", f"0:{video.index}"]
+    args += ["-map", f"0:{stream.index}"]
+    if plan is not None:
+        if plan.reencode:
+            _, video_encoder, video_options = compat.REENCODE[fmt]
+            args += ["-c:v", video_encoder, *video_options]
+        else:
+            args += ["-c:v", "copy"]
+        held = compat.AUDIO_CODECS[fmt]
+        encoder, bitrate = compat.AUDIO_ENCODER[fmt]
+        fits = held is None or stream.codec_name in held
+        args += ["-c:a", "copy"] if fits else ["-c:a", encoder, "-b:a", bitrate]
+        muxer = compat.MUXER[fmt]
+    else:
+        audio = AUDIO_FORMATS[fmt]
+        fits = stream.codec_name in OWN_CODECS[fmt]
+        rate = str(output_rate(audio, stream.sample_rate))
+        args += ["-c:a", "copy"] if fits else [*audio.codec_args, "-ar", rate]
+        muxer = audio.muxer
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"output.{extension(fmt)}"
+    partial = out.with_name(f".{out.name}.part")
+    started = time.monotonic()
+    try:
+        ffmpeg.run(
+            [*args, "-map_metadata", "0", "-f", muxer, "-y", str(partial)],
+            probe.duration,
+            lambda f: progress("encoding", f, time_left(started, f)),
+            cancelled,
+            timeout=None if plan is None or not plan.reencode else 600 + probe.duration * 20,
+        )
+        os.replace(partial, out)
+    except BaseException as exc:
+        shutil.rmtree(out_dir, ignore_errors=True)
+        if isinstance(exc, OSError) and exc.errno == errno.ENOSPC:
+            raise JobError(DISK_FULL) from exc
+        raise
+    finally:
+        partial.unlink(missing_ok=True)
+    return Result(output=out.name, format=fmt, seconds=probe.duration)
+
+
 def output_format(probe: Probe, options: Options, source_name: str) -> str:
     """The chosen format, or the one matching the input; checked against what can be written."""
     if options.format:
@@ -181,8 +279,11 @@ def run(
         raise JobError("That audio track doesn't exist in this file.")
     fmt = output_format(probe, options, source.name)
     video_plan = compat.plan(probe, track, fmt) if fmt in compat.VIDEO_CONTAINERS else None
+    encoder = compat.AUDIO_ENCODER[fmt][0] if video_plan else AUDIO_FORMATS[fmt].encoder
     if video_plan and video_plan.reencode and not options.reencode_ok:
         raise JobError(video_plan.confirm_message or "The picture needs re-encoding.")
+    if options.keep_music:
+        return keep_music(source, probe, track, fmt, video_plan, out_dir, progress, cancelled)
 
     def report(stage: Stage, fraction: float, eta: float | None = None) -> None:
         lo, hi = WEIGHTS[stage]
@@ -230,9 +331,8 @@ def run(
                 if original_preview.done() and original_preview.exception() is None
                 else 4 * decode_s
             )
-            report(
-                "separating", done / total, (total - done) * per_chunk + preview_s + 2 * decode_s
-            )
+            after = preview_s * (1 + ENCODE_COST[encoder]) + 2 * decode_s
+            report("separating", done / total, (total - done) * per_chunk + after)
 
         chunks = separate(mixture, voice, work_dir, cancelled, on_chunk)
         original_preview.result()
@@ -246,6 +346,11 @@ def run(
         if chunks.cpu_fallbacks:
             notes.append(NOTE_CPU)
         report("encoding", 0.0)
+        encode_started = time.monotonic()
+
+        def encoding(fraction: float) -> None:
+            report("encoding", fraction, time_left(encode_started, fraction))
+
         out = out_dir / f"output.{extension(fmt)}"
         if video_plan is not None:
             notes.extend(video_plan.notes)
@@ -256,13 +361,11 @@ def run(
                 track,
                 video_plan,
                 out,
-                lambda f: report("encoding", f),
+                encoding,
                 cancelled,
             )
         else:
-            encode_audio(
-                voice, source, probe, track, fmt, out, lambda f: report("encoding", f), cancelled
-            )
+            encode_audio(voice, source, probe, track, fmt, out, encoding, cancelled)
         return Result(output=out.name, format=fmt, notes=notes, seconds=decoded.seconds)
     except BaseException as exc:
         # The output folder is this job's alone; nothing half made may stay in it.

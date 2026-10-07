@@ -10,8 +10,8 @@ describe('Strip', () => {
     render(<Strip peaks={peaks} current={65} onSeek={() => {}} />)
     const slider = screen.getByRole('slider', { name: 'Position' })
     expect(slider).toHaveAttribute('aria-valuetext', '1:05 of 3:20')
-    expect(screen.getByText('Voice')).toBeInTheDocument()
-    expect(screen.getByText('Removed')).toBeInTheDocument()
+    expect(screen.getByText('Voice kept')).toBeInTheDocument()
+    expect(screen.getByText('Music removed')).toBeInTheDocument()
   })
 
   it('moves five seconds with the arrow keys', async () => {

@@ -70,6 +70,100 @@ Each case says what happens, how often it is likely, and how the app handles it.
 **Handling:** the video stream is copied, so frame timing and rotation side data survive. The browser preview may not play HEVC or ProRes; that is handled by the player fallback below.
 **Verification:** pipeline test with a VFR fixture: video packets byte-identical, rotation tag preserved.
 
+## Links
+
+Every failure below fails the link job with the sentence shown, inline on its row, and keeps Retry unless retrying cannot help. The sentences live in `src/sukoon/links.py`.
+
+### Refused site
+**Scenario:** a link to a site that is not on the list, a look-alike host (`youtube.com.evil.example`, a Cyrillic letter in place of a Latin one), a user part (`https://youtube.com@evil.example`), a port, a raw address, or `http`.
+**Frequency:** common. **Impact:** a request to somewhere the user did not mean.
+**Handling:** refused before a job exists and before any network request: "sukoon takes links from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud. For anything else, download the file and drop it here." The sentence appears under the link field.
+**Verification:** unit tests on `site()` with each look-alike; API test that a refused link makes no job.
+
+### Playlist or channel
+**Scenario:** a playlist, a channel, or a profile page.
+**Frequency:** common. **Impact:** hundreds of downloads from one paste.
+**Handling:** the metadata is read without expanding the entries and the job fails with "This link is a playlist or a channel. Paste the link of one video." A single video taken from a playlist (`watch?v=...&list=...`) is fetched alone.
+**Verification:** unit test on `refusal()`; checked live on a YouTube playlist (refused in 2 s).
+
+### Private or deleted video
+**Scenario:** the video was made private or removed.
+**Frequency:** common. **Impact:** nothing to fetch.
+**Handling:** "This video is private or was deleted, so it can't be fetched."
+**Verification:** unit test on `explain()` with yt-dlp's wording; API test through the stand-in downloader.
+
+### Age-restricted
+**Scenario:** the site asks the viewer to sign in to confirm their age.
+**Frequency:** rare but real. **Impact:** nothing to fetch without an account.
+**Handling:** "This video is age-restricted, and sukoon never signs in, so it can't be fetched."
+**Verification:** unit test on `explain()`.
+
+### Only for signed-in people
+**Scenario:** the site serves the video only to signed-in users (Vimeo's web client does this today), or answers 401 or 403.
+**Frequency:** common on some sites. **Impact:** nothing to fetch.
+**Handling:** "Vimeo only shares this video with signed-in people, and sukoon never signs in. Save it another way and drop the file here." The site's name changes with the link.
+**Verification:** unit test on `explain()`; the live Vimeo test is an expected failure with this reason.
+
+### Sent without sound
+**Scenario:** the site sends signed-out viewers the picture without its sound track (Instagram does this today).
+**Frequency:** common on that site. **Impact:** nothing to clean.
+**Handling:** the downloaded file fails the sound check, and the job says "Instagram sent this video without its sound, so there is nothing to clean. Some sites hold the sound back from people who aren't signed in."
+**Verification:** API test with a silent fixture; the live Instagram test is an expected failure with this reason.
+
+### Region-locked
+**Scenario:** the uploader made the video unavailable in the user's country.
+**Frequency:** rare. **Impact:** nothing to fetch.
+**Handling:** "This video isn't available in your region." yt-dlp's geo error is recognised by type as well as by wording.
+**Verification:** unit tests on `explain()`.
+
+### Live stream
+**Scenario:** a stream that is live, about to start, or just ended and still being processed.
+**Frequency:** rare but real. **Impact:** a download with no end.
+**Handling:** refused from the metadata, before anything downloads: "This is a live stream. Paste the link again once it has ended."
+**Verification:** unit tests on `refusal()` for each live status.
+
+### Too long or too big
+**Scenario:** more than 6 hours, or an estimated size over 8 GB (from the file sizes the site gives, or the bitrate times the duration).
+**Frequency:** rare. **Impact:** disk and patience.
+**Handling:** refused from the metadata: "This video is longer than 6 hours, which is sukoon's limit." or "This video is bigger than 8 GB, which is sukoon's limit." The limits are the same ones uploads have. A site that gives no size up front is held to the same limit while the bytes arrive: the download stops with the same sentence once it passes 8 GB.
+**Verification:** unit tests on `refusal()`; a test with a stand-in downloader that reports more than the limit and is stopped.
+
+### DRM, or a stream sukoon doesn't fetch
+**Scenario:** the formats are copy-protected, or offered only over a protocol yt-dlp would hand to another program (RTMP, for example).
+**Frequency:** rare. **Impact:** nothing usable.
+**Handling:** "This video is protected against copying (DRM), so it can't be fetched." or "This video is only offered as a kind of stream sukoon doesn't fetch."
+**Verification:** unit tests on `refusal()`.
+
+### Network drop
+**Scenario:** the connection fails during the metadata request or the download.
+**Frequency:** rare but real. **Impact:** a half-downloaded file.
+**Handling:** yt-dlp retries on its own first; then "The connection dropped while fetching. Check your connection, then retry." The partial parts are deleted, and Retry fetches again from the start.
+**Verification:** unit test on `explain()` with yt-dlp's DNS failure text.
+
+### Out-of-date reader
+**Scenario:** the site changed its pages and the pinned yt-dlp can no longer read them.
+**Frequency:** common over months. **Impact:** links from that site stop working.
+**Handling:** "yt-dlp couldn't read this Vimeo page. Its reader may be out of date, or Vimeo turned the request away. To update it, run: uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync". The site's name changes with the link. `sukoon doctor` warns once yt-dlp is 60 days old. Nothing updates itself.
+**Verification:** unit test on `explain()` with yt-dlp's "please report this issue" wording; doctor tests on the age line.
+
+### Turned away
+**Scenario:** the site answers with something other than its page, as TikTok does today for requests that don't come from a browser.
+**Frequency:** common on that site. **Impact:** nothing to fetch, and a newer yt-dlp reads it no better.
+**Handling:** "TikTok turned the request away, as it does with many requests that don't come from a browser. Save the video another way and drop the file here."
+**Verification:** unit test on `explain()` with yt-dlp's "Unexpected response from webpage request"; the live TikTok test is an expected failure with this reason.
+
+### A post that links somewhere else
+**Scenario:** a Reddit or X post whose video lives on another site.
+**Frequency:** rare but real. **Impact:** traffic to a site the user did not paste.
+**Handling:** every address yt-dlp is asked to read, the pasted one and any a post hands on (an X card's t.co link, for one), is checked against the list of sites first, and only the pasted site's extractors may run, so the hop is refused before any request: "This post points to a video on another site. Open it there and paste that link."
+**Verification:** unit test on `explain()`; offline tests that the downloader refuses t.co, an unlisted site, and `http` before making a request.
+
+### A fetch that hangs or crashes
+**Scenario:** yt-dlp stops making progress, or its process dies.
+**Frequency:** rare. **Impact:** a job stuck in Fetching.
+**Handling:** the download runs in its own child process. Ten minutes without a word from it fails the job with "The download made no progress for 10 minutes, so it was stopped." A crash fails it with "The download stopped unexpectedly." Cancel kills the child at once. If the app stops during a fetch, the job comes back interrupted and Retry fetches again.
+**Verification:** tests with stand-in downloaders that stall, crash, and run across a restart.
+
 ## Separation
 
 ### The file has no music

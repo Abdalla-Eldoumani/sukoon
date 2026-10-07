@@ -19,6 +19,8 @@ export function job(fields: Partial<Job> = {}): Job {
     offset: 0,
     confirm: null,
     output_name: null,
+    link: null,
+    through: null,
     ...fields,
   }
 }

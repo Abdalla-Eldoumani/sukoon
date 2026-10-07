@@ -1,3 +1,5 @@
+import subprocess
+
 import pytest
 
 from sukoon.probe import NO_SOUND, PLAYLIST, UNREADABLE, Probe, Rejected, probe
@@ -101,3 +103,35 @@ def test_format_denylist(format_name, denied):
     from sukoon.probe import is_denied
 
     assert is_denied(format_name) is denied
+
+
+def test_a_raw_aac_length_is_counted_not_guessed(tmp_path):
+    # ffprobe guesses a raw AAC file's length from its first frames' bitrate, and a quiet
+    # start makes that guess more than twice too long.
+    src = tmp_path / "talk.aac"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=44100:cl=stereo:d=3",
+            "-f",
+            "lavfi",
+            "-i",
+            "anoisesrc=r=44100:d=9",
+            "-filter_complex",
+            "[1]aformat=channel_layouts=stereo[n];[0][n]concat=n=2:v=0:a=1",
+            "-c:a",
+            "aac",
+            "-f",
+            "adts",
+            str(src),
+        ],
+        check=True,
+    )
+    result = probe(src)
+    assert abs(result.duration - 12.0) < 0.05
+    assert abs(result.audio[0].duration - 12.0) < 0.05

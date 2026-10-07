@@ -1,3 +1,4 @@
+import sys
 import uuid
 from pathlib import Path
 
@@ -69,11 +70,23 @@ def test_job_path_refuses_unknown_area(tmp_path):
         Settings(home=tmp_path).job_path("..", str(uuid.uuid4()))  # type: ignore[arg-type]
 
 
+def link_folder(link, target):
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except OSError:
+        # Windows without the symlink privilege; a junction needs none and resolves the same way.
+        if sys.platform != "win32":
+            raise
+        import _winapi
+
+        _winapi.CreateJunction(str(target), str(link))
+
+
 def test_job_path_refuses_a_symlinked_job_folder(tmp_path):
     s = Settings(home=tmp_path / "data")
     s.ensure_dirs()
     job = str(uuid.uuid4())
-    (s.home / "work" / job).symlink_to(tmp_path)
+    link_folder(s.home / "work" / job, tmp_path)
     with pytest.raises(UnsafePathError):
         s.job_path("work", job)
 

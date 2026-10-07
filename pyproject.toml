@@ -7,6 +7,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = "==3.12.*"
 dependencies = [
+    # CPU onnxruntime for Fast: onnxruntime-gpu needs CUDA 13, and on a GPU Best is faster anyway.
     "audio-separator[cpu]==0.47.0",
     "audioread==3.1.0",  # audio-separator imports it without declaring it
     "fastapi==0.142.2",
@@ -14,11 +15,12 @@ dependencies = [
     "python-multipart==0.0.32",
     "numpy==2.5.3",
     "soundfile==0.14.0",
+    "torch==2.14.1",
+    "torchvision==0.29.1",
+    # A floor, not ==, so the update command in doctor can move them; uv.lock holds the exact version.
+    "yt-dlp[default]>=2026.8.19",
+    "yt-dlp-ejs>=0.8.0",  # the YouTube challenge solver, so yt-dlp never fetches one
 ]
-
-[project.optional-dependencies]
-cpu = ["torch==2.14.1", "torchvision==0.29.1"]
-cuda = ["torch==2.14.1", "torchvision==0.29.1"]
 
 [project.scripts]
 sukoon = "sukoon.cli:main"
@@ -43,7 +45,6 @@ artifacts = ["src/sukoon/web_dist/**"]
 path = "scripts/hatch_build.py"
 
 [tool.uv]
-conflicts = [[{ extra = "cpu" }, { extra = "cuda" }]]
 environments = [
     "sys_platform == 'win32' and platform_machine == 'AMD64'",
     "sys_platform == 'darwin' and platform_machine == 'arm64'",
@@ -51,17 +52,15 @@ environments = [
 ]
 
 [tool.uv.sources]
-# The CUDA index has no macOS wheels; there the cuda extra takes the CPU build, which includes MPS.
+# The CUDA build also runs on machines without an NVIDIA GPU. macOS has no CUDA build; its CPU build includes MPS.
 # torch and torchvision always come from the same index.
 torch = [
-    { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cu126", extra = "cuda", marker = "sys_platform != 'darwin'" },
-    { index = "pytorch-cpu", extra = "cuda", marker = "sys_platform == 'darwin'" },
+    { index = "pytorch-cu126", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
 ]
 torchvision = [
-    { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cu126", extra = "cuda", marker = "sys_platform != 'darwin'" },
-    { index = "pytorch-cpu", extra = "cuda", marker = "sys_platform == 'darwin'" },
+    { index = "pytorch-cu126", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cpu", marker = "sys_platform == 'darwin'" },
 ]
 
 [[tool.uv.index]]
@@ -92,14 +91,15 @@ files = ["src"]
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["audio_separator.*", "soundfile.*", "torch.*"]
+module = ["audio_separator.*", "soundfile.*", "torch.*", "yt_dlp.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-m 'not model and not slow'"
+addopts = "-m 'not model and not slow and not network'"
 filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated"]
 markers = [
     "model: runs the real separation models (set SUKOON_TEST_MODELS=1)",
     "slow: takes more than a few seconds",
+    "network: fetches real links from the listed sites (set SUKOON_TEST_NETWORK=1)",
 ]

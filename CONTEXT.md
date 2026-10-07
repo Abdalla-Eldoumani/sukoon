@@ -27,5 +27,11 @@ Avoid: visualizer, spectrogram.
 **Compare.** Playing the original audio in place of the cleaned audio at the same moment.
 Avoid: A/B (in the interface), toggle.
 
+**Link job.** A job that starts from a pasted link: fetched from its site, then checked and run like a dropped file.
+Avoid: download (alone), import, URL job.
+
+**Download only.** A link job with Remove music turned off: converted to the chosen format, nothing separated.
+Avoid: keep music (in the interface), raw download.
+
 **Data folder.** The one directory sukoon reads and writes, holding uploads, scratch, outputs, the database, and models.
 Avoid: cache, app dir.

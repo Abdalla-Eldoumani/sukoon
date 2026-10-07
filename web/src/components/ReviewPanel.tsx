@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getJson } from '../api'
+import { loadPeaks } from '../lanes'
 import { follow, type Media } from '../sync'
 import type { Job } from '../types'
 import styles from './ReviewPanel.module.css'
@@ -32,7 +32,7 @@ export function ReviewPanel({ job }: { job: Job }) {
   const hearOriginal = original || held
 
   useEffect(() => {
-    getJson<Peaks>(`/api/jobs/${job.id}/peaks`).then(setPeaks, (e: Error) => setFailed(e.message))
+    loadPeaks(job.id).then(setPeaks, (e: Error) => setFailed(e.message))
   }, [job.id])
 
   // Only one of the two previews is audible; both always play, so switching is instant.
@@ -113,7 +113,7 @@ export function ReviewPanel({ job }: { job: Job }) {
   }
 
   return (
-    <section className={styles.panel} aria-label={`Review ${job.name}`}>
+    <section className={hasVideo ? `${styles.panel} ${styles.withVideo}` : styles.panel} aria-label={`Review ${job.name}`}>
       {hasVideo && (
         <video
           ref={video}
@@ -126,23 +126,32 @@ export function ReviewPanel({ job }: { job: Job }) {
           onEnded={() => setPlaying(false)}
         />
       )}
-      {job.kind === 'video' && videoBroken && (
-        <p className={`small ${styles.note}`}>Your browser can&rsquo;t preview this video; the downloaded file is fine.</p>
-      )}
-      <audio ref={clean} src={`/api/jobs/${job.id}/preview/clean`} preload="auto" onEnded={() => setPlaying(false)} />
-      <audio ref={source} src={`/api/jobs/${job.id}/preview/original`} preload="auto" muted />
-      {failed && <p className={`small ${styles.error}`}>{failed}</p>}
-      {peaks && <Strip peaks={peaks} current={current} onSeek={seek} />}
-      <Transport
-        playing={playing}
-        current={current}
-        duration={peaks?.seconds ?? job.duration ?? 0}
-        original={hearOriginal}
-        onPlay={play}
-        onPause={pause}
-        onToggle={() => setOriginal((o) => !o)}
-        onHold={setHeld}
-      />
+      <div className={styles.evidence}>
+        {job.kind === 'video' && videoBroken && (
+          <p className={`small ${styles.note}`}>Your browser can&rsquo;t preview this video; the downloaded file is fine.</p>
+        )}
+        <audio ref={clean} src={`/api/jobs/${job.id}/preview/clean`} preload="auto" onEnded={() => setPlaying(false)} />
+        <audio ref={source} src={`/api/jobs/${job.id}/preview/original`} preload="auto" muted />
+        {failed && <p className={`small ${styles.error}`}>{failed}</p>}
+        {peaks && <Strip peaks={peaks} current={current} onSeek={seek} />}
+        <div className={styles.controls}>
+          <Transport
+            playing={playing}
+            current={current}
+            duration={peaks?.seconds ?? job.duration ?? 0}
+            original={hearOriginal}
+            onPlay={play}
+            onPause={pause}
+            onToggle={() => setOriginal((o) => !o)}
+            onHold={setHeld}
+          />
+          {job.output_name && (
+            <a className="btn-primary" href={`/api/jobs/${job.id}/output`} download={job.output_name}>
+              Download
+            </a>
+          )}
+        </div>
+      </div>
     </section>
   )
 }

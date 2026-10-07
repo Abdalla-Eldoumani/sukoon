@@ -1,35 +1,26 @@
 .row {
+  --row-bg: var(--ground);
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) 64px 160px 64px auto;
-  grid-template-areas: 'glyph name duration stage percent actions';
+  grid-template-columns: 20px minmax(0, 340px) minmax(120px, 1fr) 184px 84px;
+  grid-template-areas: 'glyph name lane time actions';
   align-items: center;
-  column-gap: var(--s3);
-  min-height: 64px;
-  padding: var(--s2) var(--s4);
-  background: var(--surface);
-  border-radius: var(--r-md);
+  column-gap: var(--s5);
+  min-height: 76px;
+  padding: 14px var(--inline);
+  background: var(--row-bg);
+  border-bottom: 1px solid var(--rule);
 }
 
 .selected {
-  background: var(--raised);
+  --row-bg: var(--band);
 }
 
-.nameButton {
-  display: block;
-  max-width: 100%;
-  padding: 0;
-  background: none;
-  border: 0;
-  text-align: start;
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.wide {
+  grid-template-areas: 'glyph name name time actions';
 }
 
-.nameButton:hover bdi {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.wide .lane {
+  display: none;
 }
 
 .arriving {
@@ -56,56 +47,89 @@
   min-width: 0;
 }
 
-.name > bdi {
+.nameButton,
+.nameBlock {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  text-align: start;
+}
+
+.nameButton {
+  cursor: pointer;
+}
+
+.nameText {
+  display: block;
+  /* An Arabic name still reads and truncates right to left, but lines up with the others. */
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.nameButton:hover .nameText {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.line {
+  margin: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.stage {
+  display: inline-block;
+  color: var(--text);
+}
+
+.changed {
+  animation: settle var(--d-hover) var(--ease-out);
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+  }
+}
+
+.fault,
 .error {
   color: var(--fault);
+}
+
+.error,
+.note {
+  margin: 0;
 }
 
 .note {
   color: var(--text-2);
 }
 
-.duration {
-  grid-area: duration;
-  color: var(--text-2);
-  text-align: right;
-}
-
-.stage {
-  grid-area: stage;
+.confirm {
   display: flex;
-  flex-direction: column;
-  gap: var(--s1);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s2);
 }
 
-.faultLabel {
-  color: var(--fault);
-}
-
-.track {
-  height: 4px;
-  background: var(--rule);
-  border-radius: var(--r-sm);
-  overflow: hidden;
-}
-
-.fill {
-  height: 100%;
-  background: var(--voice);
-  transform-origin: left;
-  transition: transform var(--d-panel) linear;
-}
-
-.percent {
-  grid-area: percent;
+.time {
+  grid-area: time;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.left {
   color: var(--text-2);
 }
 
@@ -114,24 +138,25 @@
   display: flex;
   gap: var(--s2);
   justify-content: flex-end;
-  min-width: 36px;
 }
 
-.actions a {
-  text-decoration: none;
+.lane {
+  grid-area: lane;
+}
+
+@media (max-width: 1023px) {
+  .row {
+    grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) 176px 84px;
+  }
 }
 
 @media (max-width: 599px) {
-  .row {
+  .row,
+  .wide {
     grid-template-columns: 20px minmax(0, 1fr) auto;
     grid-template-areas:
       'glyph name actions'
-      'stage stage percent';
-    row-gap: var(--s2);
-    padding: var(--s3) var(--s4);
-  }
-
-  .duration {
-    display: none;
+      'lane lane time';
+    row-gap: var(--s3);
   }
 }

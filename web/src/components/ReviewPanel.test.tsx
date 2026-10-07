@@ -17,6 +17,13 @@ afterEach(() => {
 })
 
 describe('ReviewPanel', () => {
+  it('offers the cleaned file as its one primary action', () => {
+    render(<ReviewPanel job={job({ state: 'done', output_name: 'lecture (no music).mp3' })} />)
+    const link = screen.getByRole('link', { name: 'Download' })
+    expect(link).toHaveAttribute('href', '/api/jobs/a1/output')
+    expect(link).toHaveAttribute('download', 'lecture (no music).mp3')
+  })
+
   it('holding C plays the original and letting go returns to the clean voice', async () => {
     const { container } = render(<ReviewPanel job={job({ state: 'done' })} />)
     await screen.findByRole('slider')

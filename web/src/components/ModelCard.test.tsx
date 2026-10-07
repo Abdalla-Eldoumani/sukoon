@@ -18,7 +18,7 @@ describe('ModelCard', () => {
 
   it('shows bytes and speed while downloading', () => {
     render(<ModelCard best={model({ downloading: true, done: 456_000_000, rate: 12_300_000 })} fast={fast} onDownload={() => {}} />)
-    expect(screen.getByRole('status')).toHaveTextContent('456 MB of 913 MB · 12.3 MB/s')
+    expect(screen.getByRole('status')).toHaveTextContent('456 MB of 913 MB at 12.3 MB/s')
     expect(screen.queryByRole('button')).toBeNull()
   })
 

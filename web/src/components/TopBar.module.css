@@ -1,10 +1,10 @@
 .bar {
-  height: 56px;
+  height: 64px;
   border-bottom: 1px solid var(--rule);
 }
 
 .inner {
-  max-width: calc(960px + 2 * var(--gutter));
+  max-width: var(--page);
   height: 100%;
   margin: 0 auto;
   padding: 0 var(--gutter);
@@ -16,23 +16,52 @@
 
 .wordmark {
   margin: 0;
-  font-size: 18px;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  font-size: 20px;
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   font-weight: 700;
-  font-stretch: 112%;
+  font-stretch: 125%;
+  white-space: nowrap;
+}
+
+.arabic {
+  font-family: 'IBM Plex Sans Arabic', var(--font-ui);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-2);
 }
 
 .status {
   display: flex;
   align-items: center;
-  gap: var(--s4);
-  color: var(--text-2);
+  gap: var(--s6);
   min-width: 0;
 }
 
-.status > span {
+.item {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.key {
+  color: var(--text-2);
+}
+
+@media (max-width: 599px) {
+  .status {
+    gap: var(--s3);
+  }
+
+  .key {
+    display: none;
+  }
+
+  /* Settings shows it too; on a phone the device needs the room. */
+  .library {
+    display: none;
+  }
 }

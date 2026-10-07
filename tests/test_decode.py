@@ -1,3 +1,5 @@
+import subprocess
+
 import pytest
 import soundfile as sf
 
@@ -63,3 +65,35 @@ def test_decode_under_half_the_duration_fails(corpus, tmp_path):
 def test_cancel_kills_the_decode(corpus, tmp_path):
     with pytest.raises(Canceled):
         run(corpus, tmp_path, "speech-over-music-30s.wav", cancelled=lambda: True)
+
+
+def test_a_duration_guessed_from_the_bitrate_is_not_damage(tmp_path):
+    # Raw AAC has no length of its own; ffprobe guesses one from the first frames' bitrate,
+    # which a quiet start pulls far from the truth.
+    src = tmp_path / "talk.aac"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=44100:cl=stereo:d=3",
+            "-f",
+            "lavfi",
+            "-i",
+            "anoisesrc=r=44100:d=9",
+            "-filter_complex",
+            "[1]aformat=channel_layouts=stereo[n];[0][n]concat=n=2:v=0:a=1",
+            "-c:a",
+            "aac",
+            "-f",
+            "adts",
+            str(src),
+        ],
+        check=True,
+    )
+    result = decode(src, probe(src), 0, tmp_path / "m.wav", lambda f: None, never)
+    assert not result.partial
+    assert abs(result.seconds - 12.0) < 0.1

@@ -1,6 +1,6 @@
 # sukoon
 
-Drop in an audio or video file, get it back without the music. Voices stay: speech, recitation, and singing. Everything runs on your own computer, and nothing is uploaded anywhere.
+Drop in an audio or video file, or paste a link, and get it back without the music. Voices stay: speech, recitation, and singing. Everything runs on your own computer, and nothing is uploaded anywhere.
 
 ## What it keeps and what it removes
 
@@ -9,7 +9,7 @@ Drop in an audio or video file, get it back without the music. Voices stay: spee
 - For video, the picture is copied untouched and the cleaned audio is put back in sync with it. Subtitles, chapters, other audio tracks, and metadata are carried across when the output container can hold them.
 - The result keeps the input's format unless you choose another: MP3, M4A, WAV, FLAC, Opus, or OGG for audio; MP4, MKV, WebM, or MOV for video.
 
-It does not edit, trim, transcribe, or separate one voice from another. You're responsible for having the right to the media you process.
+It does not edit, trim, transcribe, or separate one voice from another. You're responsible for having the right to the media you process, including what you fetch by link under each site's terms.
 
 ## Requirements
 
@@ -17,16 +17,16 @@ It does not edit, trim, transcribe, or separate one voice from another. You're r
 - [uv](https://docs.astral.sh/uv/), which installs the right Python (3.12) by itself.
 - Node.js 22.13 or newer, to build the interface once.
 - ffmpeg and ffprobe on your PATH, built with the usual encoders (libmp3lame, aac, libopus, libvorbis, flac, pcm_s24le, libx264, libvpx-vp9). The builds from the commands below have them.
-- About 5 GB of free disk space for the Python packages and the models, plus room for your files.
-- Optional: an NVIDIA GPU with 6 GB of memory or more and a driver new enough for CUDA 12.6. Apple Silicon Macs use their GPU without extra setup. Without either, sukoon runs on the CPU, which is much slower.
+- About 8 GB of free disk space for the Python packages and the models, plus room for your files.
+- Optional: an NVIDIA GPU with 6 GB of memory or more and a driver new enough for CUDA 12.6. Apple Silicon Macs use their GPU without extra setup. Without either, sukoon runs on the CPU, which is much slower. The same install works with or without a GPU.
 
 ## Install
 
 ### Windows
 
-Not run here; these are the Windows commands. In PowerShell:
+In Git Bash. These steps were checked from `git clone` on, on a machine that already had the four winget packages.
 
-```powershell
+```bash
 winget install astral-sh.uv
 winget install OpenJS.NodeJS.LTS
 winget install Gyan.FFmpeg
@@ -34,27 +34,25 @@ winget install Git.Git
 # open a new terminal so the PATH changes apply
 git clone https://github.com/abdalla-eldoumani/sukoon.git
 cd sukoon
-python scripts/build_web.py
-uv sync --extra cuda      # with an NVIDIA GPU; use --extra cpu without one
+uv sync
+uv run python scripts/build_web.py
 ```
-
-If `python` isn't found, run `uv run python scripts/build_web.py` instead.
 
 ### macOS (Apple Silicon)
 
-Not run here.
+Not tested on a Mac yet.
 
 ```bash
 brew install uv node ffmpeg
 git clone https://github.com/abdalla-eldoumani/sukoon.git
 cd sukoon
-python3 scripts/build_web.py
-uv sync --extra cpu       # the CPU build of torch includes the Apple GPU (MPS)
+uv sync
+uv run python scripts/build_web.py
 ```
 
 ### Linux
 
-Of these, only `python3 scripts/build_web.py` was run here.
+Not tried on a Linux desktop yet; the automated checks run on Ubuntu 24.04.
 
 ```bash
 sudo apt install ffmpeg
@@ -62,11 +60,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # install Node.js 22.13 or newer from nodejs.org or your package manager
 git clone https://github.com/abdalla-eldoumani/sukoon.git
 cd sukoon
-python3 scripts/build_web.py
-uv sync --extra cuda      # with an NVIDIA GPU; use --extra cpu without one
+uv sync
+uv run python scripts/build_web.py
 ```
-
-`uv sync` was not run here: PyTorch's download server was unreachable from the machine this release was built on, so the sync, and the lock file it writes, still need a first run on a real machine. For the same reason no `uv run` command in this README was run as written. Where a section below says a command was run here, it ran from a virtual environment holding the same pinned packages without torch, for example `.venv/bin/sukoon doctor` in place of `uv run sukoon doctor`.
 
 ### Checking the GPU
 
@@ -74,11 +70,9 @@ uv sync --extra cuda      # with an NVIDIA GPU; use --extra cpu without one
 uv run sukoon doctor
 ```
 
-The torch line shows the device sukoon will use, for example `device CUDA · GeForce RTX 3060 Laptop`. If it says `NVIDIA GPU present but torch has no CUDA`, torch was installed without GPU support; run `uv sync --extra cuda` and check again. The `cpu` and `cuda` extras can't be installed together, and the last `uv sync` wins.
+The torch line shows the device sukoon will use, for example `device CUDA · GeForce RTX 3060 Laptop`. If it says `NVIDIA GPU present but torch has no CUDA`, run `uv sync` again, and if it still says CPU, update the NVIDIA driver.
 
 ## Running
-
-Run here as described under Install, with the stand-in engine in place of the models.
 
 ```bash
 uv run sukoon                # starts on http://127.0.0.1:8417/ and opens the browser
@@ -87,24 +81,42 @@ uv run sukoon --no-browser   # the same, without opening the browser
 
 If 8417 is taken, the next free port is used and printed. Starting sukoon a second time opens the one already running.
 
-Drop files on the page, or choose them. Each file is checked, cleaned, and listed; a finished job opens a player where you can switch between the original and the cleaned version at the same moment, then download the result. The first time a job needs a model, a card above the list offers Download Best (913 MB) or Start with Fast (67 MB); the model downloads once, and waiting jobs start when it is in place. Settings (the gear in the top bar) hold the model choice, the device, and default output formats.
+Drop files anywhere on the window, choose them, or paste a link. Each one becomes a row. While it works, the row shows how far into the recording it has got and the time left ("17:44 of 30:34, 1:36 left"). When it finishes, the row draws what was kept, the voice in amber above the line, and what was removed, in steel below it. Click the file name to open the review: play it, hold C (or the switch) to hear the original at the same moment, and download the result. The first time a job needs a model, a card above the list offers Download Best (913 MB) or Start with Fast (67 MB); the model downloads once, and waiting jobs start when it is in place. Settings (the sliders button in the top bar) hold the model choice, the device, default output formats, and the theme.
 
 To stop sukoon, press Ctrl+C in its terminal. A job that was running is marked interrupted and can be retried after the next start.
+
+## Links
+
+Paste a link into the field in the drop area, or press Ctrl+V anywhere on the page outside a text field. sukoon takes single videos from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud; playlists, channels, and live streams are refused with a sentence that says why.
+
+The row shows where the file comes from and how much has arrived, then the same stages as a dropped file. Remove music is on by default. Turn it off on the row for download only: the file is converted to the format you pick, with every stream copied that the format can hold. A link becomes MP4 (H.264 and AAC where the site offers them), or M4A when it has no picture.
+
+sukoon never signs in to a site. Some sites refuse requests like sukoon's, and the job says so: as of October 2026, Vimeo and Instagram's sound are only for signed-in people, and TikTok turns away requests that don't come from a browser. YouTube, X, Facebook, Reddit, and SoundCloud worked in testing.
+
+Sites change their pages every few weeks, so a link that worked last month can stop working. When a job says the reader may be out of date, or `sukoon doctor` says yt-dlp is old, update it:
+
+```bash
+uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync
+```
+
+YouTube links also need Node.js 22 or newer, the same Node the install uses; `sukoon doctor` checks it.
 
 ## The command line
 
 ```bash
 uv run sukoon clean talk.mp3 --out cleaned/
 uv run sukoon clean lecture.mkv --format mp4 --allow-reencode
+uv run sukoon clean "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+uv run sukoon clean "https://soundcloud.com/..." --keep-music --format mp3
 uv run sukoon doctor
 uv run sukoon bench --preset best
 ```
 
-- `clean` runs the same steps as the browser on one or more files and prints the path of each result, for example `cleaned/talk (no music).mp3`. Options: `--preset best|fast`, `--device auto|cpu`, `--format` (any output format above), `--track 2` to clean the second audio track, `--allow-reencode` when the chosen video container can't hold the original picture, and `--out` for the results folder (by default, next to each input).
-- `doctor` checks ffmpeg, ffprobe, the encoders, torch and its device, free disk space, and which models are downloaded. It prints the fix for anything missing and exits with 1 if something needs fixing.
+- `clean` runs the same steps as the browser on files or links and prints the path of each result, for example `cleaned/talk (no music).mp3`. Options: `--preset best|fast`, `--device auto|cpu`, `--format` (any output format above), `--track 2` to clean the second audio track, `--allow-reencode` when the chosen video container can't hold the original picture, `--keep-music` for download only, and `--out` for the results folder (by default, next to each file, and the current folder for links). Put a link in quotes, since `&` and `?` mean something to the shell.
+- `doctor` checks ffmpeg, ffprobe, the encoders, torch and its device, free disk space, yt-dlp and its age, `yt-dlp-ejs`, Node.js, and which models are downloaded. It prints the fix for anything missing and exits with 1 if something needs fixing.
 - `bench` times separation on a generated 30-second clip and prints how many times faster than real time it ran.
 
-`doctor` was run here. `clean` and `bench` need torch and the models, which this build machine didn't have; their code paths are tested with a stand-in engine.
+On an RTX 3060 Laptop GPU, Best runs about 6.7 times faster than real time, so an hour of audio takes about 9 minutes. Fast always runs on the CPU (about 1.1 times real time on that laptop) and is a 67 MB download instead of 913 MB. With an NVIDIA GPU, use Best. Fast is for computers without one; it also returns speech a little quieter than the original, which Best does not.
 
 ## Where files live
 
@@ -122,7 +134,8 @@ Set `SUKOON_HOME` to use another folder, for example on a bigger drive. Inside a
 
 - The server listens on `127.0.0.1` only, so other computers can't reach it, and it refuses requests from other websites.
 - No analytics, no crash reports, no fonts or scripts from the internet.
-- The only outbound requests are model downloads, from the fixed addresses in `src/sukoon/models.py`: the model files and three small tables of model settings that the separation library reads. Each file's size and SHA-256 hash are checked before it is used, and once they are downloaded sukoon works offline.
+- Model downloads go to the fixed addresses in `src/sukoon/models.py`: the model files and three small tables of model settings that the separation library reads. Each file's size and SHA-256 hash are checked before it is used, and once they are downloaded sukoon works offline.
+- When you paste a link, and only then, sukoon fetches it from that site and the site's media servers. It sends no cookies and no account, reads no browser data, and loads no code from the internet; the YouTube solver it uses is installed with the app. The downloaded file is checked to be real audio or video, the same check a dropped file gets, before anything else opens it. That check is not a virus scan.
 
 ## Troubleshooting
 
@@ -130,11 +143,12 @@ Start with `uv run sukoon doctor`; each failing line comes with a `fix:` line.
 
 - **`ffmpeg ... not found on PATH`**: install it with the printed command (`winget install Gyan.FFmpeg`, `brew install ffmpeg`, or `sudo apt install ffmpeg`), then open a new terminal.
 - **`encoders missing ...`**: your ffmpeg build lacks some encoders. Formats that need them are hidden in the app; install a full build to get them back.
-- **`torch not installed`**: run `uv sync --extra cpu`, or `uv sync --extra cuda` with an NVIDIA GPU.
-- **`NVIDIA GPU present but torch has no CUDA`**: run `uv sync --extra cuda`. If it still shows CPU, update the NVIDIA driver.
+- **`torch not installed`**: run `uv sync`.
+- **`NVIDIA GPU present but torch has no CUDA`**: run `uv sync`. If it still shows CPU, update the NVIDIA driver.
 - **`disk ... GB free`** marked FAIL: free space on that drive or set `SUKOON_HOME` to another one. While a job runs, its intermediate audio takes about 2.5 GB per hour of sound.
 - **A model download stopped**: press Retry on the model card; the download resumes where it stopped. If a file fails its hash check it is deleted and downloaded again.
 - **A job says "Part of this ran on the CPU because the GPU ran out of memory."**: that part of the file was redone on the CPU, which is slower. Closing other programs that use the GPU helps.
+- **A link fails**: the job's sentence says why. "Its reader may be out of date" means updating yt-dlp with the command under Links; a site that only shares with signed-in people can't be fetched, so save the file another way and drop it in.
 - **The page stops updating**: check that the terminal running sukoon is still open. Start it again with `uv run sukoon` and reload the page; finished jobs are still there.
 
 ## Credits
@@ -149,7 +163,7 @@ The interface uses the Archivo and Martian Mono typefaces (SIL Open Font License
 
 ## Contributing
 
-The Python side needs the steps under Install; the checks below are the ones CI runs. All of them pass here (the Python ones from the virtual environment described under Install).
+The Python side needs the steps under Install; the checks below are the ones CI runs.
 
 ```bash
 uv run ruff check
@@ -166,7 +180,7 @@ npm --prefix web run build
 The tests generate their own media into `tests/fixtures/generated/` the first time they run (they need ffmpeg and `espeak-ng`). They use a stand-in engine instead of the real models. Two more sets are left out by default:
 
 ```bash
-uv run pytest -q -m slow                         # a 70-minute file through the separation worker
+uv run pytest -q -m slow                         # a 70-minute file through the separation worker; Linux only (reads /proc)
 SUKOON_TEST_MODELS=1 uv run pytest -q -m model   # the real models; downloads about 1 GB
 ```
 

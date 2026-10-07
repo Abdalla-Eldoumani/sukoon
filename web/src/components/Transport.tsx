@@ -76,7 +76,7 @@ export function Transport({ playing, current, duration, original, onPlay, onPaus
     <div className={styles.transport}>
       <button
         type="button"
-        className="btn-quiet btn-icon"
+        className={`btn-quiet btn-icon ${styles.play}`}
         aria-label={playing ? 'Pause' : 'Play'}
         title={playing ? 'Pause' : 'Play'}
         onClick={playing ? onPause : onPlay}
@@ -87,7 +87,7 @@ export function Transport({ playing, current, duration, original, onPlay, onPaus
         {clock(current)} <span className={styles.total}>/ {clock(duration)}</span>
       </span>
       <div className={styles.compare}>
-        <span className="label" aria-hidden="true">
+        <span className="small" aria-hidden="true">
           Clean
         </span>
         <button
@@ -105,8 +105,11 @@ export function Transport({ playing, current, duration, original, onPlay, onPaus
         >
           <span className={styles.knob} />
         </button>
-        <span className="label" aria-hidden="true">
+        <span className="small" aria-hidden="true">
           Original
+        </span>
+        <span className={`small ${styles.hint}`} aria-hidden="true">
+          hold C to compare
         </span>
       </div>
     </div>

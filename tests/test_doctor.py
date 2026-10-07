@@ -39,6 +39,10 @@ esac
     fake_tool(folder, "ffprobe", "exit 0\n")
 
 
+def with_node(folder, version="v24.7.0"):
+    fake_tool(folder, "node", f"echo {version}\n")
+
+
 def fake_torch(version, gpu=None):
     """Stands in for torch, the boundary here: a version and, optionally, a CUDA GPU's name."""
     return SimpleNamespace(
@@ -64,6 +68,7 @@ pytestmark = pytest.mark.skipif(os.name == "nt", reason="fake tools are shell sc
 
 def test_reports_every_check(settings, fake_path, cpu_torch):
     with_ffmpeg(fake_path)
+    with_node(fake_path)
     code, text = run(settings)
     assert code == 0
     for name in ("ffmpeg", "ffprobe", "encoders", "torch", "disk", "model best", "model fast"):
@@ -92,7 +97,7 @@ def test_nvidia_gpu_without_cuda_torch_prints_cuda_install(settings, fake_path, 
     fake_tool(fake_path, "nvidia-smi", "exit 0\n")
     _, text = run(settings)
     assert "NVIDIA GPU present but torch has no CUDA" in text
-    assert "fix: uv sync --extra cuda" in text
+    assert "fix: run uv sync, then update the NVIDIA driver" in text
 
 
 def test_cuda_device_is_reported(settings, fake_path, monkeypatch):
@@ -110,4 +115,17 @@ def test_missing_torch_fails_with_install_command(settings, fake_path, monkeypat
     monkeypatch.setitem(sys.modules, "torch", None)
     code, text = run(settings)
     assert code == 1
-    assert "fix: uv sync --extra cpu" in text
+    assert "fix: uv sync" in text
+
+
+@pytest.mark.parametrize(
+    ("version", "shown"), [(None, "not found on PATH"), ("v20.11.1", "v20.11.1")]
+)
+def test_node_older_than_22_or_missing_fails(settings, fake_path, cpu_torch, version, shown):
+    with_ffmpeg(fake_path)
+    if version:
+        with_node(fake_path, version)
+    code, text = run(settings)
+    assert code == 1
+    assert f"FAIL node       {shown}" in text
+    assert "YouTube links need Node.js 22 or newer" in text

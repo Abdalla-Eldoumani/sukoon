@@ -95,7 +95,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
 
         {error && <p className={`small ${styles.error}`}>{error}</p>}
         <section className={styles.group}>
-          <h3 className="label">Quality</h3>
+          <h3 className="small">Quality</h3>
           <Segmented
             label="Quality"
             value={settings.preset}
@@ -105,11 +105,11 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
             ]}
             onChange={(preset) => onChange({ preset })}
           />
-          <p className={`small ${styles.hint}`}>Best is cleaner and slower. Fast suits long lectures on a CPU.</p>
+          <p className={`small ${styles.hint}`}>Best is cleaner, and on a graphics card it is also the faster. Fast always runs on the processor.</p>
         </section>
 
         <section className={styles.group}>
-          <h3 className="label">Device</h3>
+          <h3 className="small">Device</h3>
           <Segmented
             label="Device"
             value={settings.device}
@@ -125,7 +125,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
         </section>
 
         <section className={styles.group}>
-          <h3 className="label">Default output format</h3>
+          <h3 className="small">Default output format</h3>
           <FormatSelect
             label="Audio files"
             value={settings.audio_format}
@@ -143,7 +143,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
         </section>
 
         <section className={styles.group}>
-          <h3 className="label">Theme</h3>
+          <h3 className="small">Theme</h3>
           <Segmented
             label="Theme"
             value={theme}
@@ -160,7 +160,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
         </section>
 
         <section className={styles.group}>
-          <h3 className="label">Data folder</h3>
+          <h3 className="small">Data folder</h3>
           <p className={`readout ${styles.path}`}>{settings.folder}</p>
           <button type="button" className="btn-quiet" onClick={openFolder}>
             <FolderIcon /> Open the cleaned files
@@ -169,7 +169,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
         </section>
 
         <section className={styles.group}>
-          <h3 className="label">Storage</h3>
+          <h3 className="small">Storage</h3>
           {library && (
             <p className="small">
               <span className="readout">{megabytes(library.jobs)}</span> in jobs,{' '}

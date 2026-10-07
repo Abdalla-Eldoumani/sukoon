@@ -34,7 +34,7 @@ def main(argv: list[str]) -> int:
             npm("ci")
         npm("run", "build")
     copy_dist()
-    print(f"copied {DIST} to {TARGET}")
+    print(f"copied {DIST.relative_to(ROOT)} to {TARGET.relative_to(ROOT)}")
     return 0
 
 

@@ -1,3 +1,4 @@
+import io
 import json
 import socket
 import sys
@@ -251,5 +252,75 @@ def test_missing_separation_libraries_are_reported_before_any_download(
     # How Python sees a package that isn't installed.
     monkeypatch.setitem(sys.modules, "torch", None)
     assert main(command) == 1
-    assert "uv sync --extra cpu" in capsys.readouterr().err
+    assert "Run: uv sync" in capsys.readouterr().err
     assert not any((tmp_path / "models").glob("*"))
+
+
+def test_arabic_paths_print_on_a_terminal_that_is_not_utf8(tmp_path, monkeypatch):
+    # Git Bash on Windows hands Python a cp1252 stdout, which has no Arabic letters.
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252"))
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setitem(sys.modules, "torch", None)
+    monkeypatch.setenv("SUKOON_HOME", str(tmp_path / "بيانات سكون"))
+    assert main(["doctor"]) == 1
+    sys.stdout.flush()
+    assert "بيانات سكون" in raw.getvalue().decode("utf-8")
+
+
+def test_clean_takes_a_link_and_writes_mp4_to_the_output_folder(corpus, settings, tmp_path):
+    from tests.test_links import fake_fetch
+
+    printed = []
+    code = clean(
+        ["https://www.youtube.com/watch?v=video"],
+        tmp_path,
+        Options(),
+        FakeEngine(),
+        settings,
+        out=printed.append,
+        fetch_options={"target": fake_fetch},
+    )
+    assert code == 0
+    assert printed == [str(tmp_path / "Talk- part 1 - video (no music).mp4")]
+    assert list((settings.home / "uploads").iterdir()) == []
+
+
+def test_keep_music_downloads_without_separating(corpus, settings, tmp_path):
+    from tests.test_links import fake_fetch
+
+    printed = []
+    code = clean(
+        ["https://www.youtube.com/watch?v=audio"],
+        tmp_path,
+        Options(keep_music=True),
+        FakeEngine(fail="raise"),
+        settings,
+        out=printed.append,
+        fetch_options={"target": fake_fetch},
+    )
+    assert code == 0
+    assert printed == [str(tmp_path / "Talk- part 1 - audio.m4a")]
+
+
+def test_clean_reports_a_refused_link_and_carries_on(corpus, settings, tmp_path):
+    printed = []
+    code = clean(
+        ["https://evil.example/video", corpus / "short-2s.wav"],
+        tmp_path,
+        Options(),
+        FakeEngine(),
+        settings,
+        out=printed.append,
+    )
+    assert code == 1
+    assert printed[0].startswith("https://evil.example/video: sukoon takes links from YouTube")
+    assert printed[1] == str(tmp_path / "short-2s (no music).wav")
+
+
+def test_keep_music_skips_the_model_check(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SUKOON_HOME", str(tmp_path))
+    # How Python sees a package that isn't installed: separation could not run at all.
+    monkeypatch.setitem(sys.modules, "torch", None)
+    assert main(["clean", "https://evil.example/x", "--keep-music"]) == 1
+    assert "sukoon takes links from" in capsys.readouterr().out
