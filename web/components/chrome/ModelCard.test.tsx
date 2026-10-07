@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { model } from '../test/fixtures'
+import { model } from '../../test/fixtures'
 import { ModelCard } from './ModelCard'
 
 const fast = model({ preset: 'fast', size: 66_762_490 })
