@@ -53,9 +53,9 @@ describe('SettingsSheet', () => {
 
   it('keeps the theme in the browser only', async () => {
     const { onChange } = open()
-    await userEvent.click(screen.getByRole('radio', { name: 'Light' }))
-    expect(document.documentElement.dataset.theme).toBe('light')
-    expect(window.localStorage.getItem('sukoon.theme')).toBe('light')
+    await userEvent.click(screen.getByRole('radio', { name: 'Parchment' }))
+    expect(document.documentElement.dataset.theme).toBe('parchment')
+    expect(window.localStorage.getItem('sukoon.theme')).toBe('parchment')
     expect(onChange).not.toHaveBeenCalled()
   })
 
