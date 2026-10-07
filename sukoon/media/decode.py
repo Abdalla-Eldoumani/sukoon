@@ -4,9 +4,9 @@ from pathlib import Path
 
 import soundfile as sf
 
-from sukoon import ffmpeg
 from sukoon.errors import JobError
-from sukoon.probe import Probe
+from sukoon.media import ffmpeg
+from sukoon.media.probe import Probe
 
 RATE = 44100
 
