@@ -1,4 +1,4 @@
-import type { JobState } from './types'
+import type { JobState } from '../api/types'
 
 export const STATE_LABEL: Record<JobState, string> = {
   uploading: 'Uploading',
