@@ -11,8 +11,8 @@ from typing import Any, Literal, Protocol
 import numpy as np
 import soundfile as sf
 
-from sukoon.device import DevicePreference
-from sukoon.models import MODEL_FILES, ModelFile, Preset, verify_preset
+from sukoon.separation.device import DevicePreference
+from sukoon.separation.models import MODEL_FILES, ModelFile, Preset, verify_preset
 
 
 class OutOfMemory(Exception):
