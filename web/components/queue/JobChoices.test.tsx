@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { job } from '../test/fixtures'
+import { job } from '../../test/fixtures'
 import { JobChoices } from './JobChoices'
 
 const VIDEO_FORMATS = [
