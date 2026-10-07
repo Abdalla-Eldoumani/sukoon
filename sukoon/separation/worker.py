@@ -11,11 +11,11 @@ from multiprocessing.synchronize import Event
 from pathlib import Path
 from typing import Any
 
-from sukoon.chunk import ChunkReport, separate_chunked
-from sukoon.device import DevicePreference
-from sukoon.engine import AudioSeparatorEngine, Engine, FakeEngine
 from sukoon.errors import DISK_FULL, Canceled, JobError
-from sukoon.models import MODEL_FILES, ModelChecksumError, ModelFile, Preset
+from sukoon.separation.chunk import ChunkReport, separate_chunked
+from sukoon.separation.device import DevicePreference
+from sukoon.separation.engine import AudioSeparatorEngine, Engine, FakeEngine
+from sukoon.separation.models import MODEL_FILES, ModelChecksumError, ModelFile, Preset
 
 CRASHED = "The separation engine stopped unexpectedly."
 CANCEL_GRACE_S = 20.0
