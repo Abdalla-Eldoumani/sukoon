@@ -7,14 +7,14 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from sukoon import pipeline
 from sukoon.errors import Canceled, JobError
-from sukoon.models import Preset
-from sukoon.pipeline import Options
-from sukoon.probe import Probe
+from sukoon.jobs import pipeline
+from sukoon.jobs.pipeline import Options
+from sukoon.jobs.store import FINISHED, RUNNING, STOPPED, Store
+from sukoon.media.probe import Probe
+from sukoon.separation.models import Preset
+from sukoon.separation.worker import Worker
 from sukoon.settings import Settings
-from sukoon.store import FINISHED, RUNNING, STOPPED, Store
-from sukoon.worker import Worker
 
 log = logging.getLogger("sukoon")
 
