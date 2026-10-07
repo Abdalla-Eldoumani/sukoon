@@ -1,4 +1,4 @@
-from sukoon.cli import main
+from sukoon.cli.main import main
 
 # The worker process re-imports the main module under spawn; the guard keeps it from starting a
 # second app.
