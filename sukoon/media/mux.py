@@ -3,10 +3,10 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from sukoon import ffmpeg, tools
-from sukoon.compat import AUDIO_ENCODER, MUXER, REENCODE, Plan
-from sukoon.encode import MAX_RATE
-from sukoon.probe import Probe
+from sukoon.media import ffmpeg, tools
+from sukoon.media.compat import AUDIO_ENCODER, MUXER, REENCODE, Plan
+from sukoon.media.encode import MAX_RATE
+from sukoon.media.probe import Probe
 
 # Far longer than the two seconds of packets the priming check reads.
 TRIAL_S = 30.0
