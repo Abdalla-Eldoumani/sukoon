@@ -3,8 +3,8 @@ import re
 
 import pytest
 
-from sukoon.engine import AudioSeparatorEngine
-from sukoon.models import (
+from sukoon.separation.engine import AudioSeparatorEngine
+from sukoon.separation.models import (
     CHECKSUM_MESSAGE,
     MODEL_FILES,
     ModelChecksumError,
