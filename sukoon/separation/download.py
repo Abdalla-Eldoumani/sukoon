@@ -6,7 +6,7 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
-from sukoon.models import (
+from sukoon.separation.models import (
     CHECKSUM_MESSAGE,
     MODEL_FILES,
     ModelChecksumError,
