@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { job } from '../test/fixtures'
+import { job } from '../../test/fixtures'
 import { LiveRegion } from './LiveRegion'
 
 describe('LiveRegion', () => {
