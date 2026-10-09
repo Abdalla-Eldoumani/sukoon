@@ -73,7 +73,7 @@ Every failure below fails the link job with the sentence shown, on its row, and 
 
 | Case | What happens | Proved by |
 | --- | --- | --- |
-| **Upload interrupted** (rare on one computer) | Uploads stream to a `.part` file that's deleted when the request ends early. A sweep at startup removes any `.part` older than an hour. | API test that aborts an upload |
+| **Upload interrupted** (rare on one computer) | Uploads stream to a `.part` file that's deleted when the request ends early. A sweep at startup removes any upload or output `.part` older than an hour; a model's `.part` is kept, because the download resumes from it. | API test that aborts an upload |
 | **Tab closed while working** (common) | Work is on the server and carries on. Reopening shows where it is. | Disconnect and reconnect the event stream mid-job |
 | **App stopped while working** (rare): Ctrl+C, restart, power cut | At the next start every running job becomes `interrupted` and its scratch folder is deleted. Retry starts it over. | A database seeded with a running job |
 | **Cancel while separating** (common) | The worker checks between chunks. A chunk that doesn't answer within 20 seconds gets the worker stopped and replaced. Cancel while encoding kills ffmpeg. The job ends `canceled` with its scratch deleted. | A slow engine cancels within one chunk; a hung one is stopped within 25 s |
