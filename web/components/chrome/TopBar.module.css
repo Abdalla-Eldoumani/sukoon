@@ -1,5 +1,5 @@
 .bar {
-  height: 64px;
+  height: var(--topbar);
   border-bottom: 1px solid var(--rule);
 }
 
