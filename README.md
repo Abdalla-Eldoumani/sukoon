@@ -127,7 +127,7 @@ Set `SUKOON_HOME` to use another folder, for example on a bigger drive. Inside a
 - The server listens on `127.0.0.1` only, so other computers can't reach it, and it refuses requests from other websites.
 - There are no analytics or crash reports, and no fonts or scripts load from the internet.
 - Models download from the fixed addresses in `sukoon/separation/models.py`. Each file's size and SHA-256 are checked before it's used, and after that sukoon works offline.
-- A link is fetched from its site only when you paste it. sukoon sends no cookies, uses no account, reads no browser data, and loads no code from the internet (the YouTube solver is installed with the app). The downloaded file gets the same check as a dropped file before anything opens it. That check confirms it's real audio or video; it is not a virus scan.
+- A link is fetched from its site only when you paste it. sukoon sends no cookies, uses no account, and reads no browser data. For YouTube it downloads YouTube's own player script and runs it with the solver that ships with the app, in Node's permission sandbox, which has no file or network access. The downloaded file gets the same check as a dropped file before anything opens it. That check confirms it's real audio or video; it is not a virus scan.
 
 ## Troubleshooting
 
