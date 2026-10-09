@@ -24,7 +24,7 @@ Every failure below fails the link job with the sentence shown, on its row, and 
 
 | Case | What happens | Proved by |
 | --- | --- | --- |
-| **Refused address** (common): an unlisted site, a look-alike host (`youtube.com.evil.example`, a Cyrillic letter for a Latin one), a user part, a port, a raw address, `http` | Refused before a job exists and before any request, under the link field: "sukoon takes links from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud. For anything else, download the file and drop it here." | Unit tests on `site()` with each look-alike; API test that a refused link makes no job |
+| **Refused address** (common): an unlisted site, a look-alike host (`youtube.com.evil.example`, a Cyrillic letter for a Latin one), a user part, a port, a raw address, `http` | Refused before a job exists and before any request, under the link field: "sukoon takes links from YouTube, X, Facebook, Reddit, and SoundCloud. It also tries Instagram, TikTok, and Vimeo, which often turn it away. For anything else, download the file and drop it here." | Unit tests on `site()` with each look-alike; API test that a refused link makes no job |
 | **Playlist or channel** (common) | Read without expanding its entries: "This link is a playlist or a channel. Paste the link of one video." A single video taken from a playlist (`watch?v=...&list=...`) is fetched alone. | Unit test on `refusal()`; checked live on a YouTube playlist |
 | **Private or deleted** (common) | "This video is private or was deleted, so it can't be fetched." | `explain()` with yt-dlp's wording; API test through the stand-in downloader |
 | **Age-restricted** (rare) | "This video is age-restricted, and sukoon never signs in, so it can't be fetched." | `explain()` |
