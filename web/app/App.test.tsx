@@ -25,7 +25,7 @@ describe('App', () => {
     render(<App />)
     expect(screen.getByRole('heading', { level: 1, name: 'sukoon سكون' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Drop a recording anywhere.' })).toBeInTheDocument()
-    expect(screen.getByText('Voices stay and the music goes. Everything happens on this computer.')).toBeInTheDocument()
+    expect(screen.getByText('Keeps the voices and takes out the music, though a little can stay behind. Everything happens on this computer.')).toBeInTheDocument()
   })
 
   it('shows the device the server reports', async () => {
