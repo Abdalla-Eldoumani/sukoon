@@ -59,7 +59,7 @@ Components are `PascalCase.tsx` with a `.module.css` beside them; everything els
 | A theme's colours | its block in `web/styles/themes.css` |
 | The list of themes, their names and order | `web/lib/theme/themes.ts`, and the `ids` list in `web/public/theme.js` (a test checks they match) |
 | A sentence a link job fails with | `sukoon/links/messages.py`; which yt-dlp error maps to it is `explain()` in `sukoon/links/ytdlp.py` |
-| The sites links come from | `SITES` and `NAMES` in `sukoon/links/sites.py`, `REFUSED` in `messages.py`, and the README |
+| The sites links come from | `SITES` and `NAMES` in `sukoon/links/sites.py`, `REFUSED` in `messages.py`, the sites sentence in `DropWell.tsx`, and the README |
 | An output format | `AUDIO_FORMATS` in `sukoon/media/encode.py`, or the container tables in `sukoon/media/compat.py` |
 | A limit (size, length, queue) | `sukoon/settings.py` |
 | A model | `MODEL_FILES` and its pinned hash in `sukoon/separation/models.py` |
