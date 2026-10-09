@@ -7,9 +7,6 @@ import { Segmented } from '../ui/Segmented'
 import styles from './SettingsSheet.module.css'
 import { ThemePicker } from './ThemePicker'
 
-const AUDIO = ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg']
-const VIDEO = ['mp4', 'mkv', 'webm', 'mov']
-
 interface Props {
   settings: Settings
   /** Why the last change was not saved. */
@@ -130,14 +127,14 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
           <FormatSelect
             label="Audio files"
             value={settings.audio_format}
-            formats={AUDIO}
+            formats={settings.formats.audio}
             missing={settings.missing}
             onChange={(audio_format) => onChange({ audio_format })}
           />
           <FormatSelect
             label="Video files"
             value={settings.video_format}
-            formats={VIDEO}
+            formats={settings.formats.video}
             missing={settings.missing}
             onChange={(video_format) => onChange({ video_format })}
           />
