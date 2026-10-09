@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from sukoon.jobs.store import Store, TransitionError
+from sukoon.jobs.store import FINISHED, RUNNING, STATES, WAITING, Store, TransitionError
 
 
 @pytest.fixture
@@ -131,3 +131,8 @@ def test_a_database_from_the_first_release_takes_link_jobs(tmp_path):
     assert s.get("a")["result"] == {"notes": []}
     assert s.create("x.com/u/status/1", {}, state="fetching")["state"] == "fetching"
     s.close()
+
+
+def test_every_state_belongs_to_a_group_and_none_is_both_waiting_and_finished():
+    assert set(STATES) == RUNNING | WAITING | FINISHED
+    assert not WAITING & FINISHED
