@@ -56,7 +56,7 @@ Every failure below fails the link job with the sentence shown, on its row, and 
 | Case | What happens | Proved by |
 | --- | --- | --- |
 | **No model yet** (every new install) | The model card appears above the queue: download Best, or start with Fast. The job waits in "Waiting for model". Progress shows bytes and speed. | API test with a fake download source |
-| **Offline, or the host is down** (rare) | Downloads go to a `.part` file and resume with an HTTP Range request. "Couldn't download the model. Check your connection, then retry." with Retry. After the download, sukoon never needs the network. | A local server that drops the connection halfway, then resumes |
+| **Offline, or the host is down** (rare) | Downloads go to a `.part` file that stays across a restart and resumes with an HTTP Range request. "Couldn't download the model. Check your connection, then retry." with Retry. After the download, sukoon never needs the network. | A local server that drops the connection halfway, then resumes |
 | **Model file corrupted or replaced** (very rare) | SHA-256 is checked after every download and before the first load in a process. A mismatch deletes the file: "The model file didn't match its expected checksum and was removed." | A fixture model with one byte flipped |
 
 ## Output
