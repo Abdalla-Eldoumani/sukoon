@@ -89,7 +89,7 @@ describe('App', () => {
   })
 
   it('keeps a saved setting when an earlier change is refused afterwards', async () => {
-    const stored = { preset: 'best', device: 'auto', audio_format: null, video_format: null, missing: {}, folder: '/data' }
+    const stored = { preset: 'best', device: 'auto', audio_format: null, video_format: null, formats: { audio: ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg'], video: ['mp4', 'mkv', 'webm', 'mov'] }, missing: {}, folder: '/data' }
     let refuse: (r: Response) => void = () => {}
     const json = (body: unknown, status = 200) =>
       new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
@@ -126,7 +126,7 @@ describe('App', () => {
         if (url.includes('/download')) return json({ error: 'A download is already running.' }, 409)
         if (url.endsWith('/api/health')) return json({ status: 'ok', version: '0.1.0', device: 'CPU', ffmpeg: { ok: true, install: '' } })
         if (url.endsWith('/api/settings') && init?.method !== 'PUT') {
-          return json({ preset: 'best', device: 'auto', audio_format: null, video_format: null, missing: {}, folder: '/data' })
+          return json({ preset: 'best', device: 'auto', audio_format: null, video_format: null, formats: { audio: ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg'], video: ['mp4', 'mkv', 'webm', 'mov'] }, missing: {}, folder: '/data' })
         }
         return json({ jobs: 0, models: 0 })
       }),
