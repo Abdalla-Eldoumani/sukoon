@@ -89,7 +89,8 @@ def test_accepts_the_listed_sites(url, expected):
 def test_refuses_anything_else_with_a_sentence_naming_the_sites(url):
     with pytest.raises(LinkRefused) as refused:
         site(url)
-    assert "YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud" in str(
+    assert "YouTube, X, Facebook, Reddit, and SoundCloud" in str(refused.value)
+    assert "It also tries Instagram, TikTok, and Vimeo, which often turn it away." in str(
         refused.value
     )
 
@@ -384,7 +385,7 @@ def test_retry_right_after_cancel_runs_one_download(links_client, settings):
 def test_a_refused_link_never_becomes_a_job(links_client):
     r = links_client.post("/api/links", json={"url": "https://youtube.com.evil.example/watch?v=x"})
     assert r.status_code == 400
-    assert "YouTube, X, Instagram" in r.json()["error"]
+    assert "YouTube, X, Facebook" in r.json()["error"]
     assert links_client.get("/api/jobs").json() == []
 
 
