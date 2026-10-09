@@ -106,7 +106,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
             ]}
             onChange={(preset) => onChange({ preset })}
           />
-          <p className={`small ${styles.hint}`}>Best is cleaner, and on a graphics card it is also the faster. Fast always runs on the processor.</p>
+          <p className={`small ${styles.hint}`}>Best gives the cleaner result, and is also faster on a graphics card. Fast always runs on the processor.</p>
         </section>
 
         <section className={styles.group}>
@@ -121,7 +121,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
             onChange={(device) => onChange({ device })}
           />
           <p className={`small ${styles.hint}`}>
-            Auto uses the graphics card when torch can reach it. Changes apply to files added from now on.
+            Auto uses the graphics card when sukoon can use one, and the processor when it can't. Changes apply to files added from now on.
           </p>
         </section>
 
