@@ -77,7 +77,7 @@ If port 8417 is taken, the next free one up to 8427 is used and printed. Startin
 
 ## Links
 
-Paste a link into the field, or press Ctrl+V anywhere outside a text field. sukoon takes single videos from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud. It refuses playlists, channels, and live streams, and says why.
+Paste a link into the field, or press Ctrl+V anywhere outside a text field. sukoon takes single videos from YouTube, X, Facebook, Reddit, and SoundCloud, and tries Instagram, TikTok, and Vimeo. It refuses playlists, channels, and live streams, and says why.
 
 A link row shows where the file comes from and how much has arrived, then runs like a dropped file. Remove music is on by default; turn it off on the row to download only. Either way the file becomes MP4 (H.264 and AAC where offered), or M4A when it has no picture, unless you pick another format.
 
