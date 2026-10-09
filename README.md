@@ -4,7 +4,7 @@ sukoon removes the music from audio and video files and keeps the voices: speech
 
 ## What it does
 
-- Keeps every human voice. Removes instruments and beats, and with them most other non-voice sound (ambience, effects, applause), because the models split voice from everything else.
+- Keeps every human voice. Removes instruments and beats, and with them most other non-voice sound (ambience, effects, applause), because the models split voice from everything else. Separation is not exact: a little music can stay in the voice, and a voice can lose some of its own sound, so play the result against the original before you rely on it.
 - Copies a video's picture untouched and puts the cleaned audio back in sync with it. Subtitles, chapters, other audio tracks, and metadata come along when the output format can hold them.
 - Keeps the input's format unless you pick another: MP3, M4A, WAV, FLAC, Opus, or OGG for audio, MP4, MKV, WebM, or MOV for video.
 - Shows each result as a strip, the voice kept above a line and the music removed below it, and lets you play the cleaned file and switch to the original at the same moment before you download.
