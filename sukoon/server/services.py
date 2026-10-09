@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 from sukoon.jobs.runner import Runner
-from sukoon.jobs.store import Job, Store
+from sukoon.jobs.store import WAITING, Job, Store
 from sukoon.media import compat, tools
 from sukoon.media.encode import AUDIO_FORMATS
 from sukoon.separation.download import Downloads
@@ -25,9 +25,6 @@ TOO_BIG = "This file is bigger than {limit} GB, which is sukoon's limit."
 QUEUE_FULL = "The queue is full ({limit} files). Add more once some have finished."
 NO_SPACE = "There isn't enough free disk space for this file."
 UNKNOWN = "Unknown preset or format."
-
-# Jobs that count toward the queue limit.
-WAITING = ("fetching", "checking", "queued", "waiting_model", "awaiting_track", "awaiting_confirm")
 
 
 @dataclass
