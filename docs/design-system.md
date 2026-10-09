@@ -19,7 +19,7 @@ Reason:     people trust a tool that removes things when it shows what it remove
 
 Rules that follow from the contract.
 
-- Every indicator shows live data or is not drawn.
+- Every indicator shows live data or is not drawn. The one exception is the empty page's example trace, which is faint, sits under a caption that calls it an example of a strip, and goes as soon as there is a file.
 - Amber means the voice that stays and nothing else: not progress, not focus, not buttons. Steel means what was taken out and nothing else. Neither ever needs a legend after the first strip.
 - Progress, focus, and the one primary button use the ink color.
 - There is one primary action on screen at a time.
