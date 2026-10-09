@@ -91,7 +91,7 @@ Recovery: if the app dies, nothing is lost but in-flight work. Interrupted jobs 
 ## Security and privacy threats
 
 - **Another website talks to the local server** (CSRF, DNS rebinding). Host header allowlist and Origin check on every state-changing route; no CORS headers at all.
-- **A crafted media file makes ffmpeg read other files or the network.** Probe first and reject playlist and indirection formats; run ffmpeg and ffprobe with `-protocol_whitelist file,pipe`; never pass a user string as an argument.
+- **A crafted media file makes ffmpeg read other files or the network.** Probe first and reject playlist and indirection formats, and refuse a DASH manifest by its content before ffprobe runs, since that demuxer fetches the addresses in a manifest, over http too, while it is probed; run ffmpeg and ffprobe with `-protocol_whitelist file,pipe`; never pass a user string as an argument.
 - **Path traversal through file names.** User file names are kept only as display strings in the database and in the `Content-Disposition` header (RFC 6266 `filename*`). On disk everything is a UUID.
 - **A swapped model file runs code when loaded.** Pinned SHA-256 on every model file; torch 2.14 loads with `weights_only=True` by default; the Demucs path, which loads with `weights_only=False`, is not used.
 - **Resource exhaustion from a huge or malformed file.** Size, duration, and disk checks before work starts; every ffmpeg call has a timeout scaled to the file's duration, ffprobe has fixed timeouts (60 seconds to read a file, 10 minutes to count the packets of a raw stream, and a file that stalls either is rejected as unreadable) and the tool checks have 20 seconds, and the separation worker is stopped if a chunk reports no progress for 30 minutes.
