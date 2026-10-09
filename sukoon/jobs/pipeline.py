@@ -88,7 +88,7 @@ class Result:
 Progress = Callable[[Stage, float, float | None], None]
 ETA_SMOOTHING = 0.5
 # Each output encoder's time next to the Opus preview's, on 20 minutes of speech on the
-# RTX 3060 laptop. ceiling: one machine's ratios, and a confirmed picture re-encode is left
+# RTX 3060 laptop. shortcut: one machine's ratios, and a confirmed picture re-encode is left
 # out until encoding starts and measures itself; revisit if the time left often runs over.
 ENCODE_COST = {
     "aac": 7.7,
