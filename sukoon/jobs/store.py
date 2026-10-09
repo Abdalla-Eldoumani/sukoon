@@ -25,6 +25,8 @@ STATES = (
 RUNNING = {"fetching", "checking", "decoding", "separating", "encoding"}
 FINISHED = {"done", "failed", "canceled", "interrupted"}
 STOPPED = {"failed", "canceled", "interrupted"}
+# Jobs that count toward the queue limit and cancel at once.
+WAITING = {"fetching", "checking", "queued", "waiting_model", "awaiting_track", "awaiting_confirm"}
 
 TRANSITIONS: dict[str, set[str]] = {
     "fetching": {"checking", "failed", "canceled", "interrupted"},
