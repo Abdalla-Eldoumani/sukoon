@@ -81,7 +81,7 @@ Paste a link into the field, or press Ctrl+V anywhere outside a text field. suko
 
 A link row shows where the file comes from and how much has arrived, then runs like a dropped file. Remove music is on by default; turn it off on the row to download only. Either way the file becomes MP4 (H.264 and AAC where offered), or M4A when it has no picture, unless you pick another format.
 
-sukoon never signs in to a site. As of October 2026, Vimeo and Instagram only give the sound to signed-in people, and TikTok refuses requests that don't come from a browser; those jobs fail with a sentence saying so. YouTube, X, Facebook, Reddit, and SoundCloud worked in testing.
+sukoon never signs in to a site. As of October 2026, Vimeo gives nothing to requests that aren't signed in, Instagram gives the picture without the sound, and TikTok refuses requests that don't come from a browser; those jobs fail with a sentence saying so. YouTube, X, Facebook, Reddit, and SoundCloud worked in testing.
 
 Sites change their pages every few weeks. When a job says the reader may be out of date, or `sukoon doctor` says yt-dlp is more than 60 days old, update it:
 
