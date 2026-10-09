@@ -73,4 +73,10 @@ describe('SettingsSheet', () => {
     await userEvent.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('explains Auto without naming the library behind it', () => {
+    open()
+    expect(screen.getByText(/Auto uses the graphics card when sukoon can use one, and the processor when it can't\./)).toBeInTheDocument()
+    expect(screen.queryByText(/torch/i)).toBeNull()
+  })
 })
