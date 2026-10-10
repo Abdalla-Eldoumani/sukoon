@@ -202,8 +202,15 @@ export function App() {
     if (switchJobs) changeSettings({ preset })
   }
 
-  const uploadingNames = new Set(uploads.filter((u) => u.state === 'uploading').map((u) => u.name))
-  const rows = [...server.jobs.filter((j) => !(j.state === 'checking' && uploadingNames.has(j.name))), ...uploads]
+  // Uploads go one at a time, so the first one still sending is the only file the server lists as
+  // Checking too; hide that one copy, never another job that happens to share its name.
+  const sending = uploads.find((u) => u.state === 'uploading')
+  const echo = sending
+    ? server.jobs
+        .filter((j) => j.state === 'checking' && j.name === sending.name)
+        .reduce<Job | undefined>((newest, j) => (!newest || j.created > newest.created ? j : newest), undefined)
+    : undefined
+  const rows = [...server.jobs.filter((j) => j !== echo), ...uploads]
   const best = server.models.find((m) => m.preset === 'best')
   const fast = server.models.find((m) => m.preset === 'fast')
   const needsModel =

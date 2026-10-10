@@ -81,6 +81,35 @@ describe('App', () => {
     expect(added.className).toMatch(/arriving/)
   })
 
+  it('shows an earlier job of the same name beside the file being uploaded', async () => {
+    serveHealth('CPU')
+    // An upload that never answers, so the file stays in flight for the whole test.
+    vi.stubGlobal(
+      'XMLHttpRequest',
+      class {
+        upload = {}
+        open() {}
+        send() {}
+      },
+    )
+    const { container } = render(<App />)
+    act(() =>
+      FakeEventSource.last!.emit('snapshot', {
+        jobs: [
+          job({ id: 'earlier', name: 'talk.mp3', state: 'checking', created: 1 }),
+          job({ id: 'sending', name: 'talk.mp3', state: 'checking', created: 2 }),
+        ],
+        models: [],
+      }),
+    )
+    await userEvent.upload(
+      container.querySelector('input[type=file]') as HTMLInputElement,
+      new File(['x'], 'talk.mp3', { type: 'audio/mpeg' }),
+    )
+    // The server's copy of the file in flight is the local row; the earlier job is its own row.
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+  })
+
   it('shows only the setup screen while ffmpeg is missing', async () => {
     serveHealth('CPU', false)
     render(<App />)
