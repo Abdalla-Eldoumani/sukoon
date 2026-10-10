@@ -23,6 +23,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
+  /* The label is the target: tall enough to hit with a thumb, whatever the switch measures. */
+  min-height: 24px;
   color: var(--text);
   cursor: pointer;
 }
