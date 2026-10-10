@@ -11,6 +11,12 @@
   gap: var(--s2);
 }
 
+/* A select is as wide as the choice it shows, not as the longest one it could show. Browsers
+   without field-sizing keep the longer width. */
+.controls select {
+  field-sizing: content;
+}
+
 .text {
   color: var(--text-2);
 }
