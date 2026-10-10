@@ -35,6 +35,10 @@ SILENT = (
 )
 
 
+def unexplained(detail: str) -> str:
+    return f"Couldn't fetch this video. yt-dlp said: {detail}"
+
+
 def too_long(max_seconds: float) -> str:
     return f"This video is longer than {max_seconds / 3600:g} hours, which is sukoon's limit."
 
