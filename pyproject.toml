@@ -10,7 +10,7 @@ dependencies = [
     # CPU onnxruntime for Fast: onnxruntime-gpu needs CUDA 13, and on a GPU Best is faster anyway.
     "audio-separator[cpu]==0.47.0",
     "audioread==3.1.0",  # audio-separator imports it without declaring it
-    "fastapi==0.142.2",
+    "fastapi==0.143.0",
     "uvicorn==0.54.0",
     "python-multipart==0.0.32",
     "numpy==2.5.3",
