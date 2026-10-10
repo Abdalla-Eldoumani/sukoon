@@ -20,6 +20,10 @@ def test_settings_start_at_the_defaults_and_persist(settings, web_dist):
             "video_format": None,
         }
         assert first["folder"] == str(settings.home)
+        assert first["formats"] == {
+            "audio": ["mp3", "m4a", "wav", "flac", "opus", "ogg"],
+            "video": ["mp4", "mkv", "webm", "mov"],
+        }
         r = client.put("/api/settings", json={"preset": "fast", "audio_format": "flac"})
         assert r.json()["preset"] == "fast"
     with TestClient(fake_app(settings, web_dist=web_dist), base_url=BASE) as client:

@@ -22,6 +22,7 @@
   --d-panel: 240ms;
   --d-draw: 400ms;
 
+  --topbar: 64px;
   --gutter: 48px;
   --page: 1440px;
   /* A band's inner edge: the gutter, or wider once the window passes the page width. */

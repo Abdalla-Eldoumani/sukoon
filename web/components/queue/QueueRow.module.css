@@ -44,6 +44,10 @@
   grid-area: name;
   display: flex;
   flex-direction: column;
+  /* The name hugs its text, so its focus ring does too. */
+  align-items: flex-start;
+  /* Clear of the ring, which would otherwise cross the stage line below. */
+  gap: 4px;
   min-width: 0;
 }
 
@@ -61,6 +65,11 @@
 
 .nameButton {
   cursor: pointer;
+}
+
+.nameButton:focus-visible {
+  outline-offset: 1px;
+  border-radius: var(--r-xs);
 }
 
 .nameText {

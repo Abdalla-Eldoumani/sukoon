@@ -25,7 +25,7 @@ describe('App', () => {
     render(<App />)
     expect(screen.getByRole('heading', { level: 1, name: 'sukoon سكون' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Drop a recording anywhere.' })).toBeInTheDocument()
-    expect(screen.getByText('Voices stay and the music goes. Everything happens on this computer.')).toBeInTheDocument()
+    expect(screen.getByText('Keeps the voices and takes out the music, though a little can stay behind. Everything happens on this computer.')).toBeInTheDocument()
   })
 
   it('shows the device the server reports', async () => {
@@ -81,6 +81,35 @@ describe('App', () => {
     expect(added.className).toMatch(/arriving/)
   })
 
+  it('shows an earlier job of the same name beside the file being uploaded', async () => {
+    serveHealth('CPU')
+    // An upload that never answers, so the file stays in flight for the whole test.
+    vi.stubGlobal(
+      'XMLHttpRequest',
+      class {
+        upload = {}
+        open() {}
+        send() {}
+      },
+    )
+    const { container } = render(<App />)
+    act(() =>
+      FakeEventSource.last!.emit('snapshot', {
+        jobs: [
+          job({ id: 'earlier', name: 'talk.mp3', state: 'checking', created: 1 }),
+          job({ id: 'sending', name: 'talk.mp3', state: 'checking', created: 2 }),
+        ],
+        models: [],
+      }),
+    )
+    await userEvent.upload(
+      container.querySelector('input[type=file]') as HTMLInputElement,
+      new File(['x'], 'talk.mp3', { type: 'audio/mpeg' }),
+    )
+    // The server's copy of the file in flight is the local row; the earlier job is its own row.
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+  })
+
   it('shows only the setup screen while ffmpeg is missing', async () => {
     serveHealth('CPU', false)
     render(<App />)
@@ -89,7 +118,7 @@ describe('App', () => {
   })
 
   it('keeps a saved setting when an earlier change is refused afterwards', async () => {
-    const stored = { preset: 'best', device: 'auto', audio_format: null, video_format: null, missing: {}, folder: '/data' }
+    const stored = { preset: 'best', device: 'auto', audio_format: null, video_format: null, formats: { audio: ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg'], video: ['mp4', 'mkv', 'webm', 'mov'] }, missing: {}, folder: '/data' }
     let refuse: (r: Response) => void = () => {}
     const json = (body: unknown, status = 200) =>
       new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
@@ -126,7 +155,7 @@ describe('App', () => {
         if (url.includes('/download')) return json({ error: 'A download is already running.' }, 409)
         if (url.endsWith('/api/health')) return json({ status: 'ok', version: '0.1.0', device: 'CPU', ffmpeg: { ok: true, install: '' } })
         if (url.endsWith('/api/settings') && init?.method !== 'PUT') {
-          return json({ preset: 'best', device: 'auto', audio_format: null, video_format: null, missing: {}, folder: '/data' })
+          return json({ preset: 'best', device: 'auto', audio_format: null, video_format: null, formats: { audio: ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg'], video: ['mp4', 'mkv', 'webm', 'mov'] }, missing: {}, folder: '/data' })
         }
         return json({ jobs: 0, models: 0 })
       }),

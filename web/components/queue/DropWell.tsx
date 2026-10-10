@@ -96,7 +96,7 @@ export function DropWell({ compact, dragging, onFiles, onLink, linkError = null 
     <section className={styles.intake} aria-label="Add files">
       <div className={styles.hero}>
         <h2 className="display">{dragging ? 'Release to add.' : 'Drop a recording anywhere.'}</h2>
-        <p className={styles.lede}>Voices stay and the music goes. Everything happens on this computer.</p>
+        <p className={styles.lede}>Keeps the voices and takes out the music, though a little can stay behind. Everything happens on this computer.</p>
         <div className={styles.controls}>
           {choose}
           <span className={styles.or}>or</span>
@@ -104,7 +104,7 @@ export function DropWell({ compact, dragging, onFiles, onLink, linkError = null 
         </div>
         {error}
         <p className={`small ${styles.sites}`}>
-          Links work from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud.
+          Links work from YouTube, X, Facebook, Reddit, and SoundCloud. Instagram, TikTok, and Vimeo often refuse.
         </p>
       </div>
       <EmptyStrip dragging={dragging} />

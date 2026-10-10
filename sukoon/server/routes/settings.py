@@ -34,10 +34,11 @@ def router(services: Services) -> APIRouter:
     store = services.store
 
     def settings_view() -> dict[str, Any]:
-        formats = [*AUDIO_FORMATS, *compat.VIDEO_CONTAINERS]
+        audio, video = list(AUDIO_FORMATS), list(compat.VIDEO_CONTAINERS)
         return {
             **store.settings(),
-            "missing": {f: e for f in formats if (e := services.missing_encoder(f))},
+            "formats": {"audio": audio, "video": video},
+            "missing": {f: e for f in [*audio, *video] if (e := services.missing_encoder(f))},
             "folder": str(services.settings.home),
         }
 

@@ -11,6 +11,12 @@
   gap: var(--s2);
 }
 
+/* A select is as wide as the choice it shows, not as the longest one it could show. Browsers
+   without field-sizing keep the longer width. */
+.controls select {
+  field-sizing: content;
+}
+
 .text {
   color: var(--text-2);
 }
@@ -23,6 +29,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
+  /* The label is the target: tall enough to hit with a thumb, whatever the switch measures. */
+  min-height: 24px;
   color: var(--text);
   cursor: pointer;
 }

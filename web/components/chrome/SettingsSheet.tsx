@@ -7,9 +7,6 @@ import { Segmented } from '../ui/Segmented'
 import styles from './SettingsSheet.module.css'
 import { ThemePicker } from './ThemePicker'
 
-const AUDIO = ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg']
-const VIDEO = ['mp4', 'mkv', 'webm', 'mov']
-
 interface Props {
   settings: Settings
   /** Why the last change was not saved. */
@@ -106,7 +103,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
             ]}
             onChange={(preset) => onChange({ preset })}
           />
-          <p className={`small ${styles.hint}`}>Best is cleaner, and on a graphics card it is also the faster. Fast always runs on the processor.</p>
+          <p className={`small ${styles.hint}`}>Best gives the cleaner result, and is also faster on a graphics card. Fast always runs on the processor.</p>
         </section>
 
         <section className={styles.group}>
@@ -121,7 +118,7 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
             onChange={(device) => onChange({ device })}
           />
           <p className={`small ${styles.hint}`}>
-            Auto uses the graphics card when torch can reach it. Changes apply to files added from now on.
+            Auto uses the graphics card when sukoon can use one, and the processor when it can't. Changes apply to files added from now on.
           </p>
         </section>
 
@@ -130,14 +127,14 @@ export function SettingsSheet({ settings, error = null, library, onChange, onCle
           <FormatSelect
             label="Audio files"
             value={settings.audio_format}
-            formats={AUDIO}
+            formats={settings.formats.audio}
             missing={settings.missing}
             onChange={(audio_format) => onChange({ audio_format })}
           />
           <FormatSelect
             label="Video files"
             value={settings.video_format}
-            formats={VIDEO}
+            formats={settings.formats.video}
             missing={settings.missing}
             onChange={(video_format) => onChange({ video_format })}
           />

@@ -1,16 +1,35 @@
-/* Drawn like the review strip with nothing in it: a band, two lanes, the line between them. */
+/* Drawn like a finished row's strip with nothing in it: a band, two lanes, the line between them,
+   and a faint trace of what a result looks like. It takes the room the empty page has left.
+   The outer columns are the page margin, so the trace can run to the window's edges while the
+   labels and the line stay inside it. */
 .strip {
+  position: relative;
+  flex: 1 1 auto;
   display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: 72px 1px 72px;
+  grid-template-columns: var(--inline) 1fr auto var(--inline);
+  grid-template-rows: minmax(72px, 1fr) 1px minmax(72px, 1fr);
   margin: 0;
-  padding: 0 var(--inline);
   background: var(--band);
   border-block: 1px solid var(--rule);
 }
 
+/* Spans both lanes and the line, so its middle is the line at every width. It is placed on top of
+   the grid, not in it, so the size of its drawing never feeds back into the size of the rows. */
+.ghost {
+  position: absolute;
+  grid-column: 1 / -1;
+  grid-row: 1 / 4;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.28;
+  pointer-events: none;
+  transition: opacity var(--d-hover) var(--ease-out);
+}
+
 .voice {
-  grid-column: 1;
+  position: relative;
+  grid-column: 2;
   grid-row: 1;
   align-self: start;
   padding-top: var(--s3);
@@ -18,14 +37,15 @@
 }
 
 .line {
-  grid-column: 1 / -1;
+  grid-column: 2 / 4;
   grid-row: 2;
   background: var(--rule);
   transition: background-color var(--d-hover) var(--ease-out);
 }
 
 .removed {
-  grid-column: 1;
+  position: relative;
+  grid-column: 2;
   grid-row: 3;
   align-self: end;
   padding-bottom: var(--s3);
@@ -33,7 +53,8 @@
 }
 
 .caption {
-  grid-column: 2;
+  position: relative;
+  grid-column: 3;
   grid-row: 3;
   align-self: end;
   max-width: 44ch;
@@ -42,19 +63,33 @@
   text-align: right;
 }
 
-/* While a file is held over the window, the line it will land on is drawn in ink. */
+/* While a file is held over the window, the line it will land on is drawn in ink and the trace
+   comes up. */
 .strip[data-dragging] .line {
   background: var(--ink);
 }
 
+.strip[data-dragging] .ghost {
+  opacity: 0.6;
+}
+
 @media (max-width: 767px) {
   .strip {
-    grid-template-columns: 1fr;
-    grid-template-rows: 56px 1px 56px auto;
+    grid-template-columns: var(--inline) 1fr var(--inline);
+    grid-template-rows: minmax(56px, 1fr) 1px minmax(56px, 1fr) auto;
+  }
+
+  .voice,
+  .removed {
+    grid-column: 2;
+  }
+
+  .line {
+    grid-column: 2;
   }
 
   .caption {
-    grid-column: 1;
+    grid-column: 2;
     grid-row: 4;
     max-width: none;
     padding: var(--s3) 0 var(--s4);

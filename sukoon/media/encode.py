@@ -48,7 +48,7 @@ def default_audio_format(probe: Probe) -> str:
         return "mp3"
     if "wav" in names or codec.startswith("pcm_"):
         return "wav"
-    if codec == "flac" or codec in LOSSLESS_CODECS:
+    if codec in LOSSLESS_CODECS:
         return "flac"
     if codec == "opus":
         return "opus"

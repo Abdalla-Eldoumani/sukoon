@@ -11,9 +11,21 @@ Kind = Literal["audio", "video"]
 UNREADABLE = "This file isn't audio or video sukoon can read."
 PLAYLIST = "This is a playlist, not a media file."
 NO_SOUND = "This video has no sound track, so there is nothing to clean."
+NO_FFPROBE = "sukoon can't find ffprobe, which comes with ffmpeg. Install ffmpeg, then try again."
 
 # Demuxers that open other files or network addresses.
-DENIED_FORMATS = {"hls", "concat", "sdp", "rtp", "rtsp", "tee", "image2", "image2pipe"}
+DENIED_FORMATS = {
+    "hls",
+    "concat",
+    "sdp",
+    "rtp",
+    "rtsp",
+    "tee",
+    "image2",
+    "image2pipe",
+    "dash",
+    "imf",
+}
 # Kept on disk only for these, so ffmpeg never sees a playlist extension it might act on.
 MEDIA_EXTS = {
     ".mp3",
@@ -41,6 +53,11 @@ MEDIA_EXTS = {
 }
 # Playlists are refused on sight, before ffprobe gets a chance to follow them.
 PLAYLIST_MAGIC = (b"#EXTM3U", b"ffconcat", b"v=0\r\n", b"v=0\n", b"[playlist]")
+# The dash demuxer fetches the addresses in a manifest while it is being probed, over http as
+# well, whatever the protocol whitelist says, so the format check after ffprobe is too late
+# for it. Its probe finds the markers anywhere in the first megabyte, so this looks that far.
+MANIFEST_SNIFF = 1 << 20
+MANIFEST_PROFILES = (b"dash:profile", b"3gpp:pss:profile:dash1")
 
 
 class Rejected(Exception):
@@ -171,12 +188,20 @@ def parse(raw: dict[str, Any]) -> Probe:
     )
 
 
+def _run(cmd: list[str], timeout: float, **kwargs: Any) -> "subprocess.CompletedProcess[Any]":
+    """Runs ffprobe; a file it can't finish reading in time is one sukoon can't read."""
+    try:
+        return subprocess.run(cmd, capture_output=True, timeout=timeout, check=False, **kwargs)
+    except subprocess.TimeoutExpired:
+        raise Rejected(UNREADABLE) from None
+
+
 def run_ffprobe(path: Path, timeout: float = 60) -> tuple[dict[str, Any], bool]:
     """The parsed JSON, and whether the duration in it is a guess from the bitrate."""
     exe = tools.ffprobe_path()
     if exe is None:
-        raise RuntimeError("ffprobe was not found")
-    out = subprocess.run(
+        raise Rejected(NO_FFPROBE)
+    out = _run(
         [
             exe,
             "-v",
@@ -191,9 +216,7 @@ def run_ffprobe(path: Path, timeout: float = 60) -> tuple[dict[str, Any], bool]:
             "-i",
             str(path),
         ],
-        capture_output=True,
-        timeout=timeout,
-        check=False,
+        timeout,
     )
     if out.returncode != 0:
         raise Rejected(UNREADABLE)
@@ -208,8 +231,8 @@ def counted_seconds(path: Path) -> float:
     """A file's length from its audio packets added up, for when ffprobe only guessed it."""
     exe = tools.ffprobe_path()
     if exe is None:
-        raise RuntimeError("ffprobe was not found")
-    out = subprocess.run(
+        raise Rejected(NO_FFPROBE)
+    out = _run(
         [
             exe,
             "-v",
@@ -224,10 +247,8 @@ def counted_seconds(path: Path) -> float:
             "csv=p=0",
             str(path),
         ],
-        capture_output=True,
+        600,
         text=True,
-        timeout=600,
-        check=False,
     )
     total = 0.0
     for line in out.stdout.splitlines():
@@ -243,6 +264,12 @@ def is_denied(format_name: str) -> bool:
     return bool(names & DENIED_FORMATS) or any(n.endswith("_pipe") for n in names)
 
 
+def is_manifest(head: bytes) -> bool:
+    """True for a DASH manifest, by the same markers ffmpeg's own probe looks for."""
+    low = head.lower()
+    return b"<mpd" in low and any(profile in low for profile in MANIFEST_PROFILES)
+
+
 def inspect(path: Path) -> Probe:
     """Reads a file's streams, refusing playlists and anything ffprobe can't read; raises Rejected.
 
@@ -251,8 +278,10 @@ def inspect(path: Path) -> Probe:
     if path.stat().st_size == 0:
         raise Rejected(UNREADABLE)
     with path.open("rb") as f:
-        head = f.read(64).lstrip(b"\xef\xbb\xbf \t\r\n")
-    if head.startswith(PLAYLIST_MAGIC):
+        sniffed = f.read(MANIFEST_SNIFF)
+    if sniffed[:64].lstrip(b"\xef\xbb\xbf \t\r\n").startswith(PLAYLIST_MAGIC):
+        raise Rejected(PLAYLIST)
+    if is_manifest(sniffed):
         raise Rejected(PLAYLIST)
     raw, guessed = run_ffprobe(path)
     if guessed and (seconds := counted_seconds(path)) > 0:

@@ -35,11 +35,11 @@ WEIGHTS: dict[Stage, tuple[float, float]] = {
 def through(state: str, progress: float, kept: bool) -> float | None:
     """How far the running pass has got through the recording, 0 to 1. Progress is weighted across
     the passes, but each pass runs from the start of the recording to its end."""
-    for stage, (lo, hi) in WEIGHTS.items():
-        if stage == state:
-            # Download only has one pass, which reports its own fraction.
-            return progress if kept else min(1.0, max(0.0, (progress - lo) / (hi - lo)))
-    return None
+    if state not in WEIGHTS:
+        return None
+    lo, hi = WEIGHTS[state]
+    # Download only has one pass, which reports its own fraction.
+    return progress if kept else min(1.0, max(0.0, (progress - lo) / (hi - lo)))
 
 
 NOTE_SURROUND = "Surround was mixed down to stereo."
@@ -88,7 +88,7 @@ class Result:
 Progress = Callable[[Stage, float, float | None], None]
 ETA_SMOOTHING = 0.5
 # Each output encoder's time next to the Opus preview's, on 20 minutes of speech on the
-# RTX 3060 laptop. ceiling: one machine's ratios, and a confirmed picture re-encode is left
+# RTX 3060 laptop. shortcut: one machine's ratios, and a confirmed picture re-encode is left
 # out until encoding starts and measures itself; revisit if the time left often runs over.
 ENCODE_COST = {
     "aac": 7.7,

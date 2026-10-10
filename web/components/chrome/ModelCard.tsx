@@ -20,7 +20,7 @@ export function ModelCard({ best, fast, onDownload, problem = null, primary = tr
       <div className={styles.text}>
         <h2 className="title">The separation model downloads once</h2>
         <span className={`small ${styles.detail}`}>
-          Best, {megabytes(best.size)}, is the cleaner, and the faster one on a graphics card. Fast,{' '}
+          Best, {megabytes(best.size)}, gives the cleaner result, and is also faster on a graphics card. Fast,{' '}
           {megabytes(fast.size)}, always runs on the processor, for computers without one.
         </span>
         {error && <span className={`small ${styles.error}`}>{error}</span>}

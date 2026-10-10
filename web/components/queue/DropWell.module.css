@@ -1,8 +1,12 @@
-/* The empty page: the way in, then the strip the files will fill. */
+/* The empty page: the way in, then the strip the files will fill, down to the window's edge. */
 .intake {
   display: flex;
   flex-direction: column;
   gap: var(--s12);
+  /* The window less the top bar, running over the page's own bottom padding. */
+  min-height: calc(100vh - var(--topbar));
+  min-height: calc(100dvh - var(--topbar));
+  margin-bottom: calc(var(--s16) * -1);
 }
 
 .hero {

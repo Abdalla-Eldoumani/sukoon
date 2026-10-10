@@ -25,6 +25,7 @@ from sukoon.links.messages import (
     TURNED_AWAY,
     too_big,
     too_long,
+    unexplained,
 )
 from sukoon.links.sites import NAMES, SHORT, SITES, LinkRefused, resolve_short, site, site_or_blank
 
@@ -99,7 +100,7 @@ def explain(message: str, family: str, geo: bool = False) -> str:
     if has("please report this issue", "unable to extract", "nsig", "signature", "challenge"):
         return OUTDATED.format(name=name)
     detail = message.removeprefix("ERROR: ").split(": ", 1)[-1].strip()
-    return f"Couldn't fetch this video. yt-dlp said: {detail}"
+    return unexplained(detail)
 
 
 class _Quiet:

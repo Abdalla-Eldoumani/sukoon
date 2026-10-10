@@ -2,6 +2,8 @@ import subprocess
 
 import pytest
 
+from sukoon.media import probe as probe_module
+from sukoon.media import tools
 from sukoon.media.probe import NO_SOUND, PLAYLIST, UNREADABLE, Probe, Rejected, probe
 
 
@@ -91,6 +93,8 @@ def test_probe_round_trips_through_json(corpus):
         ("sdp", True),
         ("rtsp", True),
         ("tee", True),
+        ("dash", True),
+        ("imf", True),
         ("image2", True),
         ("png_pipe", True),
         ("jpeg_pipe", True),
@@ -103,6 +107,52 @@ def test_format_denylist(format_name, denied):
     from sukoon.media.probe import is_denied
 
     assert is_denied(format_name) is denied
+
+
+@pytest.mark.parametrize(
+    ("head", "found"),
+    [
+        (b'<MPD profiles="urn:mpeg:dash:profile:isoff-live:2011">', True),
+        (b'<mpd profiles="urn:MPEG:DASH:PROFILE:full:2011">', True),
+        (b'<MPD profiles="urn:3GPP:PSS:profile:DASH1">', True),
+        (
+            b"<!--" + b" " * 300_000 + b'--><MPD profiles="urn:mpeg:dash:profile:isoff-live:2011">',
+            True,
+        ),
+        (b"<MPD>", False),
+        (b'profiles="urn:mpeg:dash:profile:isoff-live:2011"', False),
+        (b"ID3\x04\x00" + bytes(range(256)) * 40, False),
+    ],
+)
+def test_manifest_markers_match_what_ffmpeg_probes_for(head, found):
+    from sukoon.media.probe import is_manifest
+
+    assert is_manifest(head) is found
+
+
+def runs_out_of_time(cmd, **kwargs):
+    raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout", 0))
+
+
+def test_an_ffprobe_that_runs_out_of_time_rejects_the_file(corpus, monkeypatch):
+    monkeypatch.setattr(subprocess, "run", runs_out_of_time)
+    with pytest.raises(Rejected) as err:
+        probe(corpus / "short-2s.wav")
+    assert err.value.message == UNREADABLE
+
+
+def test_counting_packets_that_runs_out_of_time_rejects_the_file(corpus, monkeypatch):
+    monkeypatch.setattr(subprocess, "run", runs_out_of_time)
+    with pytest.raises(Rejected) as err:
+        probe_module.counted_seconds(corpus / "short-2s.wav")
+    assert err.value.message == UNREADABLE
+
+
+def test_a_missing_ffprobe_is_said_plainly(corpus, monkeypatch):
+    monkeypatch.setattr(tools, "ffprobe_path", lambda: None)
+    with pytest.raises(Rejected) as err:
+        probe(corpus / "short-2s.wav")
+    assert err.value.message == probe_module.NO_FFPROBE
 
 
 def test_a_raw_aac_length_is_counted_not_guessed(tmp_path):

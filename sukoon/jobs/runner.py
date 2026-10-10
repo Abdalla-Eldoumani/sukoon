@@ -10,7 +10,7 @@ from typing import Any
 from sukoon.errors import Canceled, JobError
 from sukoon.jobs import pipeline
 from sukoon.jobs.pipeline import Options
-from sukoon.jobs.store import FINISHED, RUNNING, STOPPED, Store
+from sukoon.jobs.store import FINISHED, RUNNING, STOPPED, WAITING, Store
 from sukoon.media.probe import Probe
 from sukoon.separation.models import Preset
 from sukoon.separation.worker import Worker
@@ -18,7 +18,6 @@ from sukoon.settings import Settings
 
 log = logging.getLogger("sukoon")
 
-WAITING = {"fetching", "checking", "queued", "waiting_model", "awaiting_track", "awaiting_confirm"}
 STALE_PART_S = 3600
 
 
@@ -82,7 +81,8 @@ class Runner:
         for folder in self.settings.area("work").iterdir():
             shutil.rmtree(folder, ignore_errors=True)
         cutoff = time.time() - STALE_PART_S
-        for area in ("uploads", "outputs", "models"):
+        # Not models: a model download resumes from its .part however long ago it stopped.
+        for area in ("uploads", "outputs"):
             for part in self.settings.area(area).rglob("*.part"):
                 if part.stat().st_mtime < cutoff:
                     part.unlink(missing_ok=True)

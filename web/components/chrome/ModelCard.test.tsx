@@ -16,6 +16,15 @@ describe('ModelCard', () => {
     expect(onDownload).toHaveBeenLastCalledWith('fast', true)
   })
 
+  it('says which choice is cleaner and which runs without a graphics card', () => {
+    render(<ModelCard best={model()} fast={fast} onDownload={() => {}} />)
+    expect(
+      screen.getByText(
+        'Best, 913 MB, gives the cleaner result, and is also faster on a graphics card. Fast, 67 MB, always runs on the processor, for computers without one.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('shows bytes and speed while downloading', () => {
     render(<ModelCard best={model({ downloading: true, done: 456_000_000, rate: 12_300_000 })} fast={fast} onDownload={() => {}} />)
     expect(screen.getByRole('status')).toHaveTextContent('456 MB of 913 MB at 12.3 MB/s')
