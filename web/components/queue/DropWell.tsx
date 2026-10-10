@@ -104,7 +104,7 @@ export function DropWell({ compact, dragging, onFiles, onLink, linkError = null 
         </div>
         {error}
         <p className={`small ${styles.sites}`}>
-          Links work from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud.
+          Links work from YouTube, X, Facebook, Reddit, and SoundCloud. Instagram, TikTok, and Vimeo often refuse.
         </p>
       </div>
       <EmptyStrip dragging={dragging} />

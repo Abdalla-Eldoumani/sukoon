@@ -2,8 +2,9 @@
 
 UPDATE = "uv lock --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs && uv sync"
 REFUSED = (
-    "sukoon takes links from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and "
-    "SoundCloud. For anything else, download the file and drop it here."
+    "sukoon takes links from YouTube, X, Facebook, Reddit, and SoundCloud. It also tries "
+    "Instagram, TikTok, and Vimeo, which often turn it away. For anything else, download "
+    "the file and drop it here."
 )
 PLAYLIST = "This link is a playlist or a channel. Paste the link of one video."
 LIVE = "This is a live stream. Paste the link again once it has ended."

@@ -17,7 +17,11 @@ describe('DropWell', () => {
     render(<DropWell compact={false} dragging={false} onFiles={() => {}} onLink={noLink} />)
     expect(screen.getByText('Voice kept')).toBeInTheDocument()
     expect(screen.getByText('Music removed')).toBeInTheDocument()
-    expect(screen.getByText(/Links work from YouTube, X, Instagram, TikTok/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Links work from YouTube, X, Facebook, Reddit, and SoundCloud\. Instagram, TikTok, and Vimeo often refuse\./,
+      ),
+    ).toBeInTheDocument()
   })
 
   it('says release, and inks the strip line, while files are over the window', () => {
