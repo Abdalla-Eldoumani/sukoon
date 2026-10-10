@@ -4,7 +4,7 @@ sukoon removes the music from audio and video files and keeps the voices: speech
 
 ## What it does
 
-- Keeps every human voice. Removes instruments and beats, and with them most other non-voice sound (ambience, effects, applause), because the models split voice from everything else.
+- Keeps every human voice. Removes instruments and beats, and with them most other non-voice sound (ambience, effects, applause), because the models split voice from everything else. Separation is not exact: a little music can stay in the voice, and a voice can lose some of its own sound, so play the result against the original before you rely on it.
 - Copies a video's picture untouched and puts the cleaned audio back in sync with it. Subtitles, chapters, other audio tracks, and metadata come along when the output format can hold them.
 - Keeps the input's format unless you pick another: MP3, M4A, WAV, FLAC, Opus, or OGG for audio, MP4, MKV, WebM, or MOV for video.
 - Shows each result as a strip, the voice kept above a line and the music removed below it, and lets you play the cleaned file and switch to the original at the same moment before you download.
@@ -77,11 +77,11 @@ If port 8417 is taken, the next free one up to 8427 is used and printed. Startin
 
 ## Links
 
-Paste a link into the field, or press Ctrl+V anywhere outside a text field. sukoon takes single videos from YouTube, X, Instagram, TikTok, Facebook, Reddit, Vimeo, and SoundCloud. It refuses playlists, channels, and live streams, and says why.
+Paste a link into the field, or press Ctrl+V anywhere outside a text field. sukoon takes single videos from YouTube, X, Facebook, Reddit, and SoundCloud, and tries Instagram, TikTok, and Vimeo. It refuses playlists, channels, and live streams, and says why.
 
 A link row shows where the file comes from and how much has arrived, then runs like a dropped file. Remove music is on by default; turn it off on the row to download only. Either way the file becomes MP4 (H.264 and AAC where offered), or M4A when it has no picture, unless you pick another format.
 
-sukoon never signs in to a site. As of October 2026, Vimeo and Instagram only give the sound to signed-in people, and TikTok refuses requests that don't come from a browser; those jobs fail with a sentence saying so. YouTube, X, Facebook, Reddit, and SoundCloud worked in testing.
+sukoon never signs in to a site. As of October 2026, Vimeo gives nothing to requests that aren't signed in, Instagram gives the picture without the sound, and TikTok refuses requests that don't come from a browser; those jobs fail with a sentence saying so. YouTube, X, Facebook, Reddit, and SoundCloud worked in testing.
 
 Sites change their pages every few weeks. When a job says the reader may be out of date, or `sukoon doctor` says yt-dlp is more than 60 days old, update it:
 
@@ -127,7 +127,7 @@ Set `SUKOON_HOME` to use another folder, for example on a bigger drive. Inside a
 - The server listens on `127.0.0.1` only, so other computers can't reach it, and it refuses requests from other websites.
 - There are no analytics or crash reports, and no fonts or scripts load from the internet.
 - Models download from the fixed addresses in `sukoon/separation/models.py`. Each file's size and SHA-256 are checked before it's used, and after that sukoon works offline.
-- A link is fetched from its site only when you paste it. sukoon sends no cookies, uses no account, reads no browser data, and loads no code from the internet (the YouTube solver is installed with the app). The downloaded file gets the same check as a dropped file before anything opens it. That check confirms it's real audio or video; it is not a virus scan.
+- A link is fetched from its site only when you paste it. sukoon sends no cookies, uses no account, and reads no browser data. For YouTube it downloads YouTube's own player script and runs it with the solver that ships with the app, in Node's permission sandbox, which has no file or network access. The downloaded file gets the same check as a dropped file before anything opens it. That check confirms it's real audio or video; it is not a virus scan.
 
 ## Troubleshooting
 
