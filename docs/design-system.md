@@ -99,7 +99,7 @@ Base unit 4px. Tokens: --s1 4px, --s2 8px, --s3 12px, --s4 16px, --s5 20px, --s6
 
 Nothing else is rounded. Borders are 1px: --edge for anything you can operate, --rule for dividers. Elevation is flat: surfaces separate by tone and hairlines, never by shadow. The settings sheet sits over a --scrim and has a 1px --rule border on its leading edge; it has no shadow.
 
-Focus: --focus (2px, 3px in High contrast) solid --ink, offset 2px, on every focusable element, keyboard focus only (`:focus-visible`).
+Focus: --focus (2px, 3px in High contrast) solid --ink, offset 2px, on every focusable element, keyboard focus only (`:focus-visible`). A file name's ring hugs the name and stands 1px off it, clear of the stage line under it.
 
 ## Motion
 
