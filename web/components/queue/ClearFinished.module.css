@@ -1,0 +1,11 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  color: var(--text-2);
+}
+
+.error {
+  color: var(--fault);
+}

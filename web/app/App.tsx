@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { getJson, postJson, putJson, request, type Health, type Settings } from '../lib/api/client'
 import styles from './App.module.css'
+import { ClearFinished } from '../components/queue/ClearFinished'
 import { DropWell } from '../components/queue/DropWell'
 import { LiveRegion } from '../components/chrome/LiveRegion'
 import { ReviewPanel } from '../components/review/ReviewPanel'
@@ -56,7 +57,6 @@ export function App() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [checking, setChecking] = useState(false)
-  const [clearing, setClearing] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState<string | null>(null)
 
@@ -187,7 +187,6 @@ export function App() {
   }
   const finished = server.jobs.filter((j) => ['done', 'failed', 'canceled', 'interrupted'].includes(j.state))
   const clearFinished = () => {
-    setClearing(false)
     setClearError(null)
     postJson('/api/library/clear').catch((e: Error) => setClearError(e.message))
   }
@@ -239,28 +238,7 @@ export function App() {
         {rows.length > 0 && (
           <div className={styles.intakeBar}>
             <DropWell compact dragging={dragging} onFiles={addFiles} onLink={addLink} linkError={linkError} />
-            {finished.length > 0 && (
-          <div className={styles.queueBar}>
-            {clearing ? (
-              <>
-                <span className="small">
-                  Clear {finished.length} finished {finished.length === 1 ? 'job' : 'jobs'} and their files?
-                </span>
-                <button type="button" className="btn-quiet btn-small" autoFocus onClick={clearFinished}>
-                  Clear
-                </button>
-                <button type="button" className="btn-quiet btn-small" onClick={() => setClearing(false)}>
-                  Keep
-                </button>
-              </>
-            ) : (
-              <button type="button" className="btn-quiet btn-small" onClick={() => setClearing(true)}>
-                Clear finished
-              </button>
-            )}
-            {clearError && <span className={`small ${styles.error}`}>{clearError}</span>}
-          </div>
-            )}
+            {finished.length > 0 && <ClearFinished count={finished.length} error={clearError} onClear={clearFinished} />}
           </div>
         )}
         {needsModel && best && fast && (
