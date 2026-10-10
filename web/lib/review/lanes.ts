@@ -7,7 +7,7 @@ export interface Peaks {
   removed: number[]
 }
 
-// ceiling: every finished row loads its peaks (about 60 KB) when the page opens; load them as rows
+// shortcut: every finished row loads its peaks (about 60 KB) when the page opens; load them as rows
 // scroll into view if queues of a few hundred finished jobs become normal.
 const cache = new Map<string, Promise<Peaks>>()
 

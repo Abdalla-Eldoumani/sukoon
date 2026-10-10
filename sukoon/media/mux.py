@@ -161,7 +161,7 @@ def mux_video(
         priming = None
         # Only AAC shows its priming as an earlier start. Matroska reports an Opus track's first
         # frame after taking off its codec delay, so that time is not the speech's time.
-        # ceiling: a re-encoded picture gets no trial, since that would encode it too; its
+        # shortcut: a re-encoded picture gets no trial, since that would encode it too; its
         # audio may start up to one priming length early. Revisit if that is noticed.
         if AUDIO_ENCODER[plan.container][0] == "aac" and not plan.reencode:
             # The first seconds show the priming as the whole file would, for a fraction of
