@@ -2,6 +2,7 @@ import hashlib
 import json
 import shutil
 import socket
+import subprocess
 import threading
 import time
 from collections import namedtuple
@@ -85,6 +86,21 @@ def test_bad_files_are_rejected_with_a_sentence_and_deleted(
     assert job["state"] == "failed"
     assert job["error"] == message
     assert job["retryable"] is False
+    assert not (settings.home / "uploads" / job["id"]).exists()
+
+
+def test_an_ffprobe_that_runs_out_of_time_fails_the_job_instead_of_sticking(
+    client, corpus, settings, monkeypatch
+):
+    def runs_out_of_time(cmd, **kwargs):
+        raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout", 0))
+
+    monkeypatch.setattr(subprocess, "run", runs_out_of_time)
+    r = upload(client, corpus / "short-2s.wav")
+    assert r.status_code == 201
+    job = r.json()
+    assert job["state"] == "failed"
+    assert job["error"] == UNREADABLE
     assert not (settings.home / "uploads" / job["id"]).exists()
 
 
