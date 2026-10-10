@@ -29,7 +29,7 @@ export function model(fields: Partial<ModelState> = {}): ModelState {
   return {
     preset: 'best',
     ready: false,
-    size: 913_107_844,
+    size: 913_136_111,
     downloading: false,
     done: 0,
     rate: 0,
