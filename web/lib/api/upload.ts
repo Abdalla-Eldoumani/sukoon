@@ -4,15 +4,10 @@ import type { Job } from './types'
 export class UploadError extends Error {}
 
 /** XMLHttpRequest rather than fetch, because only it reports upload progress in every browser. */
-export function uploadFile(
-  file: File,
-  onProgress: (fraction: number) => void,
-  params: Record<string, string> = {},
-): Promise<Job> {
+export function uploadFile(file: File, onProgress: (fraction: number) => void): Promise<Job> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    const query = new URLSearchParams(params).toString()
-    xhr.open('POST', `/api/jobs${query ? `?${query}` : ''}`)
+    xhr.open('POST', '/api/jobs')
     xhr.responseType = 'json'
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(e.loaded / e.total)
