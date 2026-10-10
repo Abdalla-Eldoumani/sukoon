@@ -212,14 +212,19 @@ def test_restart_interrupts_running_jobs_and_sweeps_leftovers(settings, web_dist
     os.utime(old_part, (time.time() - 7200, time.time() - 7200))
     fresh_part = settings.home / "models" / "other.onnx.part"
     fresh_part.write_bytes(b"x")
+    stale_upload = settings.home / "uploads" / lost["id"] / "upload.part"
+    stale_upload.parent.mkdir(parents=True, exist_ok=True)
+    stale_upload.write_bytes(b"x")
+    os.utime(stale_upload, (time.time() - 7200, time.time() - 7200))
 
     with TestClient(fake_app(settings, web_dist=web_dist), base_url=BASE) as client:
         after = client.get(f"/api/jobs/{job['id']}").json()
         half = client.get(f"/api/jobs/{lost['id']}").json()
         assert after["state"] == "interrupted"
         assert not scratch.exists()
-        assert not old_part.exists()
+        assert old_part.exists()  # a model download resumes from its part, however old
         assert fresh_part.exists()
+        assert not stale_upload.exists()
         assert half["state"] == "failed"
         assert half["retryable"] is False
         never_checked = client.get(f"/api/jobs/{unprobed['id']}").json()

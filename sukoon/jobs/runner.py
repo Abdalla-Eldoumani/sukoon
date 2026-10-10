@@ -82,7 +82,8 @@ class Runner:
         for folder in self.settings.area("work").iterdir():
             shutil.rmtree(folder, ignore_errors=True)
         cutoff = time.time() - STALE_PART_S
-        for area in ("uploads", "outputs", "models"):
+        # Not models: a model download resumes from its .part however long ago it stopped.
+        for area in ("uploads", "outputs"):
             for part in self.settings.area(area).rglob("*.part"):
                 if part.stat().st_mtime < cutoff:
                     part.unlink(missing_ok=True)
