@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from 'react'
+import { useRadioArrows } from '../../lib/hooks/use-radio-arrows'
 import styles from './Segmented.module.css'
 
 interface Props<T extends string> {
@@ -10,18 +10,13 @@ interface Props<T extends string> {
 
 /** A radio group drawn as one control; the arrow keys move the choice. */
 export function Segmented<T extends string>({ label, value, options, onChange }: Props<T>) {
-  const group = useRef<HTMLDivElement>(null)
-  const onKeyDown = (e: KeyboardEvent) => {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
-    if (!step) return
-    e.preventDefault()
-    const at = options.findIndex((o) => o.value === value)
-    const next = (at + step + options.length) % options.length
-    onChange(options[next].value)
-    group.current?.querySelectorAll<HTMLButtonElement>('[role=radio]')[next]?.focus()
-  }
+  const arrows = useRadioArrows(
+    options.length,
+    options.findIndex((o) => o.value === value),
+    (i) => onChange(options[i].value),
+  )
   return (
-    <div ref={group} className={styles.group} role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
+    <div className={styles.group} role="radiogroup" aria-label={label} {...arrows}>
       {options.map((o) => (
         <button
           key={o.value}

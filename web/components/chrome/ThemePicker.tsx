@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from 'react'
+import { useRadioArrows } from '../../lib/hooks/use-radio-arrows'
 import { THEMES, type Palette, type Theme } from '../../lib/theme/themes'
 import styles from './ThemePicker.module.css'
 
@@ -29,18 +29,13 @@ interface Props {
 
 /** Each theme as a swatch drawn in its own colours; a radio group, so the arrow keys move the choice. */
 export function ThemePicker({ value, onChange }: Props) {
-  const group = useRef<HTMLDivElement>(null)
-  const onKeyDown = (e: KeyboardEvent) => {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
-    if (!step) return
-    e.preventDefault()
-    const at = THEMES.findIndex((t) => t.id === value)
-    const next = (at + step + THEMES.length) % THEMES.length
-    onChange(THEMES[next].id)
-    group.current?.querySelectorAll<HTMLButtonElement>('[role=radio]')[next]?.focus()
-  }
+  const arrows = useRadioArrows(
+    THEMES.length,
+    THEMES.findIndex((t) => t.id === value),
+    (i) => onChange(THEMES[i].id),
+  )
   return (
-    <div ref={group} className={styles.grid} role="radiogroup" aria-label="Theme" onKeyDown={onKeyDown}>
+    <div className={styles.grid} role="radiogroup" aria-label="Theme" {...arrows}>
       {THEMES.map((t) => (
         <button
           key={t.id}
