@@ -1,3 +1,4 @@
+import { errorSentence } from './client'
 import type { Job } from './types'
 
 export class UploadError extends Error {}
@@ -18,7 +19,7 @@ export function uploadFile(
     }
     xhr.onload = () => {
       if (xhr.status === 201) resolve(xhr.response as Job)
-      else reject(new UploadError((xhr.response as { error?: string } | null)?.error ?? 'The upload failed.'))
+      else reject(new UploadError(errorSentence(xhr.response) ?? 'The upload failed.'))
     }
     xhr.onerror = () => reject(new UploadError('The upload was interrupted. Check that sukoon is still running.'))
     const form = new FormData()
