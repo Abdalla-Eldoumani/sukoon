@@ -10,6 +10,8 @@ export interface Settings {
   device: 'auto' | 'cpu'
   audio_format: string | null
   video_format: string | null
+  /** The output formats sukoon offers, in the order to list them. */
+  formats: { audio: string[]; video: string[] }
   /** Formats this ffmpeg cannot write, with the encoder each one needs. */
   missing: Record<string, string>
   folder: string

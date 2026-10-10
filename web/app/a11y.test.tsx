@@ -6,7 +6,7 @@ import { App } from './App'
 import { FakeEventSource, job, model } from '../test/fixtures'
 
 const health = { status: 'ok', version: '0.1.0', device: 'CPU', ffmpeg: { ok: true, install: '' } }
-const settings = { preset: 'best', device: 'auto', audio_format: null, video_format: null, missing: {}, folder: '/data' }
+const settings = { preset: 'best', device: 'auto', audio_format: null, video_format: null, formats: { audio: ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg'], video: ['mp4', 'mkv', 'webm', 'mov'] }, missing: {}, folder: '/data' }
 
 beforeEach(() => {
   vi.stubGlobal('EventSource', FakeEventSource)

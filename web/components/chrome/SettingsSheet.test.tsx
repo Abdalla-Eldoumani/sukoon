@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Settings } from '../../lib/api/client'
@@ -9,6 +9,7 @@ const settings: Settings = {
   device: 'auto',
   audio_format: null,
   video_format: null,
+  formats: { audio: ['mp3', 'm4a', 'wav', 'flac', 'opus', 'ogg'], video: ['mp4', 'mkv', 'webm', 'mov'] },
   missing: { opus: 'libopus' },
   folder: '/home/me/.local/share/sukoon',
 }
@@ -49,6 +50,21 @@ describe('SettingsSheet', () => {
     expect(onChange).toHaveBeenLastCalledWith({ audio_format: 'flac' })
     await userEvent.selectOptions(audio, 'Same as the file')
     expect(onChange).toHaveBeenLastCalledWith({ audio_format: null })
+  })
+
+  it('lists the formats the server sends, in its order', () => {
+    render(
+      <SettingsSheet
+        settings={{ ...settings, formats: { audio: ['wav', 'mp3'], video: ['mkv'] }, missing: {} }}
+        library={null}
+        onChange={() => {}}
+        onClearFinished={() => {}}
+        onClose={() => {}}
+      />,
+    )
+    const names = (label: string) => within(screen.getByRole('combobox', { name: label })).getAllByRole('option').map((o) => o.textContent)
+    expect(names('Audio files')).toEqual(['Same as the file', 'WAV', 'MP3'])
+    expect(names('Video files')).toEqual(['Same as the file', 'MKV'])
   })
 
   it('keeps the theme in the browser only', async () => {
