@@ -13,7 +13,18 @@ PLAYLIST = "This is a playlist, not a media file."
 NO_SOUND = "This video has no sound track, so there is nothing to clean."
 
 # Demuxers that open other files or network addresses.
-DENIED_FORMATS = {"hls", "concat", "sdp", "rtp", "rtsp", "tee", "image2", "image2pipe"}
+DENIED_FORMATS = {
+    "hls",
+    "concat",
+    "sdp",
+    "rtp",
+    "rtsp",
+    "tee",
+    "image2",
+    "image2pipe",
+    "dash",
+    "imf",
+}
 # Kept on disk only for these, so ffmpeg never sees a playlist extension it might act on.
 MEDIA_EXTS = {
     ".mp3",
@@ -41,6 +52,11 @@ MEDIA_EXTS = {
 }
 # Playlists are refused on sight, before ffprobe gets a chance to follow them.
 PLAYLIST_MAGIC = (b"#EXTM3U", b"ffconcat", b"v=0\r\n", b"v=0\n", b"[playlist]")
+# The dash demuxer fetches the addresses in a manifest while it is being probed, over http as
+# well, whatever the protocol whitelist says, so the format check after ffprobe is too late
+# for it. Its probe finds the markers anywhere in the first megabyte, so this looks that far.
+MANIFEST_SNIFF = 1 << 20
+MANIFEST_PROFILES = (b"dash:profile", b"3gpp:pss:profile:dash1")
 
 
 class Rejected(Exception):
@@ -243,6 +259,12 @@ def is_denied(format_name: str) -> bool:
     return bool(names & DENIED_FORMATS) or any(n.endswith("_pipe") for n in names)
 
 
+def is_manifest(head: bytes) -> bool:
+    """True for a DASH manifest, by the same markers ffmpeg's own probe looks for."""
+    low = head.lower()
+    return b"<mpd" in low and any(profile in low for profile in MANIFEST_PROFILES)
+
+
 def inspect(path: Path) -> Probe:
     """Reads a file's streams, refusing playlists and anything ffprobe can't read; raises Rejected.
 
@@ -251,8 +273,10 @@ def inspect(path: Path) -> Probe:
     if path.stat().st_size == 0:
         raise Rejected(UNREADABLE)
     with path.open("rb") as f:
-        head = f.read(64).lstrip(b"\xef\xbb\xbf \t\r\n")
-    if head.startswith(PLAYLIST_MAGIC):
+        sniffed = f.read(MANIFEST_SNIFF)
+    if sniffed[:64].lstrip(b"\xef\xbb\xbf \t\r\n").startswith(PLAYLIST_MAGIC):
+        raise Rejected(PLAYLIST)
+    if is_manifest(sniffed):
         raise Rejected(PLAYLIST)
     raw, guessed = run_ffprobe(path)
     if guessed and (seconds := counted_seconds(path)) > 0:
