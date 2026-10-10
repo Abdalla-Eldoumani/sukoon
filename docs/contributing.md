@@ -99,7 +99,7 @@ The interface tests run in jsdom with Testing Library; `app/a11y.test.tsx` runs 
 
 ## Pull requests
 
-- Branch off `integration` with a name that says what changes (`feat/theme-picker`, `fix/arabic-truncation`), and open the pull request into `integration`. `integration` goes to `main` in one pull request.
+- Branch off `main` with a name that says what changes (`feat/theme-picker`, `fix/arabic-truncation`), and open the pull request into `main`.
 - One file per commit, with a short lowercase message that says what changed in the code.
 - Keep changes small and covered by a test.
 - Keep the rule that nothing leaves the user's computer except the pinned model downloads and the links the user pastes.
